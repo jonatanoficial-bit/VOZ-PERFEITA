@@ -1,52 +1,31 @@
+// ===== INÍCIO app.js (PARTE 5 – PLACEMENT) — BLOCO 1/4 =====
 /* =========================================================
-   IMVpedia Voice — app.js (Parte 4/6) — FIX MOBILE + MINUTES
-   - Packs (tracks + library + missions)
-   - Daily missions engine (+ day-light auto)
-   - Vocal diary with history + notes
-   - Weekly challenges (simple)
-   - Badges (starter)
-   - FIX: bottom tabbar overlap (spacers)
-   - FIX: steps minutes scaled to match minutesPlanned
+   IMVpedia Voice — app.js (Parte 5/6)
+   TESTE DE CLASSIFICAÇÃO VOCAL (PLACEMENT)
+   ---------------------------------------------------------
+   - Fluxo guiado estilo Duolingo
+   - Questionário vocal seguro (sem áudio)
+   - Classificação automática (iniciante/intermediário/avançado)
+   - Recomenda trilha, intensidade e minutos
+   - Gera plano inicial de 14 dias
+   - Integra com perfil, missões e home
 ========================================================= */
 
 (() => {
   "use strict";
 
-  /* -----------------------------
-     Utils
-  ----------------------------- */
-  const $ = (sel, root = document) => root.querySelector(sel);
-  const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+  /* =============================
+     UTILIDADES BÁSICAS
+  ============================= */
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 
   const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
 
   const todayISO = () => {
     const d = new Date();
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${y}-${m}-${day}`;
+    return d.toISOString().slice(0, 10);
   };
-
-  function startOfWeekISO(dateISO) {
-    // Semana começando na segunda-feira
-    const d = new Date(dateISO + "T00:00:00");
-    const day = d.getDay(); // 0 dom, 1 seg...
-    const diff = (day === 0 ? -6 : 1 - day);
-    d.setDate(d.getDate() + diff);
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const da = String(d.getDate()).padStart(2, "0");
-    return `${y}-${m}-${da}`;
-  }
-
-  function safeJsonParse(str, fallback) {
-    try { return JSON.parse(str); } catch { return fallback; }
-  }
-
-  function uid() {
-    return Math.random().toString(16).slice(2) + Date.now().toString(16);
-  }
 
   function escapeHtml(str) {
     return String(str ?? "")
@@ -60,271 +39,519 @@
   function setHash(route, query = {}) {
     const base = route.startsWith("#/") ? route : `#/${route}`;
     const qs = new URLSearchParams(query).toString();
-    const full = qs ? `${base}?${qs}` : base;
-    if (location.hash !== full) location.hash = full;
+    location.hash = qs ? `${base}?${qs}` : base;
   }
 
   function getRouteAndQuery() {
-    const h = (location.hash || "#/home").trim();
+    const h = location.hash || "#/home";
     if (!h.startsWith("#/")) return { route: "home", query: {} };
     const [path, qs] = h.slice(2).split("?");
-    const route = (path || "home").trim();
-    const query = Object.fromEntries(new URLSearchParams(qs || ""));
-    return { route, query };
+    return {
+      route: path || "home",
+      query: Object.fromEntries(new URLSearchParams(qs || ""))
+    };
   }
 
-  // Spacer para não ficar nada atrás da tabbar no mobile
-  // (fallback robusto sem mexer no CSS)
   function bottomSpacer() {
-    return `<div style="height:98px"></div>`;
+    return `<div style="height:100px"></div>`;
   }
 
-  /* -----------------------------
-     Storage / State
-  ----------------------------- */
+  /* =============================
+     STORAGE / STATE
+  ============================= */
   const LS = {
-    STATE: "imv_voice_state_v3",
-    ADMIN: "imv_voice_admin_v1"
+    STATE: "imv_voice_state_v4"
   };
 
   const DEFAULT_STATE = {
-    meta: {
-      createdAt: new Date().toISOString(),
-      lastOpenAt: new Date().toISOString(),
-      appVersion: "1.0.0",
-      contentVersion: "packs-v1-missions"
-    },
     user: {
-      id: uid(),
       name: "",
       avatar: "🎤",
       goal: "Misto",
       levelSelf: "Iniciante",
-      minutesPerDay: 10
+      levelReal: null,
+      minutesPerDay: 10,
+      placementDone: false,
+      recommendedPath: null
     },
-    gamification: {
-      xp: 0,
-      level: 1,
-      streak: 0,
-      lastActiveDate: null,
-      freezeCount: 0,
-      badges: []
-    },
-    packs: {
-      activePackIds: ["base"],
-      seen: {}
-    },
-    progress: {
-      lastRoute: "home",
-      completedLessons: {},
-      continue: null,
-
-      // Missions
-      todayMission: null,           // { date, packId, templateId, minutesPlanned }
-      completedMissions: {},        // dateISO -> { at, packId, templateId, xp }
-      week: {
-        // key: weekStartISO -> { daysCompleted: number, diaryNotesCount: number, claimed: {challengeId: true}}
-      }
-    },
-    diary: {
-      lastCheckinDate: null,
-      lastStatus: null,
-      // entries: [{date,status,note}]
-      entries: []
-    },
-    settings: {
-      reduceMotion: false
-    }
-  };
-
-  const store = {
-    state: loadState(),
-    listeners: new Set(),
-    get() { return this.state; },
-    set(mutator) {
-      const next = structuredClone(this.state);
-      mutator(next);
-      this.state = next;
-      persistState(this.state);
-      this.listeners.forEach(fn => fn(this.state));
-    },
-    subscribe(fn) {
-      this.listeners.add(fn);
-      return () => this.listeners.delete(fn);
+    placement: {
+      answers: {},
+      score: 0,
+      result: null,
+      plan14: []
     }
   };
 
   function loadState() {
-    const raw = localStorage.getItem(LS.STATE);
-    if (!raw) return structuredClone(DEFAULT_STATE);
-    const parsed = safeJsonParse(raw, null);
-    if (!parsed || typeof parsed !== "object") return structuredClone(DEFAULT_STATE);
-    return deepMerge(structuredClone(DEFAULT_STATE), parsed);
-  }
-
-  function persistState(state) {
     try {
-      state.meta.lastOpenAt = new Date().toISOString();
-      localStorage.setItem(LS.STATE, JSON.stringify(state));
-    } catch {}
-  }
-
-  function deepMerge(target, source) {
-    if (!source || typeof source !== "object") return target;
-    for (const k of Object.keys(source)) {
-      const sv = source[k];
-      const tv = target[k];
-      if (Array.isArray(sv)) target[k] = sv.slice();
-      else if (sv && typeof sv === "object" && tv && typeof tv === "object" && !Array.isArray(tv)) {
-        target[k] = deepMerge(tv, sv);
-      } else target[k] = sv;
+      const raw = localStorage.getItem(LS.STATE);
+      if (!raw) return structuredClone(DEFAULT_STATE);
+      return { ...structuredClone(DEFAULT_STATE), ...JSON.parse(raw) };
+    } catch {
+      return structuredClone(DEFAULT_STATE);
     }
-    return target;
   }
 
-  /* -----------------------------
-     Gamification
-  ----------------------------- */
-  function computeLevelFromXP(xp) {
-    let level = 1;
-    while (xp >= 50 * level * (level - 1)) level++;
-    return Math.max(1, level - 1);
-  }
-
-  function ensureBadge(stateDraft, badgeId) {
-    if (!stateDraft.gamification.badges.includes(badgeId)) {
-      stateDraft.gamification.badges.push(badgeId);
-      return true;
+  const store = {
+    state: loadState(),
+    set(fn) {
+      const next = structuredClone(this.state);
+      fn(next);
+      this.state = next;
+      localStorage.setItem(LS.STATE, JSON.stringify(this.state));
+    },
+    get() {
+      return this.state;
     }
-    return false;
-  }
+  };
 
-  function addXP(amount, reason = "") {
-    const amt = Math.max(0, Math.floor(amount));
-    if (!amt) return;
+  /* =============================
+     PLACEMENT – QUESTIONÁRIO
+  ============================= */
 
-    store.set(s => {
-      s.gamification.xp += amt;
-      s.gamification.level = computeLevelFromXP(s.gamification.xp);
-      touchStreak(s);
-    });
-
-    toast(`+${amt} XP${reason ? ` • ${reason}` : ""}`);
-  }
-
-  function touchStreak(stateDraft) {
-    const today = todayISO();
-    const last = stateDraft.gamification.lastActiveDate;
-    if (last === today) return;
-
-    if (!last) {
-      stateDraft.gamification.streak = 1;
-      stateDraft.gamification.lastActiveDate = today;
-      return;
+  const PLACEMENT_QUESTIONS = [
+    {
+      id: "experience",
+      title: "Experiência vocal",
+      question: "Há quanto tempo você canta com alguma regularidade?",
+      options: [
+        { label: "Nunca estudei canto", score: 0 },
+        { label: "Menos de 1 ano", score: 1 },
+        { label: "1 a 3 anos", score: 2 },
+        { label: "Mais de 3 anos", score: 3 }
+      ]
+    },
+    {
+      id: "technique",
+      title: "Consciência técnica",
+      question: "Você já estudou técnica vocal formalmente?",
+      options: [
+        { label: "Nunca", score: 0 },
+        { label: "Pouco / vídeos soltos", score: 1 },
+        { label: "Com professor ou método", score: 2 },
+        { label: "Estudo contínuo e aplicado", score: 3 }
+      ]
+    },
+    {
+      id: "range",
+      title: "Extensão confortável",
+      question: "Sua voz se mantém confortável em notas médias e agudas?",
+      options: [
+        { label: "Não, forço ou evito", score: 0 },
+        { label: "Às vezes", score: 1 },
+        { label: "Sim, com controle", score: 2 },
+        { label: "Sim, com facilidade", score: 3 }
+      ]
+    },
+    {
+      id: "health",
+      title: "Saúde vocal",
+      question: "Com que frequência você sente rouquidão ou cansaço?",
+      options: [
+        { label: "Quase sempre", score: 0 },
+        { label: "Às vezes", score: 1 },
+        { label: "Raramente", score: 2 },
+        { label: "Quase nunca", score: 3 }
+      ]
+    },
+    {
+      id: "reading",
+      title: "Leitura / percepção",
+      question: "Você consegue repetir melodias ou ler cifras/partitura?",
+      options: [
+        { label: "Tenho muita dificuldade", score: 0 },
+        { label: "Consigo com ajuda", score: 1 },
+        { label: "Consigo bem", score: 2 },
+        { label: "Com facilidade", score: 3 }
+      ]
     }
+  ];
 
-    const lastD = new Date(last + "T00:00:00");
-    const todayD = new Date(today + "T00:00:00");
-    const diffDays = Math.round((todayD - lastD) / (1000 * 60 * 60 * 24));
-
-    if (diffDays === 1) stateDraft.gamification.streak += 1;
-    else if (diffDays > 1) stateDraft.gamification.streak = 1;
-
-    stateDraft.gamification.lastActiveDate = today;
-
-    if (stateDraft.gamification.streak >= 3) ensureBadge(stateDraft, "streak_3");
-    if (stateDraft.gamification.streak >= 7) ensureBadge(stateDraft, "streak_7");
+  function calculatePlacement(score) {
+    if (score <= 4) return "Iniciante";
+    if (score <= 9) return "Intermediário";
+    return "Avançado";
   }
 
-  /* -----------------------------
-     Toast
-  ----------------------------- */
-  let toastTimer = null;
+  function buildPlan14(level) {
+    const base = {
+      Iniciante: [
+        "Respiração funcional",
+        "SOVT leve",
+        "Afinação básica",
+        "Consciência corporal"
+      ],
+      Intermediário: [
+        "Coordenação ar-voz",
+        "Ressonância",
+        "Agilidade vocal",
+        "Aplicação musical"
+      ],
+      Avançado: [
+        "Eficiência vocal",
+        "Extensão e dinâmica",
+        "Estilo e interpretação",
+        "Manutenção vocal"
+      ]
+    };
 
-  function toast(message) {
-    const host = $("#toastHost");
-    if (!host) return;
-    host.innerHTML = `
-      <div class="toast" role="status" aria-label="Notificação">
-        <div class="toast__dot"></div>
-        <div class="toast__msg">${escapeHtml(message)}</div>
+    const themes = base[level] || base.Iniciante;
+    const plan = [];
+
+    for (let i = 0; i < 14; i++) {
+      plan.push({
+        day: i + 1,
+        focus: themes[i % themes.length],
+        intensity: i % 4 === 0 ? "leve" : "moderada"
+      });
+    }
+    return plan;
+  }
+
+  /* =============================
+     VIEWS – PLACEMENT
+  ============================= */
+
+  function viewPlacementIntro() {
+    return `
+      <div class="panel">
+        <div style="font-weight:900;font-size:18px;">Teste de Classificação Vocal</div>
+        <p style="color:rgba(233,236,246,.78);line-height:1.45;margin-top:10px;">
+          Este teste rápido ajuda o app a ajustar sua trilha, intensidade e missões.
+        </p>
+        <p style="color:rgba(233,236,246,.52);font-size:13px;">
+          Não é um teste de talento, e sim de ponto de partida.
+        </p>
+        <div style="height:16px"></div>
+        <button class="btn btnPrimary" data-action="startPlacement">Começar</button>
+      </div>
+      ${bottomSpacer()}
+    `;
+  }
+
+  function viewPlacementQuestion(qIndex) {
+    const q = PLACEMENT_QUESTIONS[qIndex];
+    if (!q) return "";
+
+    return `
+      <div class="panel">
+        <div style="font-size:12px;color:rgba(233,236,246,.52);">
+          Pergunta ${qIndex + 1} de ${PLACEMENT_QUESTIONS.length}
+        </div>
+        <div style="font-weight:900;font-size:17px;margin-top:6px;">
+          ${escapeHtml(q.title)}
+        </div>
+        <p style="color:rgba(233,236,246,.78);line-height:1.45;">
+          ${escapeHtml(q.question)}
+        </p>
+
+        <div style="margin-top:14px;display:grid;gap:10px;">
+          ${q.options.map((o, idx) => `
+            <button class="btn" data-action="answer"
+                    data-q="${qIndex}"
+                    data-score="${o.score}">
+              ${escapeHtml(o.label)}
+            </button>
+          `).join("")}
+        </div>
+      </div>
+      ${bottomSpacer()}
+    `;
+  }
+
+  // ===== FIM app.js (PARTE 5 – PLACEMENT) — BLOCO 1/4 =====
+// ===== INÍCIO app.js (PARTE 5 – PLACEMENT) — BLOCO 2/4 =====
+
+  function viewPlacementResult(result, score, plan14) {
+    const st = store.get();
+    const goal = st.user.goal || "Misto";
+
+    const tipsByLevel = {
+      Iniciante: [
+        "Priorize conforto e consistência (5–12 min/dia).",
+        "Use SOVT (lip trill/humming/canudo) para aquecer.",
+        "Evite volume alto: qualidade > força.",
+        "Se houver dor, pare e reduza carga."
+      ],
+      Intermediário: [
+        "Trabalhe transições de registro (leve, sem empurrar).",
+        "Inclua afinação aplicada (notas longas e ataques limpos).",
+        "Aumente repertório gradualmente (trechos curtos).",
+        "Mantenha 1–2 dias mais leves por semana."
+      ],
+      Avançado: [
+        "Otimize eficiência (menos esforço, mais resultado).",
+        "Trabalhe dinâmica e resistência sem apertar.",
+        "Refine estilo e interpretação com intenção clara.",
+        "Monitore sinais de fadiga e ajuste o treino."
+      ]
+    };
+
+    const rec = recommendTrack(goal, result);
+
+    return `
+      <div class="panel">
+        <div style="font-size:12px;color:rgba(233,236,246,.52);">Resultado do teste</div>
+        <div style="font-weight:950;font-size:22px;margin-top:6px;">
+          ${escapeHtml(result)}
+        </div>
+
+        <div style="height:10px"></div>
+
+        <div class="panel" style="background:rgba(255,255,255,.03);">
+          <div style="font-weight:900;">Recomendação</div>
+          <div style="height:8px"></div>
+          <div style="color:rgba(233,236,246,.78);line-height:1.45;">
+            Objetivo: <b>${escapeHtml(goal)}</b><br/>
+            Trilha sugerida: <b>${escapeHtml(rec.pathTitle)}</b><br/>
+            Intensidade padrão: <b>${escapeHtml(rec.intensity)}</b><br/>
+            Minutos sugeridos: <b>${escapeHtml(String(rec.minutes))} min/dia</b>
+          </div>
+        </div>
+
+        <div style="height:12px"></div>
+
+        <div class="panel">
+          <div style="font-weight:900;">Dicas rápidas</div>
+          <div style="height:8px"></div>
+          <div style="color:rgba(233,236,246,.78);line-height:1.5;">
+            ${(tipsByLevel[result] || tipsByLevel.Iniciante).map(t => `• ${escapeHtml(t)}`).join("<br/>")}
+          </div>
+        </div>
+
+        <div style="height:12px"></div>
+
+        <div class="panel">
+          <div style="font-weight:900;">Plano inicial (14 dias)</div>
+          <div style="color:rgba(233,236,246,.52);font-size:12px;margin-top:6px;">
+            Alterna dias leves e moderados para criar hábito e proteger a voz.
+          </div>
+          <div style="height:10px"></div>
+          <div style="display:grid;gap:8px;">
+            ${plan14.map(p => `
+              <div style="border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);padding:10px 12px;border-radius:14px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+                  <div style="font-weight:850;">Dia ${p.day}: ${escapeHtml(p.focus)}</div>
+                  <div style="color:rgba(233,236,246,.52);font-size:12px;">
+                    ${p.intensity === "leve" ? "Leve" : "Moderado"}
+                  </div>
+                </div>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+
+        <div style="height:14px"></div>
+
+        <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;">
+          <button class="btn" data-action="restartPlacement">Refazer</button>
+          <button class="btn btnPrimary" data-action="savePlacement">Salvar e continuar</button>
+        </div>
+      </div>
+      ${bottomSpacer()}
+    `;
+  }
+
+  function recommendTrack(goal, level) {
+    // Regras simples e coerentes; depois podemos refinar por packs.
+    // goal: Popular / Erudito / Coral / Misto
+    // level: Iniciante / Intermediário / Avançado
+
+    let minutes = 10;
+    let intensity = "moderada";
+
+    if (level === "Iniciante") { minutes = 10; intensity = "moderada"; }
+    if (level === "Intermediário") { minutes = 15; intensity = "moderada"; }
+    if (level === "Avançado") { minutes = 20; intensity = "moderada"; }
+
+    // Coral tende a exigir manutenção leve/regular para blend e precisão
+    if (goal === "Coral") { minutes = clamp(minutes, 8, 18); }
+
+    // Erudito: mais controle e consistência, mas sem exagerar de início
+    if (goal === "Erudito" && level === "Iniciante") { minutes = 12; }
+
+    // Popular: aplicação e resistência (quando intermediário/avançado)
+    if (goal === "Popular" && level === "Avançado") { minutes = 22; }
+
+    const pathTitle =
+      goal === "Popular" ? "Popular — Base e Estilo" :
+      goal === "Erudito" ? "Erudito — Técnica e Sustentação" :
+      goal === "Coral" ? "Coral — Blend, Afinação e Ritmo" :
+      "Misto — Fundamentos universais";
+
+    return { pathTitle, minutes, intensity };
+  }
+
+  function runPlacementAndBuildResult() {
+    const st = store.get();
+    const answers = st.placement.answers || {};
+    const score = Object.values(answers).reduce((acc, v) => acc + (Number(v) || 0), 0);
+    const result = calculatePlacement(score);
+    const plan14 = buildPlan14(result);
+    return { score, result, plan14 };
+  }
+
+// ===== FIM app.js (PARTE 5 – PLACEMENT) — BLOCO 2/4 =====
+// ===== INÍCIO app.js (PARTE 5 – PLACEMENT) — BLOCO 3/4 =====
+
+  /* =============================
+     UI BASE (sem depender do resto)
+     - Mantém seu visual atual (CSS do projeto)
+     - Cria uma Home simples com CTA do Placement
+  ============================= */
+
+  function viewHome() {
+    const st = store.get();
+    const name = st.user.name?.trim() || "Aluno";
+    const goal = st.user.goal || "Misto";
+    const done = !!st.user.placementDone;
+
+    const badge = done
+      ? `<span style="font-size:11px;color:rgba(233,236,246,.52);border:1px solid rgba(56,211,159,.25);padding:6px 10px;border-radius:999px;background:rgba(56,211,159,.06);">Placement feito</span>`
+      : `<span style="font-size:11px;color:rgba(233,236,246,.52);border:1px solid rgba(255,255,255,.10);padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.03);">Placement pendente</span>`;
+
+    const levelLine = done
+      ? `Nível real: <b>${escapeHtml(st.user.levelReal || "-")}</b> • Plano 14 dias pronto`
+      : `Faça o teste para liberar recomendação e plano inicial`;
+
+    return `
+      <div class="hero">
+        <div class="hero__kicker">Bem-vindo(a), ${escapeHtml(name)} • Objetivo: ${escapeHtml(goal)} ${badge}</div>
+        <div class="hero__title">IMVpedia Voice</div>
+        <p class="hero__desc">
+          Treino vocal guiado com missões e progressão. ${levelLine}.
+        </p>
+        <div class="hero__actions">
+          <button class="btn btnPrimary" data-action="goPlacement">${done ? "Ver/Refazer Placement" : "Fazer Placement"}</button>
+          <button class="btn" data-action="editProfile">Editar Perfil</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section__head">
+          <div>
+            <div class="section__title">Seu perfil</div>
+            <div class="section__sub">Configurações rápidas</div>
+          </div>
+        </div>
+
+        <div class="grid grid--2">
+          <div class="kpi">
+            <div>
+              <div class="kpi__label">Objetivo</div>
+              <div class="kpi__value" style="font-size:18px;">${escapeHtml(goal)}</div>
+            </div>
+            <div style="font-size:18px;">🎯</div>
+          </div>
+
+          <div class="kpi">
+            <div>
+              <div class="kpi__label">Minutos/dia</div>
+              <div class="kpi__value" style="font-size:18px;">${st.user.minutesPerDay || 10}</div>
+            </div>
+            <div style="font-size:18px;">⏱️</div>
+          </div>
+
+          <div class="kpi">
+            <div>
+              <div class="kpi__label">Nível (auto)</div>
+              <div class="kpi__value" style="font-size:18px;">${escapeHtml(st.user.levelReal || "—")}</div>
+            </div>
+            <div style="font-size:18px;">🏅</div>
+          </div>
+
+          <div class="kpi">
+            <div>
+              <div class="kpi__label">Placement</div>
+              <div class="kpi__value" style="font-size:18px;">${done ? "Concluído" : "Pendente"}</div>
+            </div>
+            <div style="font-size:18px;">🧪</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div style="font-weight:900;">Plano 14 dias</div>
+        <div style="color:rgba(233,236,246,.52);font-size:12px;margin-top:6px;">
+          ${(st.placement.plan14?.length ? "Gerado pelo placement." : "Faça o placement para gerar automaticamente.")}
+        </div>
+        <div style="height:10px"></div>
+
+        ${st.placement.plan14?.length ? `
+          <div style="display:grid;gap:8px;">
+            ${st.placement.plan14.slice(0, 6).map(p => `
+              <div style="border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);padding:10px 12px;border-radius:14px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+                  <div style="font-weight:850;">Dia ${p.day}: ${escapeHtml(p.focus)}</div>
+                  <div style="color:rgba(233,236,246,.52);font-size:12px;">${p.intensity === "leve" ? "Leve" : "Moderado"}</div>
+                </div>
+              </div>
+            `).join("")}
+          </div>
+          <div style="height:10px"></div>
+          <button class="btn" data-action="goPlacement">Ver plano completo</button>
+        ` : `
+          <button class="btn btnPrimary" data-action="goPlacement">Gerar plano (Placement)</button>
+        `}
+      </div>
+
+      ${bottomSpacer()}
+    `;
+  }
+
+  function openProfileEditor() {
+    const st = store.get();
+    const u = st.user;
+
+    const content = `
+      <label style="display:block;font-size:12px;color:rgba(233,236,246,.52);margin-bottom:6px;">Nome</label>
+      <input id="pfName" class="input" type="text" value="${escapeHtml(u.name || "")}" />
+
+      <div style="height:10px"></div>
+      <div class="grid grid--2">
+        <div>
+          <label style="display:block;font-size:12px;color:rgba(233,236,246,.52);margin-bottom:6px;">Objetivo</label>
+          <select id="pfGoal" class="input">
+            ${["Popular","Erudito","Coral","Misto"].map(x => `<option ${x===u.goal?"selected":""}>${x}</option>`).join("")}
+          </select>
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;color:rgba(233,236,246,.52);margin-bottom:6px;">Minutos/dia</label>
+          <input id="pfMin" class="input" type="number" min="5" max="60" step="5" value="${u.minutesPerDay || 10}" />
+        </div>
+      </div>
+
+      <div style="height:10px"></div>
+      <div style="color:rgba(233,236,246,.52);font-size:12px;line-height:1.35;">
+        Dica: depois do placement, o app sugere minutos ideais conforme seu nível.
       </div>
     `;
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { host.innerHTML = ""; }, 2400);
-  }
-
-  /* -----------------------------
-     PWA Install Prompt
-  ----------------------------- */
-  let deferredPrompt = null;
-  window.addEventListener("beforeinstallprompt", (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-    const btn = $("#btnInstall");
-    if (btn) btn.hidden = false;
-  });
-
-  async function promptInstall() {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice.catch(() => ({ outcome: "dismissed" }));
-    deferredPrompt = null;
-    const btn = $("#btnInstall");
-    if (btn) btn.hidden = true;
-    if (outcome === "accepted") toast("App instalado ✅");
-  }
-
-  /* -----------------------------
-     Admin Gate (placeholder)
-  ----------------------------- */
-  function isAdminEnabled() {
-    return localStorage.getItem(LS.ADMIN) === "1";
-  }
-  function setAdminEnabled(val) {
-    localStorage.setItem(LS.ADMIN, val ? "1" : "0");
-  }
-
-  function openAdminGate() {
-    const enabled = isAdminEnabled();
-    const title = enabled ? "Admin (ativo)" : "Entrar no Admin";
-    const body = enabled
-      ? `<p style="margin:0;color:rgba(233,236,246,.72);line-height:1.35">
-           Modo Admin está <b>ativo</b>. Na Parte 6 você terá editor/importador de packs.
-         </p>`
-      : `<p style="margin:0;color:rgba(233,236,246,.72);line-height:1.35">
-           Digite a senha do Admin. (Você pode trocar depois no código.)
-         </p>
-         <div style="height:10px"></div>
-         <input id="adminPass" class="input" type="password" placeholder="Senha do admin" />`;
 
     openModal({
-      title,
-      contentHtml: body,
-      primaryText: enabled ? "Desativar" : "Entrar",
-      secondaryText: "Fechar",
+      title: "Editar Perfil",
+      contentHtml: content,
+      primaryText: "Salvar",
+      secondaryText: "Cancelar",
       onPrimary: () => {
-        if (enabled) {
-          setAdminEnabled(false);
-          toast("Admin desativado");
-          closeModal();
-          rerender();
-          return;
-        }
-        const pass = ($("#adminPass")?.value || "").trim();
-        if (pass === "imvadmin") {
-          setAdminEnabled(true);
-          toast("Admin ativado ✅");
-          closeModal();
-          rerender();
-        } else toast("Senha incorreta");
+        const name = ($("#pfName")?.value || "").trim();
+        const goal = ($("#pfGoal")?.value || "Misto").trim();
+        const min = clamp(parseInt($("#pfMin")?.value || "10", 10) || 10, 5, 60);
+
+        store.set(s => {
+          s.user.name = name || "Aluno";
+          s.user.goal = goal;
+          s.user.minutesPerDay = min;
+        });
+
+        closeModal();
+        render();
       }
     });
   }
 
-  /* -----------------------------
-     Modal
-  ----------------------------- */
+  /* =============================
+     MODAL SIMPLES (mesma base)
+  ============================= */
   let modalEl = null;
 
   function openModal({ title, contentHtml, primaryText, secondaryText, onPrimary, onSecondary }) {
@@ -332,7 +559,7 @@
     modalEl = document.createElement("div");
     modalEl.style.position = "fixed";
     modalEl.style.inset = "0";
-    modalEl.style.zIndex = "120";
+    modalEl.style.zIndex = "200";
     modalEl.style.background = "rgba(0,0,0,.55)";
     modalEl.style.backdropFilter = "blur(10px)";
     modalEl.innerHTML = `
@@ -340,14 +567,14 @@
         <div style="border:1px solid rgba(255,255,255,.10);border-radius:18px;background:rgba(17,21,34,.92);box-shadow:0 18px 60px rgba(0,0,0,.55);overflow:hidden;">
           <div style="padding:14px 14px 10px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;justify-content:space-between;gap:10px;">
             <div style="font-weight:860;letter-spacing:.2px;">${escapeHtml(title || "")}</div>
-            <button id="modalClose" class="btn btn--ghost" type="button">✕</button>
+            <button id="mClose" class="btn btn--ghost" type="button">✕</button>
           </div>
           <div style="padding:14px;">
             ${contentHtml || ""}
             <div style="height:14px"></div>
             <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">
-              ${secondaryText ? `<button id="modalSecondary" class="btn" type="button">${escapeHtml(secondaryText)}</button>` : ""}
-              ${primaryText ? `<button id="modalPrimary" class="btn btnPrimary" type="button">${escapeHtml(primaryText)}</button>` : ""}
+              ${secondaryText ? `<button id="mSecondary" class="btn" type="button">${escapeHtml(secondaryText)}</button>` : ""}
+              ${primaryText ? `<button id="mPrimary" class="btn btnPrimary" type="button">${escapeHtml(primaryText)}</button>` : ""}
             </div>
           </div>
         </div>
@@ -355,1428 +582,202 @@
     `;
     document.body.appendChild(modalEl);
 
-    $("#modalClose", modalEl)?.addEventListener("click", () => {
-      onSecondary?.();
-      closeModal();
-    });
-    $("#modalSecondary", modalEl)?.addEventListener("click", () => {
-      onSecondary?.();
-      closeModal();
-    });
-    $("#modalPrimary", modalEl)?.addEventListener("click", () => onPrimary?.());
-    modalEl.addEventListener("click", (e) => {
-      if (e.target === modalEl) closeModal();
-    });
+    $("#mClose", modalEl)?.addEventListener("click", () => { onSecondary?.(); closeModal(); });
+    $("#mSecondary", modalEl)?.addEventListener("click", () => { onSecondary?.(); closeModal(); });
+    $("#mPrimary", modalEl)?.addEventListener("click", () => onPrimary?.());
+    modalEl.addEventListener("click", (e) => { if (e.target === modalEl) closeModal(); });
   }
 
   function closeModal() {
-    if (modalEl) {
-      modalEl.remove();
-      modalEl = null;
-    }
+    if (modalEl) { modalEl.remove(); modalEl = null; }
   }
 
-  /* -----------------------------
-     Onboarding / Profile
-  ----------------------------- */
-  function ensureProfileOrPrompt() {
-    const st = store.get();
-    if (st.user?.name?.trim()) return;
-
-    openModal({
-      title: "Criar Perfil",
-      contentHtml: `
-        <p style="margin:0;color:rgba(233,236,246,.72);line-height:1.35">
-          Configure seu perfil para personalizar missões e trilhas.
-        </p>
-        <div style="height:12px"></div>
-
-        <label style="display:block;font-size:12px;color:rgba(233,236,246,.52);margin-bottom:6px;">Nome</label>
-        <input id="pfName" class="input" type="text" placeholder="Ex.: Ana" />
-
-        <div style="height:10px"></div>
-        <div class="grid grid--2">
-          <div>
-            <label style="display:block;font-size:12px;color:rgba(233,236,246,.52);margin-bottom:6px;">Objetivo</label>
-            <select id="pfGoal" class="input">
-              <option>Popular</option>
-              <option>Erudito</option>
-              <option>Coral</option>
-              <option selected>Misto</option>
-            </select>
-          </div>
-          <div>
-            <label style="display:block;font-size:12px;color:rgba(233,236,246,.52);margin-bottom:6px;">Nível</label>
-            <select id="pfLevel" class="input">
-              <option selected>Iniciante</option>
-              <option>Intermediário</option>
-              <option>Avançado</option>
-            </select>
-          </div>
-        </div>
-
-        <div style="height:10px"></div>
-        <label style="display:block;font-size:12px;color:rgba(233,236,246,.52);margin-bottom:6px;">Minutos por dia</label>
-        <input id="pfMinutes" class="input" type="number" min="5" max="60" step="5" value="10" />
-      `,
-      primaryText: "Salvar",
-      secondaryText: "Depois",
-      onPrimary: () => {
-        const name = ($("#pfName")?.value || "").trim();
-        const goal = ($("#pfGoal")?.value || "Misto").trim();
-        const lvl = ($("#pfLevel")?.value || "Iniciante").trim();
-        const mins = clamp(parseInt($("#pfMinutes")?.value || "10", 10) || 10, 5, 60);
-
-        store.set(s => {
-          s.user.name = name || "Aluno";
-          s.user.goal = goal;
-          s.user.levelSelf = lvl;
-          s.user.minutesPerDay = mins;
-        });
-
-        addXP(30, "Perfil criado");
-        closeModal();
-        rerender();
-      }
-    });
-  }
-
-  function openProfileEditor() {
-    const st = store.get();
-    const u = st.user;
-
-    openModal({
-      title: "Editar Perfil",
-      contentHtml: `
-        <label style="display:block;font-size:12px;color:rgba(233,236,246,.52);margin-bottom:6px;">Nome</label>
-        <input id="epName" class="input" type="text" value="${escapeHtml(u.name || "")}" />
-
-        <div style="height:10px"></div>
-        <div class="grid grid--2">
-          <div>
-            <label style="display:block;font-size:12px;color:rgba(233,236,246,.52);margin-bottom:6px;">Objetivo</label>
-            <select id="epGoal" class="input">
-              ${["Popular","Erudito","Coral","Misto"].map(x => `<option ${x===u.goal?"selected":""}>${x}</option>`).join("")}
-            </select>
-          </div>
-          <div>
-            <label style="display:block;font-size:12px;color:rgba(233,236,246,.52);margin-bottom:6px;">Nível</label>
-            <select id="epLevel" class="input">
-              ${["Iniciante","Intermediário","Avançado"].map(x => `<option ${x===u.levelSelf?"selected":""}>${x}</option>`).join("")}
-            </select>
-          </div>
-        </div>
-
-        <div style="height:10px"></div>
-        <label style="display:block;font-size:12px;color:rgba(233,236,246,.52);margin-bottom:6px;">Minutos por dia</label>
-        <input id="epMinutes" class="input" type="number" min="5" max="60" step="5" value="${u.minutesPerDay || 10}" />
-      `,
-      primaryText: "Salvar",
-      secondaryText: "Cancelar",
-      onPrimary: () => {
-        const name = ($("#epName")?.value || "").trim();
-        const goal = ($("#epGoal")?.value || "Misto").trim();
-        const lvl = ($("#epLevel")?.value || "Iniciante").trim();
-        const mins = clamp(parseInt($("#epMinutes")?.value || "10", 10) || 10, 5, 60);
-
-        store.set(s => {
-          s.user.name = name || "Aluno";
-          s.user.goal = goal;
-          s.user.levelSelf = lvl;
-          s.user.minutesPerDay = mins;
-        });
-
-        toast("Perfil atualizado");
-        closeModal();
-        rerender();
-      }
-    });
-  }
-
-  /* -----------------------------
-     Markdown renderer (simple)
-  ----------------------------- */
-  function mdToHtml(md) {
-    const lines = String(md || "").replaceAll("\r\n", "\n").split("\n");
-    let html = "";
-    let inList = false;
-    let inQuote = false;
-
-    const closeList = () => { if (inList) { html += "</ul>"; inList = false; } };
-    const closeQuote = () => { if (inQuote) { html += "</blockquote>"; inQuote = false; } };
-
-    for (let raw of lines) {
-      const line = raw.trimEnd();
-
-      if (!line.trim()) {
-        closeList(); closeQuote();
-        html += "<div style='height:10px'></div>";
-        continue;
-      }
-
-      if (line.trim().startsWith(">")) {
-        closeList();
-        if (!inQuote) {
-          html += "<blockquote style='margin:0;padding:10px 12px;border-left:3px solid rgba(124,92,255,.65);background:rgba(255,255,255,.03);border-radius:14px;color:rgba(233,236,246,.78);line-height:1.45;'>";
-          inQuote = true;
-        }
-        html += `<div>${inlineMd(line.replace(/^>\s?/, ""))}</div>`;
-        continue;
-      } else closeQuote();
-
-      if (line.startsWith("### ")) { closeList(); html += `<h3 style="margin:0;font-size:14px;font-weight:860;letter-spacing:.2px;">${inlineMd(line.slice(4))}</h3>`; continue; }
-      if (line.startsWith("## ")) { closeList(); html += `<h2 style="margin:0;font-size:16px;font-weight:900;letter-spacing:.2px;">${inlineMd(line.slice(3))}</h2>`; continue; }
-      if (line.startsWith("# "))  { closeList(); html += `<h1 style="margin:0;font-size:20px;font-weight:950;letter-spacing:.2px;">${inlineMd(line.slice(2))}</h1>`; continue; }
-
-      if (line.startsWith("- ") || line.startsWith("* ")) {
-        if (!inList) {
-          html += "<ul style='margin:0 0 0 18px;padding:0;color:rgba(233,236,246,.78);line-height:1.5;'>";
-          inList = true;
-        }
-        html += `<li>${inlineMd(line.slice(2))}</li>`;
-        continue;
-      }
-
-      if (/^\d+\)\s/.test(line) || /^\d+\.\s/.test(line)) {
-        closeList();
-        html += `<div style="color:rgba(233,236,246,.78);line-height:1.5;">${inlineMd(line)}</div>`;
-        continue;
-      }
-
-      closeList();
-      html += `<p style="margin:0;color:rgba(233,236,246,.78);line-height:1.55;">${inlineMd(line)}</p>`;
-    }
-
-    closeList(); closeQuote();
-    return html;
-  }
-
-  function inlineMd(text) {
-    let s = escapeHtml(text);
-    s = s.replace(/`([^`]+)`/g, (_, a) => `<code style="color:rgba(233,236,246,.78);background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.10);padding:2px 6px;border-radius:10px;">${a}</code>`);
-    s = s.replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
-    s = s.replace(/\*([^*]+)\*/g, "<i>$1</i>");
-    s = s.replace(/\[ \]/g, "☐");
-    s = s.replace(/\[x\]/gi, "☑");
-    return s;
-  }
-
-  /* -----------------------------
-     Pack System
-  ----------------------------- */
-  const packCache = {
-    index: null,
-    manifests: new Map(),
-    missions: new Map(),
-    textCache: new Map()
-  };
-
-  async function loadPacksIndex() {
-    if (packCache.index) return packCache.index;
-    const res = await fetch("./packs/index.json", { cache: "no-cache" });
-    if (!res.ok) throw new Error("Falha ao carregar packs/index.json");
-    const data = await res.json();
-    packCache.index = data;
-    return data;
-  }
-
-  async function loadPackManifest(packId) {
-    if (packCache.manifests.has(packId)) return packCache.manifests.get(packId);
-    await loadPacksIndex();
-    const res = await fetch(`./packs/${packId}/manifest.json`, { cache: "no-cache" });
-    if (!res.ok) throw new Error(`Falha ao carregar manifest do pack: ${packId}`);
-    const manifest = await res.json();
-    packCache.manifests.set(packId, manifest);
-    return manifest;
-  }
-
-  async function loadPackMissions(packId) {
-    if (packCache.missions.has(packId)) return packCache.missions.get(packId);
-    const mf = await loadPackManifest(packId);
-    const file = mf.missions?.file;
-    if (!file) {
-      const empty = { dailyTemplates: [], weeklyChallenges: [] };
-      packCache.missions.set(packId, empty);
-      return empty;
-    }
-    const url = `./packs/${packId}/${file.replace("./", "")}`;
-    const res = await fetch(url, { cache: "no-cache" });
-    if (!res.ok) throw new Error(`Falha ao carregar missions do pack: ${packId}`);
-    const data = await res.json();
-    packCache.missions.set(packId, data);
-    return data;
-  }
-
-  async function fetchTextCached(url) {
-    if (packCache.textCache.has(url)) return packCache.textCache.get(url);
-    const res = await fetch(url, { cache: "no-cache" });
-    if (!res.ok) throw new Error(`Falha ao carregar: ${url}`);
-    const text = await res.text();
-    packCache.textCache.set(url, text);
-    return text;
-  }
-
-  async function getActiveManifests() {
-    const st = store.get();
-    const ids = st.packs.activePackIds || [];
-    const manifests = [];
-    for (const id of ids) {
-      try {
-        const mf = await loadPackManifest(id);
-        manifests.push(mf);
-      } catch (e) {
-        console.warn(e);
-      }
-    }
-    return manifests;
-  }
-
-  /* -----------------------------
-     Progress helpers (lessons)
-  ----------------------------- */
-  function lessonKey(packId, lessonId) {
-    return `${packId}:${lessonId}`;
-  }
-
-  function markLessonCompleted(packId, lessonId) {
-    store.set(s => {
-      s.progress.completedLessons[lessonKey(packId, lessonId)] = { at: new Date().toISOString() };
-      s.progress.continue = { packId, lessonId };
-    });
-  }
-
-  function isLessonCompleted(st, packId, lessonId) {
-    return Boolean(st.progress.completedLessons[lessonKey(packId, lessonId)]);
-  }
-
-  function findLessonInManifest(manifest, lessonId) {
-    for (const track of (manifest.tracks || [])) {
-      for (const unit of (track.units || [])) {
-        const lesson = (unit.lessons || []).find(l => l.id === lessonId);
-        if (lesson) return { track, unit, lesson };
-      }
-    }
-    return null;
-  }
-
-  /* -----------------------------
-     Missions Engine (daily + weekly)
-  ----------------------------- */
-  function computeDailyXP(intensity, minutesPlanned) {
-    const base = intensity === "leve" ? 25 : 40;
-    const bonus = clamp(Math.round((minutesPlanned - 10) * 1.2), 0, 25);
-    return base + bonus;
-  }
-
-  function chooseTemplate(templates, status, minutesPerDay) {
-    const mins = clamp(minutesPerDay || 10, 5, 60);
-    const safeTemplates = Array.isArray(templates) && templates.length ? templates : [];
-
-    // dor/rouquidão => leve
-    if (status === "pain" || status === "hoarse") {
-      const light = safeTemplates.find(t => t.id === "daily_sovt_light")
-        || safeTemplates.find(t => t.intensity === "leve")
-        || safeTemplates[0];
-      return {
-        template: light || null,
-        minutesPlanned: clamp(mins, light?.minMinutes || 5, light?.maxMinutes || 15)
-      };
-    }
-
-    // cansado => leve/moderada mais curta
-    if (status === "tired") {
-      const candidates = safeTemplates.filter(t => (t.intensity === "leve" || t.intensity === "moderada"));
-      const pick = candidates[Math.floor(Math.random() * Math.max(1, candidates.length))] || safeTemplates[0];
-      return {
-        template: pick || null,
-        minutesPlanned: clamp(Math.min(mins, 12), pick?.minMinutes || 5, pick?.maxMinutes || 20)
-      };
-    }
-
-    // normal => moderada
-    const moderate = safeTemplates.filter(t => t.intensity === "moderada");
-    const pick = moderate[Math.floor(Math.random() * Math.max(1, moderate.length))] || safeTemplates[0];
-    return {
-      template: pick || null,
-      minutesPlanned: clamp(mins, pick?.minMinutes || 8, pick?.maxMinutes || 25)
-    };
-  }
-
-  async function getTodayMission() {
-    const st = store.get();
-    const date = todayISO();
-
-    if (st.progress.todayMission?.date === date) return st.progress.todayMission;
-
-    const packId = (st.packs.activePackIds || ["base"])[0] || "base";
-    const missions = await loadPackMissions(packId);
-
-    const status = st.diary.lastCheckinDate === date ? st.diary.lastStatus : null;
-    const { template, minutesPlanned } = chooseTemplate(missions.dailyTemplates || [], status, st.user.minutesPerDay);
-
-    const tm = {
-      date,
-      packId,
-      templateId: template?.id || "daily_sovt_light",
-      minutesPlanned
-    };
-
-    store.set(s => { s.progress.todayMission = tm; });
-    return tm;
-  }
-
-  async function resolveMissionTemplate(packId, templateId) {
-    const missions = await loadPackMissions(packId);
-    return (missions.dailyTemplates || []).find(t => t.id === templateId) || null;
-  }
-
-  function isDailyCompleted(dateISO) {
-    const st = store.get();
-    return Boolean(st.progress.completedMissions?.[dateISO]);
-  }
-
-  function updateWeeklyProgressOnDailyComplete(dateISO, hadDiaryNote) {
-    const weekStart = startOfWeekISO(dateISO);
-
-    store.set(s => {
-      if (!s.progress.week[weekStart]) {
-        s.progress.week[weekStart] = { daysCompleted: 0, diaryNotesCount: 0, claimed: {} };
-      }
-      s.progress.week[weekStart].daysCompleted += 1;
-      if (hadDiaryNote) s.progress.week[weekStart].diaryNotesCount += 1;
-    });
-  }
-
-  function canClaimWeekly(challengeId) {
-    const st = store.get();
-    const weekStart = startOfWeekISO(todayISO());
-    const w = st.progress.week[weekStart] || { daysCompleted: 0, diaryNotesCount: 0, claimed: {} };
-
-    if (challengeId === "weekly_consistency_4") return w.daysCompleted >= 4 && !w.claimed?.[challengeId];
-    if (challengeId === "weekly_record_2") return w.diaryNotesCount >= 2 && !w.claimed?.[challengeId];
-    return false;
-  }
-
-  async function claimWeekly(challengeId) {
-    const st = store.get();
-    const weekStart = startOfWeekISO(todayISO());
-    const packId = (st.packs.activePackIds || ["base"])[0] || "base";
-    const missions = await loadPackMissions(packId);
-    const ch = (missions.weeklyChallenges || []).find(x => x.id === challengeId);
-    if (!ch) return toast("Desafio não encontrado");
-
-    if (!canClaimWeekly(challengeId)) return toast("Ainda não atingiu a meta");
-
-    store.set(s => {
-      if (!s.progress.week[weekStart]) s.progress.week[weekStart] = { daysCompleted: 0, diaryNotesCount: 0, claimed: {} };
-      s.progress.week[weekStart].claimed[challengeId] = true;
-    });
-
-    addXP(ch.rewardXP || 80, "Desafio semanal");
-    toast("Recompensa semanal coletada ✅");
-  }
-
-  async function completeTodayMission() {
-    const tm = await getTodayMission();
-    const st = store.get();
-    const date = tm.date;
-
-    if (st.progress.completedMissions?.[date]) {
-      toast("Missão do dia já concluída");
-      return;
-    }
-
-    const template = await resolveMissionTemplate(tm.packId, tm.templateId);
-    const intensity = template?.intensity || "moderada";
-    const xp = computeDailyXP(intensity, tm.minutesPlanned);
-
-    const todayEntry = (st.diary.entries || []).find(e => e.date === date);
-    const hadDiaryNote = Boolean(todayEntry?.note?.trim());
-
-    store.set(s => {
-      if (!s.progress.completedMissions) s.progress.completedMissions = {};
-      s.progress.completedMissions[date] = { at: new Date().toISOString(), packId: tm.packId, templateId: tm.templateId, xp };
-      touchStreak(s);
-      ensureBadge(s, "first_mission");
-      if (s.gamification.streak >= 7) ensureBadge(s, "streak_7");
-    });
-
-    updateWeeklyProgressOnDailyComplete(date, hadDiaryNote);
-    addXP(xp, "Missão do dia");
-    toast("Missão concluída ✅");
-  }
-
-  // FIX: ajustar minutos de passos para bater com minutesPlanned
-  function scaleStepsToPlanned(steps, minutesPlanned) {
-    const arr = Array.isArray(steps) ? steps : [];
-    const planned = Math.max(1, Math.floor(minutesPlanned || 10));
-    const rawSum = arr.reduce((acc, s) => acc + (Number(s.minutes) || 0), 0);
-
-    if (!arr.length) return { steps: [], total: 0, planned };
-
-    // Se não tem soma válida, distribui igualmente
-    if (!rawSum || rawSum <= 0) {
-      const each = Math.max(1, Math.round(planned / arr.length));
-      const scaled = arr.map(s => ({ ...s, _scaledMinutes: each }));
-      const total = scaled.reduce((a, s) => a + s._scaledMinutes, 0);
-      return { steps: scaled, total, planned };
-    }
-
-    // escala proporcional
-    const ratio = planned / rawSum;
-    let scaled = arr.map(s => {
-      const base = Number(s.minutes) || 0;
-      const m = Math.max(1, Math.round(base * ratio));
-      return { ...s, _scaledMinutes: m };
-    });
-
-    // Ajuste final para fechar exatamente planned
-    let total = scaled.reduce((a, s) => a + s._scaledMinutes, 0);
-    let diff = planned - total;
-
-    // Ajusta diff distribuindo
-    let idx = 0;
-    while (diff !== 0 && idx < 2000) {
-      const i = idx % scaled.length;
-      if (diff > 0) {
-        scaled[i]._scaledMinutes += 1;
-        diff -= 1;
-      } else {
-        // não deixar menor que 1
-        if (scaled[i]._scaledMinutes > 1) {
-          scaled[i]._scaledMinutes -= 1;
-          diff += 1;
-        }
-      }
-      idx++;
-    }
-
-    total = scaled.reduce((a, s) => a + s._scaledMinutes, 0);
-    return { steps: scaled, total, planned };
-  }
-
-  /* -----------------------------
-     Diary
-  ----------------------------- */
-  function addDiaryEntry(status, note = "") {
-    const date = todayISO();
-    store.set(s => {
-      s.diary.lastCheckinDate = date;
-      s.diary.lastStatus = status;
-
-      const idx = (s.diary.entries || []).findIndex(e => e.date === date);
-      const entry = { date, status, note: note || "" };
-      if (idx >= 0) s.diary.entries[idx] = entry;
-      else s.diary.entries.unshift(entry);
-
-      s.diary.entries = (s.diary.entries || []).slice(0, 60);
-    });
-  }
-
-  function openDiaryNoteModal(status) {
-    const label = statusLabel(status);
-    openModal({
-      title: `Check-in: ${label}`,
-      contentHtml: `
-        <p style="margin:0;color:rgba(233,236,246,.78);line-height:1.45">
-          Escreva uma nota rápida (opcional): como a voz respondeu hoje?
-        </p>
-        <div style="height:10px"></div>
-        <textarea id="diaryNote" class="input" rows="4" placeholder="Ex.: hoje a voz estava leve, mas cansei após 10 min…"></textarea>
-        <div style="height:8px"></div>
-        <div style="color:rgba(233,236,246,.52);font-size:12px;line-height:1.35">
-          Se houver <b>dor</b> ou <b>rouquidão</b>, o app vai sugerir “Dia Leve”.
-        </div>
-      `,
-      primaryText: "Salvar",
-      secondaryText: "Cancelar",
-      onPrimary: () => {
-        const note = ($("#diaryNote")?.value || "").trim();
-        addDiaryEntry(status, note);
-        closeModal();
-        toast("Check-in salvo");
-        // força recalcular missão do dia (pode trocar pra “Dia leve”)
-        store.set(s => { s.progress.todayMission = null; });
-        rerender();
-      }
-    });
-  }
-
-  function statusLabel(s) {
-    const map = { ok: "Sem desconforto", tired: "Cansado", hoarse: "Rouquidão", pain: "Dor" };
-    return map[s] || s || "—";
-  }
-
-  /* -----------------------------
-     Views (UI)
-  ----------------------------- */
-  function renderKpis(st) {
-    return `
-      <div class="section">
-        <div class="section__head">
-          <div>
-            <div class="section__title">Seu progresso</div>
-            <div class="section__sub">XP, nível e consistência</div>
-          </div>
-        </div>
-
-        <div class="grid grid--2">
-          <div class="kpi">
-            <div>
-              <div class="kpi__label">Nível</div>
-              <div class="kpi__value">${st.gamification.level}</div>
-            </div>
-            <div style="font-size:18px;">🏅</div>
-          </div>
-
-          <div class="kpi">
-            <div>
-              <div class="kpi__label">XP total</div>
-              <div class="kpi__value">${st.gamification.xp}</div>
-            </div>
-            <div style="font-size:18px;">✨</div>
-          </div>
-
-          <div class="kpi">
-            <div>
-              <div class="kpi__label">Streak</div>
-              <div class="kpi__value">${st.gamification.streak} dia(s)</div>
-            </div>
-            <div style="font-size:18px;">🔥</div>
-          </div>
-
-          <div class="kpi">
-            <div>
-              <div class="kpi__label">Hoje</div>
-              <div class="kpi__value">${todayISO()}</div>
-            </div>
-            <div style="font-size:18px;">📅</div>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  function renderSection(title, subtitle, items) {
-    return `
-      <section class="section">
-        <div class="section__head">
-          <div>
-            <div class="section__title">${escapeHtml(title)}</div>
-            <div class="section__sub">${escapeHtml(subtitle)}</div>
-          </div>
-        </div>
-        <div class="row">
-          ${items.map(renderCard).join("")}
-        </div>
-      </section>
-    `;
-  }
-
-  function renderCard(it) {
-    return `
-      <div class="card" role="button" tabindex="0"
-           data-route="${escapeHtml(it.route)}"
-           data-pack="${escapeHtml(it.packId || "")}"
-           data-lesson="${escapeHtml(it.lessonId || "")}"
-           data-article="${escapeHtml(it.articleId || "")}">
-        <div class="card__body">
-          <div class="card__title">${escapeHtml(it.title)}</div>
-          <div class="card__meta">${escapeHtml(it.meta || "")}</div>
-        </div>
-      </div>
-    `;
-  }
-
-  async function viewHome() {
-    const st = store.get();
-    const name = st.user?.name?.trim() || "Aluno";
-    const goal = st.user?.goal || "Misto";
-    const minutes = st.user?.minutesPerDay || 10;
-
-    const tm = await getTodayMission();
-    const template = await resolveMissionTemplate(tm.packId, tm.templateId);
-
-    const status = (st.diary.lastCheckinDate === todayISO()) ? st.diary.lastStatus : null;
-    const statusTxt = status ? `• Check-in: ${statusLabel(status)}` : "• Sem check-in hoje";
-
-    const missionTitle = template?.title || "Missão do dia";
-    const missionMeta = `${tm.minutesPlanned} min • ${template?.intensity || "moderada"} ${statusTxt}`;
-
-    const manifests = await getActiveManifests();
-    const base = manifests[0];
-
-    const continueCard = (() => {
-      const c = st.progress.continue;
-      if (!c) return null;
-      const mf = manifests.find(m => m.id === c.packId);
-      if (!mf) return null;
-      const found = findLessonInManifest(mf, c.lessonId);
-      if (!found) return null;
-      return {
-        title: `Continue: ${found.lesson.title}`,
-        meta: `${found.unit.title} • ${found.lesson.minutes} min`,
-        route: "lesson",
-        packId: mf.id,
-        lessonId: found.lesson.id
-      };
-    })();
-
-    const recommended = base
-      ? base.tracks.flatMap(t => t.units.flatMap(u => u.lessons.slice(0, 1).map(ls => ({
-          title: ls.title,
-          meta: `${t.title} • ${ls.minutes} min`,
-          route: "lesson",
-          packId: base.id,
-          lessonId: ls.id
-        }))))
-      : [];
-
-    const quick = [
-      { title: missionTitle, meta: missionMeta, route: "missions" },
-      { title: "Trilha", meta: "Capítulos e lições", route: "path" },
-      { title: "Biblioteca", meta: "Artigos e fundamentos", route: "library" }
-    ];
-
-    const adminBadge = isAdminEnabled()
-      ? `<span style="font-size:11px;color:rgba(233,236,246,.52);border:1px solid rgba(255,255,255,.10);padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.03);">Admin</span>`
-      : "";
-
-    const rows = [];
-    if (continueCard) rows.push(renderSection("Continue", "Retome de onde parou", [continueCard]));
-    rows.push(renderSection("Hoje", "Sua missão e atalhos", quick));
-    rows.push(renderSection("Recomendado", "Comece por aqui", recommended.slice(0, 10)));
-
-    return `
-      <div class="hero">
-        <div class="hero__kicker">Bem-vindo(a), ${escapeHtml(name)} • Objetivo: ${escapeHtml(goal)} ${adminBadge}</div>
-        <div class="hero__title">Treino vocal com segurança — e hábito diário</div>
-        <p class="hero__desc">
-          Missões se adaptam ao seu check-in. Se houver <b>dor</b> ou <b>rouquidão</b>, o app sugere automaticamente um <b>Dia Leve</b>.
-        </p>
-        <div class="hero__actions">
-          <button class="btn btnPrimary" data-action="goMissions">Missão de hoje</button>
-          <button class="btn" data-action="openProfile">Editar perfil</button>
-          <button class="btn" data-action="openAdmin">Admin</button>
-        </div>
-      </div>
-
-      ${renderKpis(st)}
-      ${rows.join("")}
-      ${bottomSpacer()}
-    `;
-  }
-
-  async function viewPath() {
-    const manifests = await getActiveManifests();
-    const st = store.get();
-    const goal = st.user?.goal || "Misto";
-
-    const blocks = manifests.flatMap(mf => (mf.tracks || []).map(track => {
-      const unitHtml = (track.units || []).map(unit => {
-        const lessonsHtml = (unit.lessons || []).map(lesson => {
-          const done = isLessonCompleted(st, mf.id, lesson.id);
-          const badge = done
-            ? `<span style="font-size:11px;color:rgba(233,236,246,.52);border:1px solid rgba(56,211,159,.25);padding:5px 10px;border-radius:999px;background:rgba(56,211,159,.06);">Concluída</span>`
-            : `<span style="font-size:11px;color:rgba(233,236,246,.52);border:1px solid rgba(255,255,255,.10);padding:5px 10px;border-radius:999px;background:rgba(255,255,255,.03);">Nova</span>`;
-
-          return `
-            <div class="panel" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
-              <div>
-                <div style="font-weight:860;">${escapeHtml(lesson.title)}</div>
-                <div style="color:rgba(233,236,246,.52);font-size:12px;margin-top:6px;">
-                  ${escapeHtml(unit.title)} • ${lesson.minutes} min
-                </div>
-              </div>
-              <div style="display:flex;align-items:center;gap:10px;">
-                ${badge}
-                <button class="btn btnPrimary" data-action="openLesson" data-pack="${escapeHtml(mf.id)}" data-lesson="${escapeHtml(lesson.id)}">Abrir</button>
-              </div>
-            </div>
-          `;
-        }).join("<div style='height:10px'></div>");
-
-        return `
-          <div class="panel" style="background:rgba(255,255,255,.03);">
-            <div style="font-weight:900;">${escapeHtml(unit.title)}</div>
-            <div style="color:rgba(233,236,246,.52);font-size:12px;margin-top:6px;">${escapeHtml(unit.subtitle || "")}</div>
-            <div style="height:12px"></div>
-            ${lessonsHtml}
-          </div>
-        `;
-      }).join("<div style='height:12px'></div>");
-
-      return `
-        <div class="panel">
-          <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:10px;">
-            <div>
-              <div style="font-weight:950;font-size:16px;">${escapeHtml(track.title)}</div>
-              <div style="color:rgba(233,236,246,.52);font-size:12px;margin-top:6px;">
-                ${escapeHtml(track.subtitle || "")} • ${escapeHtml(track.levelRange || "")}
-              </div>
-            </div>
-            <div style="color:rgba(233,236,246,.52);font-size:12px;">Objetivo: <b>${escapeHtml(goal)}</b></div>
-          </div>
-          <hr class="sep" />
-          ${unitHtml}
-        </div>
-      `;
-    }));
-
-    return `
-      <div class="panel">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
-          <div>
-            <div style="font-weight:900;font-size:16px;">Trilha</div>
-            <div style="color:rgba(233,236,246,.52);font-size:12px;margin-top:4px;">
-              Trilhas carregadas por Packs (DLC). Você expande conteúdo sem mexer no core.
-            </div>
-          </div>
-          <button class="btn btnPrimary" data-action="goMissions">Missão</button>
-        </div>
-      </div>
-
-      <div style="height:12px"></div>
-      ${blocks.join("<div style='height:12px'></div>")}
-      ${bottomSpacer()}
-    `;
-  }
-
-  async function viewLesson(query) {
-    const packId = query.pack || "base";
-    const lessonId = query.lesson || "";
-    if (!lessonId) {
-      return `
-        <div class="panel">
-          <div style="font-weight:900;">Lição inválida</div>
-          <div style="height:12px"></div>
-          <button class="btn btnPrimary" data-action="goPath">Voltar à Trilha</button>
-        </div>
-        ${bottomSpacer()}
-      `;
-    }
-
-    let mf;
-    try { mf = await loadPackManifest(packId); }
-    catch {
-      return `
-        <div class="panel">
-          <div style="font-weight:900;">Pack não encontrado</div>
-          <div style="height:12px"></div>
-          <button class="btn btnPrimary" data-action="goPath">Voltar à Trilha</button>
-        </div>
-        ${bottomSpacer()}
-      `;
-    }
-
-    const found = findLessonInManifest(mf, lessonId);
-    if (!found) {
-      return `
-        <div class="panel">
-          <div style="font-weight:900;">Lição não encontrada</div>
-          <div style="height:12px"></div>
-          <button class="btn btnPrimary" data-action="goPath">Voltar à Trilha</button>
-        </div>
-        ${bottomSpacer()}
-      `;
-    }
-
-    const url = `./packs/${packId}/${found.lesson.file.replace("./", "")}`;
-    let md = "";
-    try { md = await fetchTextCached(url); }
-    catch (e) { md = `# Erro\nNão foi possível carregar a lição.\n\nDetalhe: ${String(e)}`; }
-
-    const st = store.get();
-    const done = isLessonCompleted(st, packId, lessonId);
-
-    return `
-      <div class="panel">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;">
-          <div>
-            <div style="color:rgba(233,236,246,.52);font-size:12px;">
-              ${escapeHtml(mf.name)} • ${escapeHtml(found.track.title)} • ${escapeHtml(found.unit.title)}
-            </div>
-            <div style="font-weight:950;font-size:18px;margin-top:6px;">${escapeHtml(found.lesson.title)}</div>
-            <div style="color:rgba(233,236,246,.52);font-size:12px;margin-top:6px;">
-              Tempo sugerido: <b>${found.lesson.minutes} min</b>
-            </div>
-          </div>
-
-          <div style="display:flex;gap:10px;align-items:center;">
-            ${done
-              ? `<span style="font-size:11px;color:rgba(233,236,246,.52);border:1px solid rgba(56,211,159,.25);padding:6px 10px;border-radius:999px;background:rgba(56,211,159,.06);">Concluída</span>`
-              : `<span style="font-size:11px;color:rgba(233,236,246,.52);border:1px solid rgba(255,255,255,.10);padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.03);">Nova</span>`
-            }
-            <button class="btn" data-action="goPath">Trilha</button>
-          </div>
-        </div>
-
-        <hr class="sep" />
-
-        <div class="panel" style="background:rgba(255,255,255,.03);">
-          ${mdToHtml(md)}
-        </div>
-
-        <div style="height:12px"></div>
-
-        <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">
-          <button class="btn" data-action="goPath">Voltar</button>
-          <button class="btn btnPrimary" data-action="completeLesson" data-pack="${escapeHtml(packId)}" data-lesson="${escapeHtml(lessonId)}">
-            ${done ? "Concluída" : "Concluir e ganhar XP"}
-          </button>
-        </div>
-      </div>
-      ${bottomSpacer()}
-    `;
-  }
-
-  async function viewLibrary(query) {
-    const manifests = await getActiveManifests();
-    const allArticles = manifests.flatMap(mf => (mf.library?.articles || []).map(a => ({
-      packId: mf.id,
-      id: a.id,
-      title: a.title,
-      tags: a.tags || [],
-      file: a.file
-    })));
-
-    const q = (query.q || "").trim().toLowerCase();
-    const filtered = q
-      ? allArticles.filter(a =>
-          a.title.toLowerCase().includes(q) ||
-          (a.tags || []).some(t => String(t).toLowerCase().includes(q))
-        )
-      : allArticles;
-
-    const cards = filtered.map(a => ({
-      title: a.title,
-      meta: (a.tags || []).slice(0, 4).join(" • "),
-      route: "article",
-      packId: a.packId,
-      articleId: a.id
-    }));
-
-    return `
-      <div class="panel">
-        <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:10px;">
-          <div>
-            <div style="font-weight:900;font-size:16px;">Biblioteca</div>
-            <div style="color:rgba(233,236,246,.52);font-size:12px;margin-top:4px;">
-              Artigos do dicionário vocal (carregados por packs)
-            </div>
-          </div>
-        </div>
-
-        <div style="height:12px"></div>
-
-        <input class="input" id="libSearch" placeholder="Buscar por tema (ex.: apoio, SOVT, saúde...)" value="${escapeHtml(query.q || "")}" />
-
-        <div style="height:12px"></div>
-
-        <div class="row">
-          ${cards.length ? cards.map(renderCard).join("") : `
-            <div class="panel" style="min-width:280px;">
-              <div style="font-weight:850;">Nada encontrado</div>
-              <div style="color:rgba(233,236,246,.52);font-size:12px;margin-top:6px;">Tente outro termo.</div>
-            </div>
-          `}
-        </div>
-      </div>
-      ${bottomSpacer()}
-    `;
-  }
-
-  async function viewArticle(query) {
-    const packId = query.pack || "base";
-    const articleId = query.article || "";
-    if (!articleId) return `<div class="panel"><div style="font-weight:900;">Artigo inválido</div></div>${bottomSpacer()}`;
-
-    const mf = await loadPackManifest(packId);
-    const article = (mf.library?.articles || []).find(a => a.id === articleId);
-    if (!article) return `<div class="panel"><div style="font-weight:900;">Artigo não encontrado</div></div>${bottomSpacer()}`;
-
-    const url = `./packs/${packId}/${article.file.replace("./", "")}`;
-    let md = "";
-    try { md = await fetchTextCached(url); }
-    catch (e) { md = `# Erro\nNão foi possível carregar o artigo.\n\nDetalhe: ${String(e)}`; }
-
-    return `
-      <div class="panel">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;">
-          <div>
-            <div style="color:rgba(233,236,246,.52);font-size:12px;">${escapeHtml(mf.name)} • Biblioteca</div>
-            <div style="font-weight:950;font-size:18px;margin-top:6px;">${escapeHtml(article.title)}</div>
-            <div style="color:rgba(233,236,246,.52);font-size:12px;margin-top:6px;">
-              Tags: ${(article.tags || []).map(t => `<span style="border:1px solid rgba(255,255,255,.10);padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.03);margin-right:6px;display:inline-block;">${escapeHtml(t)}</span>`).join("")}
-            </div>
-          </div>
-          <div style="display:flex;gap:10px;">
-            <button class="btn" data-action="goLibrary">Biblioteca</button>
-          </div>
-        </div>
-
-        <hr class="sep" />
-
-        <div class="panel" style="background:rgba(255,255,255,.03);">
-          ${mdToHtml(md)}
-        </div>
-      </div>
-      ${bottomSpacer()}
-    `;
-  }
-
-  async function viewMissions() {
-    const st = store.get();
-    const tm = await getTodayMission();
-    const template = await resolveMissionTemplate(tm.packId, tm.templateId);
-
-    const date = todayISO();
-    const completed = isDailyCompleted(date);
-
-    const status = (st.diary.lastCheckinDate === date) ? st.diary.lastStatus : null;
-    const statusTxt = status ? statusLabel(status) : "Sem check-in hoje";
-
-    const scaled = scaleStepsToPlanned(template?.steps || [], tm.minutesPlanned);
-
-    const steps = (scaled.steps || []).map(s => `
-      <div class="panel" style="background:rgba(255,255,255,.03);">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
-          <div style="font-weight:850;">${escapeHtml(s.title)}</div>
-          <div style="color:rgba(233,236,246,.52);font-size:12px;">~${escapeHtml(String(s._scaledMinutes || 0))} min</div>
-        </div>
-        <div style="color:rgba(233,236,246,.78);font-size:13px;line-height:1.45;margin-top:8px;">
-          ${escapeHtml(s.text || "")}
-        </div>
-      </div>
-    `).join("<div style='height:10px'></div>");
-
-    const safety = (template?.safety || []).map(x => `• ${escapeHtml(x)}`).join("<br/>");
-
-    const packId = (st.packs.activePackIds || ["base"])[0] || "base";
-    const missions = await loadPackMissions(packId);
-    const weekStart = startOfWeekISO(date);
-    const w = st.progress.week?.[weekStart] || { daysCompleted: 0, diaryNotesCount: 0, claimed: {} };
-
-    const weeklyHtml = (missions.weeklyChallenges || []).map(ch => {
-      const claimed = Boolean(w.claimed?.[ch.id]);
-      const can = canClaimWeekly(ch.id);
-      const progressTxt =
-        ch.id === "weekly_consistency_4"
-          ? `${w.daysCompleted}/${ch.target}`
-          : ch.id === "weekly_record_2"
-          ? `${w.diaryNotesCount}/${ch.target}`
-          : "0/0";
-
-      return `
-        <div class="panel" style="background:rgba(255,255,255,.03);">
-          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;">
-            <div>
-              <div style="font-weight:900;">${escapeHtml(ch.title)}</div>
-              <div style="color:rgba(233,236,246,.52);font-size:12px;margin-top:6px;">
-                Progresso: <b>${escapeHtml(progressTxt)}</b> • Recompensa: <b>${escapeHtml(String(ch.rewardXP || 0))} XP</b>
-              </div>
-              <div style="color:rgba(233,236,246,.78);font-size:13px;line-height:1.45;margin-top:8px;">
-                ${escapeHtml(ch.description || "")}
-              </div>
-            </div>
-            <div>
-              <button class="btn ${can ? "btnPrimary" : ""}" data-action="claimWeekly" data-ch="${escapeHtml(ch.id)}" ${(!can || claimed) ? "disabled" : ""}>
-                ${claimed ? "Coletado" : can ? "Coletar" : "Meta"}
-              </button>
-            </div>
-          </div>
-        </div>
-      `;
-    }).join("<div style='height:10px'></div>");
-
-    const diaryList = (st.diary.entries || []).slice(0, 8).map(e => `
-      <div style="border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);padding:10px 12px;border-radius:14px;margin-bottom:8px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
-          <div style="font-weight:850;">${escapeHtml(e.date)} • ${escapeHtml(statusLabel(e.status))}</div>
-          <div style="color:rgba(233,236,246,.52);font-size:12px;">${e.note?.trim() ? "📝" : ""}</div>
-        </div>
-        ${e.note?.trim()
-          ? `<div style="color:rgba(233,236,246,.78);font-size:13px;line-height:1.45;margin-top:6px;">${escapeHtml(e.note)}</div>`
-          : `<div style="color:rgba(233,236,246,.52);font-size:12px;margin-top:6px;">Sem nota</div>`
-        }
-      </div>
-    `).join("");
-
-    const badgeCompleted = completed
-      ? `<span style="font-size:11px;color:rgba(233,236,246,.52);border:1px solid rgba(56,211,159,.25);padding:6px 10px;border-radius:999px;background:rgba(56,211,159,.06);">Concluída</span>`
-      : `<span style="font-size:11px;color:rgba(233,236,246,.52);border:1px solid rgba(255,255,255,.10);padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.03);">Pendente</span>`;
-
-    return `
-      <div class="panel">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
-          <div>
-            <div style="font-weight:950;font-size:16px;">Missão de hoje</div>
-            <div style="color:rgba(233,236,246,.52);font-size:12px;margin-top:4px;">
-              ${escapeHtml(template?.title || "Missão")} • ${tm.minutesPlanned} min • Intensidade: <b>${escapeHtml(template?.intensity || "moderada")}</b>
-              • Check-in: <b>${escapeHtml(statusTxt)}</b>
-              • Passos: <b>${scaled.total}/${scaled.planned} min</b>
-            </div>
-          </div>
-          <div style="display:flex;gap:10px;align-items:center;">
-            ${badgeCompleted}
-            <button class="btn btnPrimary" data-action="completeToday" ${completed ? "disabled" : ""}>
-              ${completed ? "Concluída" : "Concluir"}
-            </button>
-          </div>
-        </div>
-
-        <hr class="sep" />
-
-        ${steps || `<div class="panel" style="background:rgba(255,255,255,.03);"><div style="font-weight:850;">Sem passos</div></div>`}
-
-        <div style="height:12px"></div>
-
-        <div class="panel">
-          <div style="font-weight:900;">Segurança</div>
-          <div style="height:8px"></div>
-          <div style="color:rgba(233,236,246,.78);font-size:13px;line-height:1.45;">
-            ${safety || "• Pare se houver dor.\n• Reduza volume se houver aperto."}
-          </div>
-        </div>
-
-        <div style="height:12px"></div>
-
-        <div class="panel">
-          <div style="font-weight:900;">Check-in vocal (com nota)</div>
-          <div style="height:10px"></div>
-          <div class="grid grid--2">
-            <button class="btn" data-action="checkin" data-status="ok">✅ Sem desconforto</button>
-            <button class="btn" data-action="checkin" data-status="tired">😮‍💨 Cansado</button>
-            <button class="btn" data-action="checkin" data-status="hoarse">🗣️ Rouquidão</button>
-            <button class="btn" data-action="checkin" data-status="pain">⚠️ Dor</button>
-          </div>
-          <div style="height:10px"></div>
-          <div style="color:rgba(233,236,246,.52);font-size:12px;line-height:1.35;">
-            Se marcar rouquidão/dor, a próxima missão fica automaticamente “Dia Leve”.
-          </div>
-        </div>
-
-        <div style="height:12px"></div>
-
-        <div class="panel">
-          <div style="font-weight:900;">Desafios semanais</div>
-          <div style="color:rgba(233,236,246,.52);font-size:12px;margin-top:6px;">Semana iniciada em ${escapeHtml(weekStart)}</div>
-          <div style="height:10px"></div>
-          ${weeklyHtml || `<div style="color:rgba(233,236,246,.52);font-size:12px;">Sem desafios</div>`}
-        </div>
-
-        <div style="height:12px"></div>
-
-        <div class="panel">
-          <div style="font-weight:900;">Diário vocal (últimos registros)</div>
-          <div style="height:10px"></div>
-          ${diaryList || `<div style="color:rgba(233,236,246,.52);font-size:12px;">Sem registros ainda.</div>`}
-        </div>
-      </div>
-      ${bottomSpacer()}
-    `;
-  }
-
-  function viewProfile() {
-    const st = store.get();
-    const u = st.user;
-
-    const badges = (st.gamification.badges || []).map(b => {
-      const map = {
-        first_mission: "Primeira missão ✅",
-        streak_3: "Streak 3 dias 🔥",
-        streak_7: "Streak 7 dias 🏆"
-      };
-      return `<span style="border:1px solid rgba(255,255,255,.10);padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.03);margin-right:6px;display:inline-block;margin-bottom:6px;">${escapeHtml(map[b] || b)}</span>`;
-    }).join("");
-
-    return `
-      <div class="panel">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
-          <div>
-            <div style="font-weight:900;font-size:16px;">Perfil</div>
-            <div style="color:rgba(233,236,246,.52);font-size:12px;margin-top:3px;">Ajustes e estatísticas</div>
-          </div>
-          <button class="btn btnPrimary" data-action="openProfile">Editar</button>
-        </div>
-
-        <hr class="sep" />
-
-        <div class="panel">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
-            <div>
-              <div style="font-weight:850;">${escapeHtml(u.avatar)} ${escapeHtml(u.name || "Aluno")}</div>
-              <div style="color:rgba(233,236,246,.52);font-size:12px;margin-top:5px;">
-                Objetivo: <b>${escapeHtml(u.goal)}</b> • Nível: <b>${escapeHtml(u.levelSelf)}</b> • ${u.minutesPerDay} min/dia
-              </div>
-            </div>
-            <div style="font-size:22px;">👑</div>
-          </div>
-        </div>
-
-        <div style="height:12px"></div>
-
-        <div class="panel">
-          <div style="font-weight:900;">Badges</div>
-          <div style="height:10px"></div>
-          ${badges || `<div style="color:rgba(233,236,246,.52);font-size:12px;">Nenhuma badge ainda. Conclua missões e mantenha streak.</div>`}
-        </div>
-
-        <div style="height:12px"></div>
-
-        <div class="panel">
-          <div style="font-weight:900;">Admin</div>
-          <div style="height:10px"></div>
-          <div style="color:rgba(233,236,246,.78);font-size:13px;line-height:1.4;">
-            Status: <b>${isAdminEnabled() ? "ativo" : "inativo"}</b> • Senha atual: <code style="color:rgba(233,236,246,.78)">imvadmin</code>
-          </div>
-          <div style="height:10px"></div>
-          <button class="btn" data-action="openAdmin">Abrir Admin</button>
-        </div>
-
-        <div style="height:12px"></div>
-
-        <div class="panel">
-          <div style="font-weight:900;">Dados</div>
-          <div style="height:10px"></div>
-          <button class="btn" data-action="resetApp">Resetar app (apagar dados)</button>
-          <div style="height:10px"></div>
-          <div style="color:rgba(233,236,246,.52);font-size:12px;line-height:1.35;">
-            Reset apaga seu progresso local (localStorage). Use com cuidado.
-          </div>
-        </div>
-      </div>
-      ${bottomSpacer()}
-    `;
-  }
-
-  function viewNotFound() {
-    return `
-      <div class="panel">
-        <div style="font-weight:900;font-size:16px;">Página não encontrada</div>
-        <div style="color:rgba(233,236,246,.72);margin-top:8px;line-height:1.45">Essa rota ainda não existe.</div>
-        <div style="height:12px"></div>
-        <button class="btn btnPrimary" data-action="goHome">Voltar ao Início</button>
-      </div>
-      ${bottomSpacer()}
-    `;
-  }
-
-  /* -----------------------------
-     Router / Render
-  ----------------------------- */
+  /* =============================
+     ROUTER
+  ============================= */
   const main = $("#main");
 
-  async function render() {
+  function viewPlacementRouter(query) {
+    // query.step: intro | q0..qN | result
+    const step = query.step || "intro";
+    if (step === "intro") return viewPlacementIntro();
+
+    if (step.startsWith("q")) {
+      const idx = parseInt(step.slice(1), 10);
+      return viewPlacementQuestion(isNaN(idx) ? 0 : idx);
+    }
+
+    if (step === "result") {
+      const { score, result, plan14 } = runPlacementAndBuildResult();
+      return viewPlacementResult(result, score, plan14);
+    }
+
+    return viewPlacementIntro();
+  }
+
+  function render() {
+    const { route, query } = getRouteAndQuery();
+
     if (!main) return;
 
-    const { route, query } = getRouteAndQuery();
-    store.set(s => { s.progress.lastRoute = route; });
-
-    updateTabbar(route);
-
-    main.innerHTML = `
-      <div class="panel">
-        <div style="font-weight:900;">Carregando…</div>
-        <div style="color:rgba(233,236,246,.52);font-size:12px;margin-top:6px;">Preparando conteúdo</div>
-      </div>
-    `;
-
-    let html = "";
     try {
-      if (route === "home") html = await viewHome();
-      else if (route === "path") html = await viewPath();
-      else if (route === "lesson") html = await viewLesson(query);
-      else if (route === "missions") html = await viewMissions();
-      else if (route === "library") html = await viewLibrary(query);
-      else if (route === "article") html = await viewArticle(query);
-      else if (route === "profile") html = viewProfile();
-      else html = viewNotFound();
+      if (route === "home") {
+        main.innerHTML = viewHome();
+      } else if (route === "placement") {
+        main.innerHTML = viewPlacementRouter(query);
+      } else {
+        main.innerHTML = `
+          <div class="panel">
+            <div style="font-weight:900;">Página não encontrada</div>
+            <div style="height:10px"></div>
+            <button class="btn btnPrimary" data-action="goHome">Voltar</button>
+          </div>
+          ${bottomSpacer()}
+        `;
+      }
     } catch (e) {
-      html = `
+      main.innerHTML = `
         <div class="panel">
-          <div style="font-weight:900;">Erro ao renderizar</div>
-          <div style="color:rgba(233,236,246,.72);margin-top:8px;line-height:1.45">${escapeHtml(String(e))}</div>
-          <div style="height:12px"></div>
-          <button class="btn btnPrimary" data-action="goHome">Voltar ao Início</button>
+          <div style="font-weight:900;">Erro</div>
+          <div style="color:rgba(233,236,246,.72);margin-top:8px;line-height:1.45">
+            ${escapeHtml(String(e))}
+          </div>
         </div>
         ${bottomSpacer()}
       `;
     }
 
-    main.innerHTML = html;
-    bindMainHandlers();
+    bindHandlers();
   }
 
-  function rerender() { render(); }
-
-  function updateTabbar(route) {
-    const active =
-      (route === "lesson") ? "path" :
-      (route === "article") ? "library" :
-      route;
-    $$(".tabbar__item").forEach(btn => {
-      const r = btn.getAttribute("data-route");
-      btn.classList.toggle("is-active", r === active);
-    });
-  }
-
-  /* -----------------------------
-     Actions / Handlers
-  ----------------------------- */
-  function bindMainHandlers() {
-    $$(".card").forEach(card => {
-      const go = () => {
-        const r = card.getAttribute("data-route");
-        const packId = card.getAttribute("data-pack") || "";
-        const lessonId = card.getAttribute("data-lesson") || "";
-        const articleId = card.getAttribute("data-article") || "";
-        if (r === "lesson") setHash("lesson", { pack: packId, lesson: lessonId });
-        else if (r === "article") setHash("article", { pack: packId, article: articleId });
-        else if (r) setHash(r);
-      };
-      card.addEventListener("click", go);
-      card.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); }
-      });
-    });
-
+  /* =============================
+     AÇÕES / EVENTOS
+  ============================= */
+  function bindHandlers() {
     $$("[data-action]").forEach(el => {
-      el.addEventListener("click", async () => {
+      el.addEventListener("click", () => {
         const act = el.getAttribute("data-action");
-        if (!act) return;
 
-        switch (act) {
-          case "goHome": setHash("home"); break;
-          case "goMissions": setHash("missions"); break;
-          case "goPath": setHash("path"); break;
-          case "goLibrary": setHash("library"); break;
+        if (act === "goHome") setHash("home");
+        if (act === "goPlacement") {
+          // Se já fez, abre resultado; senão, intro
+          const st = store.get();
+          setHash("placement", { step: st.user.placementDone ? "result" : "intro" });
+        }
+        if (act === "editProfile") openProfileEditor();
 
-          case "openProfile": openProfileEditor(); break;
-          case "openAdmin": openAdminGate(); break;
+        if (act === "startPlacement") {
+          store.set(s => { s.placement.answers = {}; s.placement.score = 0; s.placement.result = null; s.placement.plan14 = []; });
+          setHash("placement", { step: "q0" });
+        }
 
-          case "checkin": {
-            const status = el.getAttribute("data-status") || "ok";
-            openDiaryNoteModal(status);
-            break;
+        if (act === "restartPlacement") {
+          store.set(s => { s.placement.answers = {}; s.placement.score = 0; s.placement.result = null; s.placement.plan14 = []; });
+          setHash("placement", { step: "q0" });
+        }
+
+        if (act === "savePlacement") {
+          const { score, result, plan14 } = runPlacementAndBuildResult();
+          const st = store.get();
+          const rec = recommendTrack(st.user.goal || "Misto", result);
+
+          store.set(s => {
+            s.placement.score = score;
+            s.placement.result = result;
+            s.placement.plan14 = plan14;
+
+            s.user.levelReal = result;
+            s.user.placementDone = true;
+            s.user.recommendedPath = rec.pathTitle;
+
+            // Sugere minutos e salva (sem forçar demais)
+            s.user.minutesPerDay = clamp(rec.minutes, 5, 60);
+          });
+
+          setHash("home");
+        }
+
+        if (act === "answer") {
+          const qIndex = parseInt(el.getAttribute("data-q") || "0", 10);
+          const score = parseInt(el.getAttribute("data-score") || "0", 10);
+
+          const q = PLACEMENT_QUESTIONS[qIndex];
+          if (!q) return;
+
+          store.set(s => {
+            s.placement.answers[q.id] = score;
+          });
+
+          const next = qIndex + 1;
+          if (next >= PLACEMENT_QUESTIONS.length) {
+            setHash("placement", { step: "result" });
+          } else {
+            setHash("placement", { step: `q${next}` });
           }
-
-          case "completeToday":
-            await completeTodayMission();
-            rerender();
-            break;
-
-          case "openLesson": {
-            const packId = el.getAttribute("data-pack") || "base";
-            const lessonId = el.getAttribute("data-lesson") || "";
-            setHash("lesson", { pack: packId, lesson: lessonId });
-            break;
-          }
-
-          case "completeLesson": {
-            const packId = el.getAttribute("data-pack") || "base";
-            const lessonId = el.getAttribute("data-lesson") || "";
-            if (!lessonId) return;
-            const st = store.get();
-            if (isLessonCompleted(st, packId, lessonId)) return toast("Já concluída");
-            markLessonCompleted(packId, lessonId);
-            addXP(25, "Lição concluída");
-            toast("Lição concluída ✅");
-            rerender();
-            break;
-          }
-
-          case "claimWeekly": {
-            const ch = el.getAttribute("data-ch") || "";
-            await claimWeekly(ch);
-            rerender();
-            break;
-          }
-
-          case "resetApp":
-            resetApp();
-            break;
-
-          default:
-            toast("Ação não implementada");
         }
       });
     });
-
-    const libSearch = $("#libSearch");
-    if (libSearch) {
-      libSearch.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") setHash("library", { q: (libSearch.value || "").trim() });
-      });
-      libSearch.addEventListener("change", () => {
-        setHash("library", { q: (libSearch.value || "").trim() });
-      });
-    }
   }
 
-  function resetApp() {
-    openModal({
-      title: "Resetar app",
-      contentHtml: `
-        <p style="margin:0;color:rgba(233,236,246,.78);line-height:1.45">
-          Isso vai apagar todo o progresso salvo neste dispositivo.
-        </p>
-      `,
-      primaryText: "Apagar tudo",
-      secondaryText: "Cancelar",
-      onPrimary: () => {
-        localStorage.removeItem(LS.STATE);
-        localStorage.removeItem(LS.ADMIN);
-        store.state = structuredClone(DEFAULT_STATE);
-        persistState(store.state);
-        closeModal();
-        toast("Dados apagados");
-        setHash("home");
-        rerender();
-        setTimeout(() => ensureProfileOrPrompt(), 350);
-      }
+// ===== FIM app.js (PARTE 5 – PLACEMENT) — BLOCO 3/4 =====
+// ===== INÍCIO app.js (PARTE 5 – PLACEMENT) — BLOCO 4/4 =====
+
+  /* =============================
+     BOOT
+  ============================= */
+  function ensureProfile() {
+    const st = store.get();
+    if (st.user.name?.trim()) return;
+
+    // Perfil mínimo automático para não quebrar UX
+    store.set(s => {
+      if (!s.user.name) s.user.name = "Aluno";
+      if (!s.user.goal) s.user.goal = "Misto";
+      if (!s.user.minutesPerDay) s.user.minutesPerDay = 10;
+      if (!("placementDone" in s.user)) s.user.placementDone = false;
     });
   }
 
-  /* -----------------------------
-     Global handlers (topbar/tabbar)
-  ----------------------------- */
-  function bindGlobalHandlers() {
-    $$(".tabbar__item").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const r = btn.getAttribute("data-route");
-        if (r) setHash(r);
-      });
-    });
-
-    $(".brand")?.addEventListener("click", () => setHash("home"));
-    $("#btnInstall")?.addEventListener("click", promptInstall);
-    $("#btnAdmin")?.addEventListener("click", openAdminGate);
+  function bindGlobal() {
+    window.addEventListener("hashchange", () => render());
   }
 
-  /* -----------------------------
-     Boot
-  ----------------------------- */
-  async function boot() {
-    bindGlobalHandlers();
+  function boot() {
+    ensureProfile();
 
     if (!location.hash) setHash("home");
 
-    try {
-      await loadPacksIndex();
-      await loadPackManifest("base");
-      await loadPackMissions("base");
-    } catch (e) {
-      console.warn(e);
-      toast("Aviso: packs/missões não carregaram");
+    bindGlobal();
+    render();
+
+    // Se for primeira vez e placement não feito, sugere direto
+    const st = store.get();
+    if (!st.user.placementDone) {
+      setTimeout(() => {
+        // só sugere se ainda estiver no home
+        const { route } = getRouteAndQuery();
+        if (route === "home") {
+          openModal({
+            title: "Começar pelo Placement?",
+            contentHtml: `
+              <p style="margin:0;color:rgba(233,236,246,.78);line-height:1.45">
+                Para personalizar sua trilha e gerar um plano inicial de 14 dias,
+                faça o teste de classificação vocal.
+              </p>
+            `,
+            primaryText: "Fazer agora",
+            secondaryText: "Depois",
+            onPrimary: () => {
+              closeModal();
+              setHash("placement", { step: "intro" });
+            }
+          });
+        }
+      }, 450);
     }
-
-    await render();
-    setTimeout(() => ensureProfileOrPrompt(), 300);
-
-    window.addEventListener("hashchange", () => render());
-    store.subscribe(() => { render(); });
   }
 
   boot();
 })();
+
+// ===== FIM app.js (PARTE 5 – PLACEMENT) — BLOCO 4/4 =====
