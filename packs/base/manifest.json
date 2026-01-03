@@ -1,0 +1,53 @@
+{
+  "id": "base",
+  "name": "Base — Fundamentos 1",
+  "version": "1.0.0",
+  "description": "Fundamentos universais para canto popular, erudito e coral. Conteúdo seguro, progressivo e didático.",
+  "author": "IMVpedia Voice",
+  "dependencies": [],
+  "tracks": [
+    {
+      "id": "fundamentos",
+      "title": "Fundamentos do Canto",
+      "subtitle": "Respiração • SOVT • Apoio • Registros • Afinação",
+      "levelRange": "Iniciante → Intermediário",
+      "units": [
+        {
+          "id": "fund-01",
+          "title": "Comece do jeito certo",
+          "subtitle": "Base, segurança e rotina",
+          "lessons": [
+            { "id": "fundamentos-01-intro", "title": "Como estudar voz com segurança", "minutes": 6, "type": "lesson", "file": "./lessons/fundamentos-01-intro.md" },
+            { "id": "fundamentos-02-respiracao", "title": "Respiração funcional para cantar", "minutes": 10, "type": "lesson", "file": "./lessons/fundamentos-02-respiracao.md" }
+          ]
+        },
+        {
+          "id": "fund-02",
+          "title": "Eficiência e aquecimento",
+          "subtitle": "SOVT e coordenação suave",
+          "lessons": [
+            { "id": "fundamentos-03-sovt", "title": "SOVT (lip trill, humming e canudo)", "minutes": 9, "type": "lesson", "file": "./lessons/fundamentos-03-sovt.md" },
+            { "id": "fundamentos-04-apoio", "title": "Apoio vocal sem mitos", "minutes": 12, "type": "lesson", "file": "./lessons/fundamentos-04-apoio.md" }
+          ]
+        },
+        {
+          "id": "fund-03",
+          "title": "Coordenação e musicalidade",
+          "subtitle": "Registros e afinação aplicada",
+          "lessons": [
+            { "id": "fundamentos-05-registros", "title": "Registros e transições (peito/cabeça/misto)", "minutes": 12, "type": "lesson", "file": "./lessons/fundamentos-05-registros.md" },
+            { "id": "fundamentos-06-afinacao", "title": "Afinação: ouvir, ajustar e estabilizar", "minutes": 14, "type": "lesson", "file": "./lessons/fundamentos-06-afinacao.md" }
+          ]
+        }
+      ]
+    }
+  ],
+  "library": {
+    "articles": [
+      { "id": "apoio-vocal", "title": "Apoio vocal", "tags": ["fundamentos", "respiração", "apoio"], "file": "./articles/apoio-vocal.md" },
+      { "id": "fisiologia-vocal", "title": "Fisiologia vocal (fonte e filtro)", "tags": ["fisiologia", "ressonância", "anatomia"], "file": "./articles/fisiologia-vocal.md" },
+      { "id": "sovt", "title": "SOVT: por que funciona", "tags": ["SOVT", "aquecimento", "saúde"], "file": "./articles/sovt.md" },
+      { "id": "saude-vocal", "title": "Saúde vocal: sinais e prevenção", "tags": ["saúde", "higiene vocal", "alertas"], "file": "./articles/saude-vocal.md" }
+    ]
+  }
+}
