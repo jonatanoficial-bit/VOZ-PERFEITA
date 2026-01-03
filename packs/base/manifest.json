@@ -1,10 +1,13 @@
 {
   "id": "base",
   "name": "Base — Fundamentos 1",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Fundamentos universais para canto popular, erudito e coral. Conteúdo seguro, progressivo e didático.",
   "author": "IMVpedia Voice",
   "dependencies": [],
+  "missions": {
+    "file": "./missions.json"
+  },
   "tracks": [
     {
       "id": "fundamentos",
