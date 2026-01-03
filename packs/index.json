@@ -1,0 +1,11 @@
+{
+  "packs": [
+    {
+      "id": "base",
+      "name": "Base — Fundamentos 1",
+      "version": "1.0.0",
+      "path": "./base/manifest.json",
+      "required": true
+    }
+  ]
+}
