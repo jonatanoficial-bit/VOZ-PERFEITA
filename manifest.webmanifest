@@ -1,0 +1,13 @@
+{
+  "name": "IMVpedia Voice",
+  "short_name": "IMV Voice",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0b0d12",
+  "theme_color": "#0b0d12",
+  "description": "Trilha de aprendizagem vocal com missões, níveis e biblioteca: popular, erudito e coral.",
+  "icons": [
+    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
