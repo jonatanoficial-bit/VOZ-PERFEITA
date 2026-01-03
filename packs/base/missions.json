@@ -1,0 +1,94 @@
+{
+  "version": "1.0.0",
+  "dailyTemplates": [
+    {
+      "id": "daily_sovt_light",
+      "title": "Dia Leve (SOVT + conforto)",
+      "intensity": "leve",
+      "tags": ["saude", "sovt", "recuperacao"],
+      "minMinutes": 5,
+      "maxMinutes": 15,
+      "steps": [
+        { "title": "SOVT suave", "text": "Lip trill OU humming (mmm) leve. Sem volume.", "minutes": 3 },
+        { "title": "Fricativas focadas", "text": "VVV ou ZZZ em 5 notas, confortável.", "minutes": 4 },
+        { "title": "Aplicação mínima", "text": "Cante 1 trecho fácil em volume conversacional.", "minutes": 3 }
+      ],
+      "safety": [
+        "Pare se houver dor.",
+        "Se rouquidão persistir por dias, reduza carga e procure orientação profissional."
+      ]
+    },
+    {
+      "id": "daily_breath_support",
+      "title": "Fluxo e apoio (sem mitos)",
+      "intensity": "moderada",
+      "tags": ["respiracao", "apoio", "fundamentos"],
+      "minMinutes": 8,
+      "maxMinutes": 20,
+      "steps": [
+        { "title": "Aquecimento curto", "text": "Humming (mmm) ou VVV leve em região confortável.", "minutes": 3 },
+        { "title": "S controlado", "text": "‘ssss’ 8–12s, 6 repetições. Sem apertar garganta.", "minutes": 4 },
+        { "title": "Frase em 3 intensidades", "text": "Suave → médio → suave, mantendo conforto e clareza.", "minutes": 6 },
+        { "title": "Aplicação em música", "text": "Cante 2 frases curtas com fluxo constante.", "minutes": 4 }
+      ],
+      "safety": [
+        "Não empurre abdômen com força.",
+        "Se a garganta apertar ao aumentar volume, reduza intensidade e volte ao SOVT."
+      ]
+    },
+    {
+      "id": "daily_register_bridge",
+      "title": "Registros e transição leve",
+      "intensity": "moderada",
+      "tags": ["registros", "misto", "coordenacao"],
+      "minMinutes": 8,
+      "maxMinutes": 25,
+      "steps": [
+        { "title": "SOVT de entrada", "text": "Lip trill em 5 notas (subindo e descendo) bem leve.", "minutes": 4 },
+        { "title": "Sirene NG", "text": "‘ng’ (como final de ‘sing’) do médio ao agudo e volta.", "minutes": 5 },
+        { "title": "1-3-5-3-1 em NU", "text": "Suba sem aumentar volume. Se travar, desça 2 semitons.", "minutes": 6 },
+        { "title": "Aplicação curta", "text": "Cante 1 trecho que sobe/ desce, sempre confortável.", "minutes": 4 }
+      ],
+      "safety": [
+        "Evite ‘segurar peito’ no agudo.",
+        "Se aparecer ardor/dor, pare e faça SOVT leve."
+      ]
+    },
+    {
+      "id": "daily_pitch_stability",
+      "title": "Afinação: ataque e estabilidade",
+      "intensity": "moderada",
+      "tags": ["afinacao", "percepcao", "controle"],
+      "minMinutes": 8,
+      "maxMinutes": 25,
+      "steps": [
+        { "title": "Referência auditiva", "text": "Toque/ouça 1 nota e reproduza em ‘mm’ ou ‘vvv’.", "minutes": 3 },
+        { "title": "Ataque limpo", "text": "10 repetições da mesma nota (5 mm + 5 na), sem escorregar.", "minutes": 6 },
+        { "title": "Intervalos fáceis", "text": "1→2, 1→3, 1→5 em volume confortável.", "minutes": 7 },
+        { "title": "Aplicação", "text": "Cante trecho curto e observe notas longas (fluxo constante).", "minutes": 4 }
+      ],
+      "safety": [
+        "Evite cantar alto para ‘afinar’. Use conforto e precisão.",
+        "Se cansar, encerre com 2 min de humming."
+      ]
+    }
+  ],
+  "weeklyChallenges": [
+    {
+      "id": "weekly_consistency_4",
+      "title": "Consistência: 4 dias na semana",
+      "type": "consistency",
+      "target": 4,
+      "rewardXP": 120,
+      "description": "Complete a missão diária em 4 dias desta semana."
+    },
+    {
+      "id": "weekly_record_2",
+      "title": "Registro: grave 2 check-ins completos",
+      "type": "diary",
+      "target": 2,
+      "rewardXP": 80,
+      "description": "Faça 2 check-ins com observação (nota rápida) sobre como a voz respondeu."
+    }
+  ]
+}
