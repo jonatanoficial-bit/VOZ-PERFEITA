@@ -1,40 +1,23 @@
-// ===== INÍCIO app.js (PARTE 5 – PLACEMENT) — BLOCO 1/4 =====
-/* =========================================================
-   IMVpedia Voice — app.js (Parte 5/6)
-   TESTE DE CLASSIFICAÇÃO VOCAL (PLACEMENT)
-   ---------------------------------------------------------
-   - Fluxo guiado estilo Duolingo
-   - Questionário vocal seguro (sem áudio)
-   - Classificação automática (iniciante/intermediário/avançado)
-   - Recomenda trilha, intensidade e minutos
-   - Gera plano inicial de 14 dias
-   - Integra com perfil, missões e home
-========================================================= */
-
+/* IMVpedia Voice — app.js (Parte 5/6) — PLACEMENT (COMPLETO E CORRIGIDO)
+   - Home + CTA do Placement
+   - Teste guiado (Duolingo-like)
+   - Resultado + plano 14 dias
+   - Salva no perfil (levelReal, placementDone, recommendedPath, minutesPerDay)
+*/
 (() => {
   "use strict";
 
-  /* =============================
-     UTILIDADES BÁSICAS
-  ============================= */
+  // ---------- Utils ----------
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
-
   const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
-
-  const todayISO = () => {
-    const d = new Date();
-    return d.toISOString().slice(0, 10);
-  };
-
-  function escapeHtml(str) {
-    return String(str ?? "")
+  const escapeHtml = (str) =>
+    String(str ?? "")
       .replaceAll("&", "&amp;")
       .replaceAll("<", "&lt;")
       .replaceAll(">", "&gt;")
       .replaceAll('"', "&quot;")
       .replaceAll("'", "&#039;");
-  }
 
   function setHash(route, query = {}) {
     const base = route.startsWith("#/") ? route : `#/${route}`;
@@ -46,22 +29,15 @@
     const h = location.hash || "#/home";
     if (!h.startsWith("#/")) return { route: "home", query: {} };
     const [path, qs] = h.slice(2).split("?");
-    return {
-      route: path || "home",
-      query: Object.fromEntries(new URLSearchParams(qs || ""))
-    };
+    return { route: path || "home", query: Object.fromEntries(new URLSearchParams(qs || "")) };
   }
 
   function bottomSpacer() {
     return `<div style="height:100px"></div>`;
   }
 
-  /* =============================
-     STORAGE / STATE
-  ============================= */
-  const LS = {
-    STATE: "imv_voice_state_v4"
-  };
+  // ---------- State ----------
+  const LS = { STATE: "imv_voice_state_v4" };
 
   const DEFAULT_STATE = {
     user: {
@@ -74,19 +50,21 @@
       placementDone: false,
       recommendedPath: null
     },
-    placement: {
-      answers: {},
-      score: 0,
-      result: null,
-      plan14: []
-    }
+    placement: { answers: {}, score: 0, result: null, plan14: [] }
   };
 
   function loadState() {
     try {
       const raw = localStorage.getItem(LS.STATE);
       if (!raw) return structuredClone(DEFAULT_STATE);
-      return { ...structuredClone(DEFAULT_STATE), ...JSON.parse(raw) };
+      const parsed = JSON.parse(raw);
+      // merge simples
+      return {
+        ...structuredClone(DEFAULT_STATE),
+        ...parsed,
+        user: { ...structuredClone(DEFAULT_STATE.user), ...(parsed.user || {}) },
+        placement: { ...structuredClone(DEFAULT_STATE.placement), ...(parsed.placement || {}) }
+      };
     } catch {
       return structuredClone(DEFAULT_STATE);
     }
@@ -94,21 +72,16 @@
 
   const store = {
     state: loadState(),
+    get() { return this.state; },
     set(fn) {
       const next = structuredClone(this.state);
       fn(next);
       this.state = next;
-      localStorage.setItem(LS.STATE, JSON.stringify(this.state));
-    },
-    get() {
-      return this.state;
+      try { localStorage.setItem(LS.STATE, JSON.stringify(this.state)); } catch {}
     }
   };
 
-  /* =============================
-     PLACEMENT – QUESTIONÁRIO
-  ============================= */
-
+  // ---------- Placement Questions ----------
   const PLACEMENT_QUESTIONS = [
     {
       id: "experience",
@@ -175,43 +148,92 @@
 
   function buildPlan14(level) {
     const base = {
-      Iniciante: [
-        "Respiração funcional",
-        "SOVT leve",
-        "Afinação básica",
-        "Consciência corporal"
-      ],
-      Intermediário: [
-        "Coordenação ar-voz",
-        "Ressonância",
-        "Agilidade vocal",
-        "Aplicação musical"
-      ],
-      Avançado: [
-        "Eficiência vocal",
-        "Extensão e dinâmica",
-        "Estilo e interpretação",
-        "Manutenção vocal"
-      ]
+      Iniciante: ["Respiração funcional", "SOVT leve", "Afinação básica", "Consciência corporal"],
+      Intermediário: ["Coordenação ar-voz", "Ressonância", "Agilidade vocal", "Aplicação musical"],
+      Avançado: ["Eficiência vocal", "Extensão e dinâmica", "Estilo e interpretação", "Manutenção vocal"]
     };
-
     const themes = base[level] || base.Iniciante;
     const plan = [];
-
     for (let i = 0; i < 14; i++) {
-      plan.push({
-        day: i + 1,
-        focus: themes[i % themes.length],
-        intensity: i % 4 === 0 ? "leve" : "moderada"
-      });
+      plan.push({ day: i + 1, focus: themes[i % themes.length], intensity: i % 4 === 0 ? "leve" : "moderada" });
     }
     return plan;
   }
 
-  /* =============================
-     VIEWS – PLACEMENT
-  ============================= */
+  function recommendTrack(goal, level) {
+    let minutes = 10;
+    let intensity = "moderada";
 
+    if (level === "Iniciante") { minutes = 10; intensity = "moderada"; }
+    if (level === "Intermediário") { minutes = 15; intensity = "moderada"; }
+    if (level === "Avançado") { minutes = 20; intensity = "moderada"; }
+
+    if (goal === "Coral") minutes = clamp(minutes, 8, 18);
+    if (goal === "Erudito" && level === "Iniciante") minutes = 12;
+    if (goal === "Popular" && level === "Avançado") minutes = 22;
+
+    const pathTitle =
+      goal === "Popular" ? "Popular — Base e Estilo" :
+      goal === "Erudito" ? "Erudito — Técnica e Sustentação" :
+      goal === "Coral" ? "Coral — Blend, Afinação e Ritmo" :
+      "Misto — Fundamentos universais";
+
+    return { pathTitle, minutes, intensity };
+  }
+
+  function runPlacementAndBuildResult() {
+    const st = store.get();
+    const answers = st.placement.answers || {};
+    const score = Object.values(answers).reduce((acc, v) => acc + (Number(v) || 0), 0);
+    const result = calculatePlacement(score);
+    const plan14 = buildPlan14(result);
+    return { score, result, plan14 };
+  }
+
+  // ---------- Modal (CORRIGIDO) ----------
+  let modalEl = null;
+
+  function openModal({ title, contentHtml, primaryText, secondaryText, onPrimary, onSecondary }) {
+    closeModal();
+    modalEl = document.createElement("div");
+    modalEl.style.position = "fixed";
+    modalEl.style.inset = "0";
+    modalEl.style.zIndex = "200";
+    modalEl.style.background = "rgba(0,0,0,.55)";
+    modalEl.style.backdropFilter = "blur(10px)";
+
+    modalEl.innerHTML = `
+      <div style="max-width:520px;margin:10vh auto;padding:0 14px;">
+        <div style="border:1px solid rgba(255,255,255,.10);border-radius:18px;background:rgba(17,21,34,.92);box-shadow:0 18px 60px rgba(0,0,0,.55);overflow:hidden;">
+          <div style="padding:14px 14px 10px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;justify-content:space-between;gap:10px;">
+            <div style="font-weight:860;letter-spacing:.2px;">${escapeHtml(title || "")}</div>
+            <button id="mClose" class="btn btn--ghost" type="button">✕</button>
+          </div>
+          <div style="padding:14px;">
+            ${contentHtml || ""}
+            <div style="height:14px"></div>
+            <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">
+              ${secondaryText ? `<button id="mSecondary" class="btn" type="button">${escapeHtml(secondaryText)}</button>` : ""}
+              ${primaryText ? `<button id="mPrimary" class="btn btnPrimary" type="button">${escapeHtml(primaryText)}</button>` : ""}
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modalEl);
+
+    $("#mClose", modalEl)?.addEventListener("click", () => { onSecondary?.(); closeModal(); });
+    $("#mSecondary", modalEl)?.addEventListener("click", () => { onSecondary?.(); closeModal(); });
+    $("#mPrimary", modalEl)?.addEventListener("click", () => onPrimary?.());
+    modalEl.addEventListener("click", (e) => { if (e.target === modalEl) closeModal(); });
+  }
+
+  function closeModal() {
+    if (modalEl) { modalEl.remove(); modalEl = null; }
+  }
+
+  // ---------- Views ----------
   function viewPlacementIntro() {
     return `
       <div class="panel">
@@ -220,7 +242,7 @@
           Este teste rápido ajuda o app a ajustar sua trilha, intensidade e missões.
         </p>
         <p style="color:rgba(233,236,246,.52);font-size:13px;">
-          Não é um teste de talento, e sim de ponto de partida.
+          Não é um teste de talento — é só para definir o ponto de partida.
         </p>
         <div style="height:16px"></div>
         <button class="btn btnPrimary" data-action="startPlacement">Começar</button>
@@ -231,7 +253,7 @@
 
   function viewPlacementQuestion(qIndex) {
     const q = PLACEMENT_QUESTIONS[qIndex];
-    if (!q) return "";
+    if (!q) return viewPlacementIntro();
 
     return `
       <div class="panel">
@@ -246,7 +268,7 @@
         </p>
 
         <div style="margin-top:14px;display:grid;gap:10px;">
-          ${q.options.map((o, idx) => `
+          ${q.options.map((o) => `
             <button class="btn" data-action="answer"
                     data-q="${qIndex}"
                     data-score="${o.score}">
@@ -259,9 +281,6 @@
     `;
   }
 
-  // ===== FIM app.js (PARTE 5 – PLACEMENT) — BLOCO 1/4 =====
-// ===== INÍCIO app.js (PARTE 5 – PLACEMENT) — BLOCO 2/4 =====
-
   function viewPlacementResult(result, score, plan14) {
     const st = store.get();
     const goal = st.user.goal || "Misto";
@@ -269,9 +288,9 @@
     const tipsByLevel = {
       Iniciante: [
         "Priorize conforto e consistência (5–12 min/dia).",
-        "Use SOVT (lip trill/humming/canudo) para aquecer.",
+        "Use SOVT (lip trill / humming / canudo) para aquecer.",
         "Evite volume alto: qualidade > força.",
-        "Se houver dor, pare e reduza carga."
+        "Se houver dor, pare e reduza a carga."
       ],
       Intermediário: [
         "Trabalhe transições de registro (leve, sem empurrar).",
@@ -332,9 +351,7 @@
               <div style="border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);padding:10px 12px;border-radius:14px;">
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
                   <div style="font-weight:850;">Dia ${p.day}: ${escapeHtml(p.focus)}</div>
-                  <div style="color:rgba(233,236,246,.52);font-size:12px;">
-                    ${p.intensity === "leve" ? "Leve" : "Moderado"}
-                  </div>
+                  <div style="color:rgba(233,236,246,.52);font-size:12px;">${p.intensity === "leve" ? "Leve" : "Moderado"}</div>
                 </div>
               </div>
             `).join("")}
@@ -351,54 +368,6 @@
       ${bottomSpacer()}
     `;
   }
-
-  function recommendTrack(goal, level) {
-    // Regras simples e coerentes; depois podemos refinar por packs.
-    // goal: Popular / Erudito / Coral / Misto
-    // level: Iniciante / Intermediário / Avançado
-
-    let minutes = 10;
-    let intensity = "moderada";
-
-    if (level === "Iniciante") { minutes = 10; intensity = "moderada"; }
-    if (level === "Intermediário") { minutes = 15; intensity = "moderada"; }
-    if (level === "Avançado") { minutes = 20; intensity = "moderada"; }
-
-    // Coral tende a exigir manutenção leve/regular para blend e precisão
-    if (goal === "Coral") { minutes = clamp(minutes, 8, 18); }
-
-    // Erudito: mais controle e consistência, mas sem exagerar de início
-    if (goal === "Erudito" && level === "Iniciante") { minutes = 12; }
-
-    // Popular: aplicação e resistência (quando intermediário/avançado)
-    if (goal === "Popular" && level === "Avançado") { minutes = 22; }
-
-    const pathTitle =
-      goal === "Popular" ? "Popular — Base e Estilo" :
-      goal === "Erudito" ? "Erudito — Técnica e Sustentação" :
-      goal === "Coral" ? "Coral — Blend, Afinação e Ritmo" :
-      "Misto — Fundamentos universais";
-
-    return { pathTitle, minutes, intensity };
-  }
-
-  function runPlacementAndBuildResult() {
-    const st = store.get();
-    const answers = st.placement.answers || {};
-    const score = Object.values(answers).reduce((acc, v) => acc + (Number(v) || 0), 0);
-    const result = calculatePlacement(score);
-    const plan14 = buildPlan14(result);
-    return { score, result, plan14 };
-  }
-
-// ===== FIM app.js (PARTE 5 – PLACEMENT) — BLOCO 2/4 =====
-// ===== INÍCIO app.js (PARTE 5 – PLACEMENT) — BLOCO 3/4 =====
-
-  /* =============================
-     UI BASE (sem depender do resto)
-     - Mantém seu visual atual (CSS do projeto)
-     - Cria uma Home simples com CTA do Placement
-  ============================= */
 
   function viewHome() {
     const st = store.get();
@@ -418,9 +387,7 @@
       <div class="hero">
         <div class="hero__kicker">Bem-vindo(a), ${escapeHtml(name)} • Objetivo: ${escapeHtml(goal)} ${badge}</div>
         <div class="hero__title">IMVpedia Voice</div>
-        <p class="hero__desc">
-          Treino vocal guiado com missões e progressão. ${levelLine}.
-        </p>
+        <p class="hero__desc">Treino vocal guiado com missões e progressão. ${levelLine}.</p>
         <div class="hero__actions">
           <button class="btn btnPrimary" data-action="goPlacement">${done ? "Ver/Refazer Placement" : "Fazer Placement"}</button>
           <button class="btn" data-action="editProfile">Editar Perfil</button>
@@ -473,7 +440,7 @@
       <div class="panel">
         <div style="font-weight:900;">Plano 14 dias</div>
         <div style="color:rgba(233,236,246,.52);font-size:12px;margin-top:6px;">
-          ${(st.placement.plan14?.length ? "Gerado pelo placement." : "Faça o placement para gerar automaticamente.")}
+          ${st.placement.plan14?.length ? "Gerado pelo placement." : "Faça o placement para gerar automaticamente."}
         </div>
         <div style="height:10px"></div>
 
@@ -549,99 +516,35 @@
     });
   }
 
-  /* =============================
-     MODAL SIMPLES (mesma base)
-  ============================= */
-  let modalEl = null;
-
-  function openModal({ title, contentHtml, primaryText, secondaryText, onPrimary, onSecondary }) {
-    closeModal();
-    modalEl = document.createElement("div");
-    modalEl.style.position = "fixed";
-    modalEl.style.inset = "0";
-    modalEl.style.zIndex = "200";
-    modalEl.style.background = "rgba(0,0,0,.55)";
-    modalEl.style.backdropFilter = "blur(10px)";
-    modalEl.innerHTML = `
-      <div style="max-width:520px;margin:10vh auto;padding:0 14px;">
-        <div style="border:1px solid rgba(255,255,255,.10);border-radius:18px;background:rgba(17,21,34,.92);box-shadow:0 18px 60px rgba(0,0,0,.55);overflow:hidden;">
-          <div style="padding:14px 14px 10px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;justify-content:space-between;gap:10px;">
-            <div style="font-weight:860;letter-spacing:.2px;">${escapeHtml(title || "")}</div>
-            <button id="mClose" class="btn btn--ghost" type="button">✕</button>
-          </div>
-          <div style="padding:14px;">
-            ${contentHtml || ""}
-            <div style="height:14px"></div>
-            <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">
-              ${secondaryText ? `<button id="mSecondary" class="btn" type="button">${escapeHtml(secondaryText)}</button>` : ""}
-              ${primaryText ? `<button id="mPrimary" class="btn btnPrimary" type="button">${escapeHtml(primaryText)}</button>` : ""}
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(modalEl);
-
-    $("#mClose", modalEl)?.addEventListener("click", () => { onSecondary?.(); closeModal(); });
-    $("#mSecondary", modalEl)?.addEventListener("click", () => { onSecondary?.(); closeModal(); });
-    $("#mPrimary", modalEl)?.addEventListener("click", () => onPrimary?.());
-    modalEl.addEventListener("click", (e) => { if (e.target === modalEl) closeModal(); });
-  }
-
-  function closeModal() {
-    if (modalEl) { modalEl.remove(); modalEl = null; }
-  }
-
-  /* =============================
-     ROUTER
-  ============================= */
+  // ---------- Router ----------
   const main = $("#main");
 
   function viewPlacementRouter(query) {
-    // query.step: intro | q0..qN | result
     const step = query.step || "intro";
     if (step === "intro") return viewPlacementIntro();
-
     if (step.startsWith("q")) {
       const idx = parseInt(step.slice(1), 10);
       return viewPlacementQuestion(isNaN(idx) ? 0 : idx);
     }
-
     if (step === "result") {
       const { score, result, plan14 } = runPlacementAndBuildResult();
       return viewPlacementResult(result, score, plan14);
     }
-
     return viewPlacementIntro();
   }
 
   function render() {
     const { route, query } = getRouteAndQuery();
-
     if (!main) return;
 
-    try {
-      if (route === "home") {
-        main.innerHTML = viewHome();
-      } else if (route === "placement") {
-        main.innerHTML = viewPlacementRouter(query);
-      } else {
-        main.innerHTML = `
-          <div class="panel">
-            <div style="font-weight:900;">Página não encontrada</div>
-            <div style="height:10px"></div>
-            <button class="btn btnPrimary" data-action="goHome">Voltar</button>
-          </div>
-          ${bottomSpacer()}
-        `;
-      }
-    } catch (e) {
+    if (route === "home") main.innerHTML = viewHome();
+    else if (route === "placement") main.innerHTML = viewPlacementRouter(query);
+    else {
       main.innerHTML = `
         <div class="panel">
-          <div style="font-weight:900;">Erro</div>
-          <div style="color:rgba(233,236,246,.72);margin-top:8px;line-height:1.45">
-            ${escapeHtml(String(e))}
-          </div>
+          <div style="font-weight:900;">Página não encontrada</div>
+          <div style="height:10px"></div>
+          <button class="btn btnPrimary" data-action="goHome">Voltar</button>
         </div>
         ${bottomSpacer()}
       `;
@@ -650,20 +553,19 @@
     bindHandlers();
   }
 
-  /* =============================
-     AÇÕES / EVENTOS
-  ============================= */
+  // ---------- Actions ----------
   function bindHandlers() {
     $$("[data-action]").forEach(el => {
       el.addEventListener("click", () => {
         const act = el.getAttribute("data-action");
 
         if (act === "goHome") setHash("home");
+
         if (act === "goPlacement") {
-          // Se já fez, abre resultado; senão, intro
           const st = store.get();
           setHash("placement", { step: st.user.placementDone ? "result" : "intro" });
         }
+
         if (act === "editProfile") openProfileEditor();
 
         if (act === "startPlacement") {
@@ -689,8 +591,6 @@
             s.user.levelReal = result;
             s.user.placementDone = true;
             s.user.recommendedPath = rec.pathTitle;
-
-            // Sugere minutos e salva (sem forçar demais)
             s.user.minutesPerDay = clamp(rec.minutes, 5, 60);
           });
 
@@ -700,36 +600,23 @@
         if (act === "answer") {
           const qIndex = parseInt(el.getAttribute("data-q") || "0", 10);
           const score = parseInt(el.getAttribute("data-score") || "0", 10);
-
           const q = PLACEMENT_QUESTIONS[qIndex];
           if (!q) return;
 
-          store.set(s => {
-            s.placement.answers[q.id] = score;
-          });
+          store.set(s => { s.placement.answers[q.id] = score; });
 
           const next = qIndex + 1;
-          if (next >= PLACEMENT_QUESTIONS.length) {
-            setHash("placement", { step: "result" });
-          } else {
-            setHash("placement", { step: `q${next}` });
-          }
+          if (next >= PLACEMENT_QUESTIONS.length) setHash("placement", { step: "result" });
+          else setHash("placement", { step: `q${next}` });
         }
       });
     });
   }
 
-// ===== FIM app.js (PARTE 5 – PLACEMENT) — BLOCO 3/4 =====
-// ===== INÍCIO app.js (PARTE 5 – PLACEMENT) — BLOCO 4/4 =====
-
-  /* =============================
-     BOOT
-  ============================= */
+  // ---------- Boot ----------
   function ensureProfile() {
     const st = store.get();
     if (st.user.name?.trim()) return;
-
-    // Perfil mínimo automático para não quebrar UX
     store.set(s => {
       if (!s.user.name) s.user.name = "Aluno";
       if (!s.user.goal) s.user.goal = "Misto";
@@ -738,23 +625,15 @@
     });
   }
 
-  function bindGlobal() {
-    window.addEventListener("hashchange", () => render());
-  }
-
   function boot() {
     ensureProfile();
-
     if (!location.hash) setHash("home");
-
-    bindGlobal();
+    window.addEventListener("hashchange", render);
     render();
 
-    // Se for primeira vez e placement não feito, sugere direto
     const st = store.get();
     if (!st.user.placementDone) {
       setTimeout(() => {
-        // só sugere se ainda estiver no home
         const { route } = getRouteAndQuery();
         if (route === "home") {
           openModal({
@@ -767,10 +646,7 @@
             `,
             primaryText: "Fazer agora",
             secondaryText: "Depois",
-            onPrimary: () => {
-              closeModal();
-              setHash("placement", { step: "intro" });
-            }
+            onPrimary: () => { closeModal(); setHash("placement", { step: "intro" }); }
           });
         }
       }, 450);
@@ -779,5 +655,3 @@
 
   boot();
 })();
-
-// ===== FIM app.js (PARTE 5 – PLACEMENT) — BLOCO 4/4 =====
