@@ -1,10 +1,12 @@
 /* =========================================================
-   IMVpedia Voice — app.js (Parte 4/6)
+   IMVpedia Voice — app.js (Parte 4/6) — FIX MOBILE + MINUTES
    - Packs (tracks + library + missions)
    - Daily missions engine (+ day-light auto)
    - Vocal diary with history + notes
    - Weekly challenges (simple)
    - Badges (starter)
+   - FIX: bottom tabbar overlap (spacers)
+   - FIX: steps minutes scaled to match minutesPlanned
 ========================================================= */
 
 (() => {
@@ -69,6 +71,12 @@
     const route = (path || "home").trim();
     const query = Object.fromEntries(new URLSearchParams(qs || ""));
     return { route, query };
+  }
+
+  // Spacer para não ficar nada atrás da tabbar no mobile
+  // (fallback robusto sem mexer no CSS)
+  function bottomSpacer() {
+    return `<div style="height:98px"></div>`;
   }
 
   /* -----------------------------
@@ -224,7 +232,6 @@
 
     stateDraft.gamification.lastActiveDate = today;
 
-    // Badges simples
     if (stateDraft.gamification.streak >= 3) ensureBadge(stateDraft, "streak_3");
     if (stateDraft.gamification.streak >= 7) ensureBadge(stateDraft, "streak_7");
   }
@@ -559,9 +566,9 @@
   ----------------------------- */
   const packCache = {
     index: null,
-    manifests: new Map(),   // packId -> manifest
-    missions: new Map(),    // packId -> missions json
-    textCache: new Map()    // url -> text
+    manifests: new Map(),
+    missions: new Map(),
+    textCache: new Map()
   };
 
   async function loadPacksIndex() {
@@ -656,7 +663,6 @@
      Missions Engine (daily + weekly)
   ----------------------------- */
   function computeDailyXP(intensity, minutesPlanned) {
-    // simples, coerente e seguro
     const base = intensity === "leve" ? 25 : 40;
     const bonus = clamp(Math.round((minutesPlanned - 10) * 1.2), 0, 25);
     return base + bonus;
@@ -664,31 +670,42 @@
 
   function chooseTemplate(templates, status, minutesPerDay) {
     const mins = clamp(minutesPerDay || 10, 5, 60);
+    const safeTemplates = Array.isArray(templates) && templates.length ? templates : [];
 
-    // se dor/rouquidão => sempre escolher leve (ou o mais leve disponível)
+    // dor/rouquidão => leve
     if (status === "pain" || status === "hoarse") {
-      const light = templates.find(t => t.id === "daily_sovt_light") || templates.find(t => t.intensity === "leve") || templates[0];
-      return { template: light, minutesPlanned: clamp(mins, light?.minMinutes || 5, light?.maxMinutes || 15) };
+      const light = safeTemplates.find(t => t.id === "daily_sovt_light")
+        || safeTemplates.find(t => t.intensity === "leve")
+        || safeTemplates[0];
+      return {
+        template: light || null,
+        minutesPlanned: clamp(mins, light?.minMinutes || 5, light?.maxMinutes || 15)
+      };
     }
 
-    // caso cansado => preferir leve/moderada curta
+    // cansado => leve/moderada mais curta
     if (status === "tired") {
-      const candidates = templates.filter(t => (t.intensity === "leve" || t.intensity === "moderada"));
-      const pick = candidates[Math.floor(Math.random() * Math.max(1, candidates.length))] || templates[0];
-      return { template: pick, minutesPlanned: clamp(Math.min(mins, 12), pick?.minMinutes || 5, pick?.maxMinutes || 20) };
+      const candidates = safeTemplates.filter(t => (t.intensity === "leve" || t.intensity === "moderada"));
+      const pick = candidates[Math.floor(Math.random() * Math.max(1, candidates.length))] || safeTemplates[0];
+      return {
+        template: pick || null,
+        minutesPlanned: clamp(Math.min(mins, 12), pick?.minMinutes || 5, pick?.maxMinutes || 20)
+      };
     }
 
-    // normal => moderada variada
-    const moderate = templates.filter(t => t.intensity === "moderada");
-    const pick = moderate[Math.floor(Math.random() * Math.max(1, moderate.length))] || templates[0];
-    return { template: pick, minutesPlanned: clamp(mins, pick?.minMinutes || 8, pick?.maxMinutes || 25) };
+    // normal => moderada
+    const moderate = safeTemplates.filter(t => t.intensity === "moderada");
+    const pick = moderate[Math.floor(Math.random() * Math.max(1, moderate.length))] || safeTemplates[0];
+    return {
+      template: pick || null,
+      minutesPlanned: clamp(mins, pick?.minMinutes || 8, pick?.maxMinutes || 25)
+    };
   }
 
   async function getTodayMission() {
     const st = store.get();
     const date = todayISO();
 
-    // se já existe missão do dia
     if (st.progress.todayMission?.date === date) return st.progress.todayMission;
 
     const packId = (st.packs.activePackIds || ["base"])[0] || "base";
@@ -719,7 +736,6 @@
   }
 
   function updateWeeklyProgressOnDailyComplete(dateISO, hadDiaryNote) {
-    const st = store.get();
     const weekStart = startOfWeekISO(dateISO);
 
     store.set(s => {
@@ -736,7 +752,6 @@
     const weekStart = startOfWeekISO(todayISO());
     const w = st.progress.week[weekStart] || { daysCompleted: 0, diaryNotesCount: 0, claimed: {} };
 
-    // base challenges do pack base
     if (challengeId === "weekly_consistency_4") return w.daysCompleted >= 4 && !w.claimed?.[challengeId];
     if (challengeId === "weekly_record_2") return w.diaryNotesCount >= 2 && !w.claimed?.[challengeId];
     return false;
@@ -775,7 +790,6 @@
     const intensity = template?.intensity || "moderada";
     const xp = computeDailyXP(intensity, tm.minutesPlanned);
 
-    // verificar se hoje tem nota no diário
     const todayEntry = (st.diary.entries || []).find(e => e.date === date);
     const hadDiaryNote = Boolean(todayEntry?.note?.trim());
 
@@ -783,16 +797,62 @@
       if (!s.progress.completedMissions) s.progress.completedMissions = {};
       s.progress.completedMissions[date] = { at: new Date().toISOString(), packId: tm.packId, templateId: tm.templateId, xp };
       touchStreak(s);
-
-      const first = ensureBadge(s, "first_mission");
-      if (first) {} // badge concedida
-
+      ensureBadge(s, "first_mission");
       if (s.gamification.streak >= 7) ensureBadge(s, "streak_7");
     });
 
     updateWeeklyProgressOnDailyComplete(date, hadDiaryNote);
     addXP(xp, "Missão do dia");
     toast("Missão concluída ✅");
+  }
+
+  // FIX: ajustar minutos de passos para bater com minutesPlanned
+  function scaleStepsToPlanned(steps, minutesPlanned) {
+    const arr = Array.isArray(steps) ? steps : [];
+    const planned = Math.max(1, Math.floor(minutesPlanned || 10));
+    const rawSum = arr.reduce((acc, s) => acc + (Number(s.minutes) || 0), 0);
+
+    if (!arr.length) return { steps: [], total: 0, planned };
+
+    // Se não tem soma válida, distribui igualmente
+    if (!rawSum || rawSum <= 0) {
+      const each = Math.max(1, Math.round(planned / arr.length));
+      const scaled = arr.map(s => ({ ...s, _scaledMinutes: each }));
+      const total = scaled.reduce((a, s) => a + s._scaledMinutes, 0);
+      return { steps: scaled, total, planned };
+    }
+
+    // escala proporcional
+    const ratio = planned / rawSum;
+    let scaled = arr.map(s => {
+      const base = Number(s.minutes) || 0;
+      const m = Math.max(1, Math.round(base * ratio));
+      return { ...s, _scaledMinutes: m };
+    });
+
+    // Ajuste final para fechar exatamente planned
+    let total = scaled.reduce((a, s) => a + s._scaledMinutes, 0);
+    let diff = planned - total;
+
+    // Ajusta diff distribuindo
+    let idx = 0;
+    while (diff !== 0 && idx < 2000) {
+      const i = idx % scaled.length;
+      if (diff > 0) {
+        scaled[i]._scaledMinutes += 1;
+        diff -= 1;
+      } else {
+        // não deixar menor que 1
+        if (scaled[i]._scaledMinutes > 1) {
+          scaled[i]._scaledMinutes -= 1;
+          diff += 1;
+        }
+      }
+      idx++;
+    }
+
+    total = scaled.reduce((a, s) => a + s._scaledMinutes, 0);
+    return { steps: scaled, total, planned };
   }
 
   /* -----------------------------
@@ -804,13 +864,11 @@
       s.diary.lastCheckinDate = date;
       s.diary.lastStatus = status;
 
-      // substitui entrada do dia se já existe
       const idx = (s.diary.entries || []).findIndex(e => e.date === date);
       const entry = { date, status, note: note || "" };
       if (idx >= 0) s.diary.entries[idx] = entry;
       else s.diary.entries.unshift(entry);
 
-      // manter histórico limitado
       s.diary.entries = (s.diary.entries || []).slice(0, 60);
     });
   }
@@ -837,6 +895,8 @@
         addDiaryEntry(status, note);
         closeModal();
         toast("Check-in salvo");
+        // força recalcular missão do dia (pode trocar pra “Dia leve”)
+        store.set(s => { s.progress.todayMission = null; });
         rerender();
       }
     });
@@ -1003,6 +1063,7 @@
 
       ${renderKpis(st)}
       ${rows.join("")}
+      ${bottomSpacer()}
     `;
   }
 
@@ -1077,6 +1138,7 @@
 
       <div style="height:12px"></div>
       ${blocks.join("<div style='height:12px'></div>")}
+      ${bottomSpacer()}
     `;
   }
 
@@ -1090,6 +1152,7 @@
           <div style="height:12px"></div>
           <button class="btn btnPrimary" data-action="goPath">Voltar à Trilha</button>
         </div>
+        ${bottomSpacer()}
       `;
     }
 
@@ -1102,6 +1165,7 @@
           <div style="height:12px"></div>
           <button class="btn btnPrimary" data-action="goPath">Voltar à Trilha</button>
         </div>
+        ${bottomSpacer()}
       `;
     }
 
@@ -1113,6 +1177,7 @@
           <div style="height:12px"></div>
           <button class="btn btnPrimary" data-action="goPath">Voltar à Trilha</button>
         </div>
+        ${bottomSpacer()}
       `;
     }
 
@@ -1161,6 +1226,7 @@
           </button>
         </div>
       </div>
+      ${bottomSpacer()}
     `;
   }
 
@@ -1216,17 +1282,18 @@
           `}
         </div>
       </div>
+      ${bottomSpacer()}
     `;
   }
 
   async function viewArticle(query) {
     const packId = query.pack || "base";
     const articleId = query.article || "";
-    if (!articleId) return `<div class="panel"><div style="font-weight:900;">Artigo inválido</div></div>`;
+    if (!articleId) return `<div class="panel"><div style="font-weight:900;">Artigo inválido</div></div>${bottomSpacer()}`;
 
     const mf = await loadPackManifest(packId);
     const article = (mf.library?.articles || []).find(a => a.id === articleId);
-    if (!article) return `<div class="panel"><div style="font-weight:900;">Artigo não encontrado</div></div>`;
+    if (!article) return `<div class="panel"><div style="font-weight:900;">Artigo não encontrado</div></div>${bottomSpacer()}`;
 
     const url = `./packs/${packId}/${article.file.replace("./", "")}`;
     let md = "";
@@ -1254,6 +1321,7 @@
           ${mdToHtml(md)}
         </div>
       </div>
+      ${bottomSpacer()}
     `;
   }
 
@@ -1268,11 +1336,13 @@
     const status = (st.diary.lastCheckinDate === date) ? st.diary.lastStatus : null;
     const statusTxt = status ? statusLabel(status) : "Sem check-in hoje";
 
-    const steps = (template?.steps || []).map(s => `
+    const scaled = scaleStepsToPlanned(template?.steps || [], tm.minutesPlanned);
+
+    const steps = (scaled.steps || []).map(s => `
       <div class="panel" style="background:rgba(255,255,255,.03);">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
           <div style="font-weight:850;">${escapeHtml(s.title)}</div>
-          <div style="color:rgba(233,236,246,.52);font-size:12px;">~${escapeHtml(String(s.minutes || 0))} min</div>
+          <div style="color:rgba(233,236,246,.52);font-size:12px;">~${escapeHtml(String(s._scaledMinutes || 0))} min</div>
         </div>
         <div style="color:rgba(233,236,246,.78);font-size:13px;line-height:1.45;margin-top:8px;">
           ${escapeHtml(s.text || "")}
@@ -1282,7 +1352,6 @@
 
     const safety = (template?.safety || []).map(x => `• ${escapeHtml(x)}`).join("<br/>");
 
-    // desafios semanais
     const packId = (st.packs.activePackIds || ["base"])[0] || "base";
     const missions = await loadPackMissions(packId);
     const weekStart = startOfWeekISO(date);
@@ -1320,7 +1389,6 @@
       `;
     }).join("<div style='height:10px'></div>");
 
-    // histórico do diário
     const diaryList = (st.diary.entries || []).slice(0, 8).map(e => `
       <div style="border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);padding:10px 12px;border-radius:14px;margin-bottom:8px;">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
@@ -1334,6 +1402,10 @@
       </div>
     `).join("");
 
+    const badgeCompleted = completed
+      ? `<span style="font-size:11px;color:rgba(233,236,246,.52);border:1px solid rgba(56,211,159,.25);padding:6px 10px;border-radius:999px;background:rgba(56,211,159,.06);">Concluída</span>`
+      : `<span style="font-size:11px;color:rgba(233,236,246,.52);border:1px solid rgba(255,255,255,.10);padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.03);">Pendente</span>`;
+
     return `
       <div class="panel">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
@@ -1342,11 +1414,15 @@
             <div style="color:rgba(233,236,246,.52);font-size:12px;margin-top:4px;">
               ${escapeHtml(template?.title || "Missão")} • ${tm.minutesPlanned} min • Intensidade: <b>${escapeHtml(template?.intensity || "moderada")}</b>
               • Check-in: <b>${escapeHtml(statusTxt)}</b>
+              • Passos: <b>${scaled.total}/${scaled.planned} min</b>
             </div>
           </div>
-          <button class="btn btnPrimary" data-action="completeToday" ${completed ? "disabled" : ""}>
-            ${completed ? "Concluída" : "Concluir"}
-          </button>
+          <div style="display:flex;gap:10px;align-items:center;">
+            ${badgeCompleted}
+            <button class="btn btnPrimary" data-action="completeToday" ${completed ? "disabled" : ""}>
+              ${completed ? "Concluída" : "Concluir"}
+            </button>
+          </div>
         </div>
 
         <hr class="sep" />
@@ -1397,6 +1473,7 @@
           ${diaryList || `<div style="color:rgba(233,236,246,.52);font-size:12px;">Sem registros ainda.</div>`}
         </div>
       </div>
+      ${bottomSpacer()}
     `;
   }
 
@@ -1469,6 +1546,7 @@
           </div>
         </div>
       </div>
+      ${bottomSpacer()}
     `;
   }
 
@@ -1480,6 +1558,7 @@
         <div style="height:12px"></div>
         <button class="btn btnPrimary" data-action="goHome">Voltar ao Início</button>
       </div>
+      ${bottomSpacer()}
     `;
   }
 
@@ -1521,6 +1600,7 @@
           <div style="height:12px"></div>
           <button class="btn btnPrimary" data-action="goHome">Voltar ao Início</button>
         </div>
+        ${bottomSpacer()}
       `;
     }
 
@@ -1545,7 +1625,6 @@
      Actions / Handlers
   ----------------------------- */
   function bindMainHandlers() {
-    // cards navegam
     $$(".card").forEach(card => {
       const go = () => {
         const r = card.getAttribute("data-route");
@@ -1562,7 +1641,6 @@
       });
     });
 
-    // actions
     $$("[data-action]").forEach(el => {
       el.addEventListener("click", async () => {
         const act = el.getAttribute("data-action");
@@ -1625,7 +1703,6 @@
       });
     });
 
-    // Busca biblioteca
     const libSearch = $("#libSearch");
     if (libSearch) {
       libSearch.addEventListener("keydown", (e) => {
@@ -1685,7 +1762,6 @@
 
     if (!location.hash) setHash("home");
 
-    // preload base pack
     try {
       await loadPacksIndex();
       await loadPackManifest("base");
