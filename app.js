@@ -1561,3 +1561,260 @@
   }
 
 // ===== FIM — BLOCO 5/6 =====
+// ===== IMVpedia Voice — app.js (PARTE 6/6) — BLOCO 6/6 =====
+  /* =============================
+     Router + Render
+  ============================= */
+  const appRoot = document.getElementById("app");
+
+  async function render() {
+    const { route, query } = getRouteAndQuery();
+    store.set(s => { s.progress.lastRoute = route; });
+
+    let html = "";
+
+    try {
+      switch (route) {
+        case "home":
+          html = await viewHome();
+          break;
+        case "pack":
+          html = await viewPack(query.id);
+          break;
+        case "path":
+          html = await viewPath(query.pack, query.path);
+          break;
+        case "lesson":
+          html = await viewLesson(query.pack, query.lesson);
+          break;
+        case "article":
+          html = await viewArticle(query.pack, query.article);
+          break;
+        case "profile":
+          html = viewProfile();
+          break;
+        case "diary":
+          html = viewDiary();
+          break;
+        case "placement":
+          html = viewPlacementIntro();
+          break;
+        case "placement-q":
+          html = viewPlacementQuestion(Number(query.q || 0));
+          break;
+        case "placement-result": {
+          const r = runPlacementAndBuildResult();
+          html = viewPlacementResult(r.result, r.score, r.plan14);
+          break;
+        }
+        case "admin":
+          html = await viewAdminEditor();
+          break;
+        default:
+          html = await viewHome();
+      }
+    } catch (e) {
+      console.error(e);
+      html = `<div class="panel">Erro ao carregar a tela.</div>${bottomSpacer()}`;
+    }
+
+    appRoot.innerHTML = html;
+    bindActions();
+  }
+
+  window.addEventListener("hashchange", render);
+  store.subscribe(() => { /* estado já persiste */ });
+
+  /* =============================
+     Actions (cliques)
+  ============================= */
+  function bindActions() {
+    $$("[data-action]").forEach(el => {
+      el.onclick = async () => {
+        const a = el.dataset.action;
+
+        switch (a) {
+          case "openPack":
+            setHash("pack", { id: el.dataset.pack });
+            break;
+
+          case "openPath":
+            setHash("path", { pack: el.dataset.pack, path: el.dataset.path });
+            break;
+
+          case "openLesson":
+            setHash("lesson", { pack: el.dataset.pack, lesson: el.dataset.lesson });
+            break;
+
+          case "openArticle":
+            setHash("article", { pack: el.dataset.pack, article: el.dataset.article });
+            break;
+
+          case "completeLesson": {
+            const key = `${el.dataset.pack}:${el.dataset.lesson}`;
+            store.set(s => {
+              if (!s.progress.completedLessons[key]) {
+                s.progress.completedLessons[key] = { at: new Date().toISOString() };
+                s.progress.continue = null;
+                s.gamification.xp += 10;
+                s.gamification.level = computeLevelFromXP(s.gamification.xp);
+                ensureBadge(s, "first_lesson");
+              }
+            });
+            toast("Lição concluída 🎉");
+            render();
+            break;
+          }
+
+          case "goProfile":
+            setHash("profile");
+            break;
+
+          case "goDiary":
+            setHash("diary");
+            break;
+
+          case "goPlacement":
+            setHash("placement");
+            break;
+
+          case "startPlacement":
+            store.set(s => { s.placement.answers = {}; });
+            setHash("placement-q", { q: 0 });
+            break;
+
+          case "answer": {
+            const q = Number(el.dataset.q);
+            const score = Number(el.dataset.score);
+            store.set(s => {
+              s.placement.answers[q] = score;
+            });
+            if (q + 1 < PLACEMENT_QUESTIONS.length)
+              setHash("placement-q", { q: q + 1 });
+            else
+              setHash("placement-result");
+            break;
+          }
+
+          case "restartPlacement":
+            store.set(s => { s.placement.answers = {}; });
+            setHash("placement-q", { q: 0 });
+            break;
+
+          case "savePlacement": {
+            const r = runPlacementAndBuildResult();
+            store.set(s => {
+              s.user.levelReal = r.result;
+              s.user.placementDone = true;
+              s.placement.result = r.result;
+              s.placement.score = r.score;
+              s.placement.plan14 = r.plan14;
+              ensureBadge(s, "placement_done");
+            });
+            toast("Placement salvo ✅");
+            setHash("home");
+            break;
+          }
+
+          case "completeMission": {
+            const st = store.get();
+            if (st.progress.todayMission)
+              markMissionDone(st.progress.todayMission);
+            render();
+            break;
+          }
+
+          case "redoMission":
+            store.set(s => { s.progress.todayMission = null; });
+            render();
+            break;
+
+          case "diaryQuick":
+            saveDiaryEntry(el.dataset.status, "");
+            render();
+            break;
+
+          case "saveDiaryNote": {
+            const note = $("#diaryNote")?.value || "";
+            const status = store.get().diary.lastStatus || "ok";
+            saveDiaryEntry(status, note);
+            render();
+            break;
+          }
+
+          case "editProfile":
+            openProfileEditor();
+            break;
+
+          case "adminEnable": {
+            const pass = $("#adminPass")?.value || "";
+            if (pass === ADMIN_PASSWORD) {
+              setAdminEnabled(true);
+              toast("Admin ativado");
+              render();
+            } else toast("Senha incorreta");
+            break;
+          }
+
+          case "adminDisable":
+            setAdminEnabled(false);
+            toast("Admin desativado");
+            render();
+            break;
+
+          case "adminOpen":
+            setHash("admin");
+            break;
+
+          case "togglePack": {
+            const id = el.dataset.pack;
+            store.set(s => {
+              const arr = s.packs.activePackIds || [];
+              if (arr.includes(id))
+                s.packs.activePackIds = arr.filter(x => x !== id);
+              else
+                s.packs.activePackIds = [...arr, id];
+            });
+            packCache.index = null;
+            render();
+            break;
+          }
+
+          case "adminEditPack":
+            openPackEditor(el.dataset.pack);
+            break;
+
+          case "adminDeletePack": {
+            const id = el.dataset.pack;
+            const all = getCustomPacks().filter(p => p.id !== id);
+            saveCustomPacks(all);
+            packCache.index = null;
+            toast("Pack excluído");
+            render();
+            break;
+          }
+
+          case "adminImportPack":
+            openPackImportModal();
+            break;
+
+          case "adminExportPack":
+            openPackExportModal(el.dataset.pack);
+            break;
+        }
+      };
+    });
+  }
+
+  /* =============================
+     Boot
+  ============================= */
+  function boot() {
+    if (!location.hash) setHash("home");
+    render();
+  }
+
+  document.addEventListener("DOMContentLoaded", boot);
+
+// ===== FIM — BLOCO 6/6 =====
+})(); // 🔒 FECHAMENTO FINAL — NÃO REMOVER
