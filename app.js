@@ -1,13 +1,10 @@
 /* =========================================================
-   IMVpedia Voice — app.js (Parte 3/6)
-   - Router (hash + query)
-   - Store (localStorage)
-   - PWA install prompt
-   - Admin gate (placeholder)
-   - PACK SYSTEM (DLC): /packs/index.json + manifests + md
-   - Simple Markdown renderer
-   - Trilha real (tracks/units/lessons)
-   - Biblioteca real (articles)
+   IMVpedia Voice — app.js (Parte 4/6)
+   - Packs (tracks + library + missions)
+   - Daily missions engine (+ day-light auto)
+   - Vocal diary with history + notes
+   - Weekly challenges (simple)
+   - Badges (starter)
 ========================================================= */
 
 (() => {
@@ -28,6 +25,18 @@
     const day = String(d.getDate()).padStart(2, "0");
     return `${y}-${m}-${day}`;
   };
+
+  function startOfWeekISO(dateISO) {
+    // Semana começando na segunda-feira
+    const d = new Date(dateISO + "T00:00:00");
+    const day = d.getDay(); // 0 dom, 1 seg...
+    const diff = (day === 0 ? -6 : 1 - day);
+    d.setDate(d.getDate() + diff);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const da = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${da}`;
+  }
 
   function safeJsonParse(str, fallback) {
     try { return JSON.parse(str); } catch { return fallback; }
@@ -66,7 +75,7 @@
      Storage / State
   ----------------------------- */
   const LS = {
-    STATE: "imv_voice_state_v2",
+    STATE: "imv_voice_state_v3",
     ADMIN: "imv_voice_admin_v1"
   };
 
@@ -75,14 +84,14 @@
       createdAt: new Date().toISOString(),
       lastOpenAt: new Date().toISOString(),
       appVersion: "1.0.0",
-      contentVersion: "packs-v1"
+      contentVersion: "packs-v1-missions"
     },
     user: {
       id: uid(),
       name: "",
       avatar: "🎤",
-      goal: "Misto",            // Popular | Erudito | Coral | Misto
-      levelSelf: "Iniciante",   // Iniciante | Intermediário | Avançado
+      goal: "Misto",
+      levelSelf: "Iniciante",
       minutesPerDay: 10
     },
     gamification: {
@@ -95,19 +104,25 @@
     },
     packs: {
       activePackIds: ["base"],
-      // cache leve de “manifest version seen”
       seen: {}
     },
     progress: {
       lastRoute: "home",
-      // concluídas por id (pack:lessonId)
       completedLessons: {},
-      // último item acessado
-      continue: null
+      continue: null,
+
+      // Missions
+      todayMission: null,           // { date, packId, templateId, minutesPlanned }
+      completedMissions: {},        // dateISO -> { at, packId, templateId, xp }
+      week: {
+        // key: weekStartISO -> { daysCompleted: number, diaryNotesCount: number, claimed: {challengeId: true}}
+      }
     },
     diary: {
       lastCheckinDate: null,
-      lastStatus: null
+      lastStatus: null,
+      // entries: [{date,status,note}]
+      entries: []
     },
     settings: {
       reduceMotion: false
@@ -160,12 +175,20 @@
   }
 
   /* -----------------------------
-     Gamification (base)
+     Gamification
   ----------------------------- */
   function computeLevelFromXP(xp) {
     let level = 1;
     while (xp >= 50 * level * (level - 1)) level++;
     return Math.max(1, level - 1);
+  }
+
+  function ensureBadge(stateDraft, badgeId) {
+    if (!stateDraft.gamification.badges.includes(badgeId)) {
+      stateDraft.gamification.badges.push(badgeId);
+      return true;
+    }
+    return false;
   }
 
   function addXP(amount, reason = "") {
@@ -200,6 +223,10 @@
     else if (diffDays > 1) stateDraft.gamification.streak = 1;
 
     stateDraft.gamification.lastActiveDate = today;
+
+    // Badges simples
+    if (stateDraft.gamification.streak >= 3) ensureBadge(stateDraft, "streak_3");
+    if (stateDraft.gamification.streak >= 7) ensureBadge(stateDraft, "streak_7");
   }
 
   /* -----------------------------
@@ -460,12 +487,10 @@
   }
 
   /* -----------------------------
-     Markdown renderer (simples e seguro)
-     Suporta: # ## ###, listas, negrito/itálico, blockquote, code inline, parágrafos
+     Markdown renderer (simple)
   ----------------------------- */
   function mdToHtml(md) {
     const lines = String(md || "").replaceAll("\r\n", "\n").split("\n");
-
     let html = "";
     let inList = false;
     let inQuote = false;
@@ -477,67 +502,55 @@
       const line = raw.trimEnd();
 
       if (!line.trim()) {
-        closeList();
-        closeQuote();
+        closeList(); closeQuote();
         html += "<div style='height:10px'></div>";
         continue;
       }
 
-      // Blockquote >
       if (line.trim().startsWith(">")) {
         closeList();
-        if (!inQuote) { html += "<blockquote style='margin:0;padding:10px 12px;border-left:3px solid rgba(124,92,255,.65);background:rgba(255,255,255,.03);border-radius:14px;color:rgba(233,236,246,.78);line-height:1.45;'>"; inQuote = true; }
+        if (!inQuote) {
+          html += "<blockquote style='margin:0;padding:10px 12px;border-left:3px solid rgba(124,92,255,.65);background:rgba(255,255,255,.03);border-radius:14px;color:rgba(233,236,246,.78);line-height:1.45;'>";
+          inQuote = true;
+        }
         html += `<div>${inlineMd(line.replace(/^>\s?/, ""))}</div>`;
         continue;
-      } else {
-        closeQuote();
-      }
+      } else closeQuote();
 
-      // Headings
       if (line.startsWith("### ")) { closeList(); html += `<h3 style="margin:0;font-size:14px;font-weight:860;letter-spacing:.2px;">${inlineMd(line.slice(4))}</h3>`; continue; }
       if (line.startsWith("## ")) { closeList(); html += `<h2 style="margin:0;font-size:16px;font-weight:900;letter-spacing:.2px;">${inlineMd(line.slice(3))}</h2>`; continue; }
       if (line.startsWith("# "))  { closeList(); html += `<h1 style="margin:0;font-size:20px;font-weight:950;letter-spacing:.2px;">${inlineMd(line.slice(2))}</h1>`; continue; }
 
-      // List items
       if (line.startsWith("- ") || line.startsWith("* ")) {
-        if (!inList) { html += "<ul style='margin:0 0 0 18px;padding:0;color:rgba(233,236,246,.78);line-height:1.5;'>"; inList = true; }
+        if (!inList) {
+          html += "<ul style='margin:0 0 0 18px;padding:0;color:rgba(233,236,246,.78);line-height:1.5;'>";
+          inList = true;
+        }
         html += `<li>${inlineMd(line.slice(2))}</li>`;
         continue;
       }
 
-      // Numbered list (simple)
       if (/^\d+\)\s/.test(line) || /^\d+\.\s/.test(line)) {
         closeList();
         html += `<div style="color:rgba(233,236,246,.78);line-height:1.5;">${inlineMd(line)}</div>`;
         continue;
       }
 
-      // Paragraph
       closeList();
       html += `<p style="margin:0;color:rgba(233,236,246,.78);line-height:1.55;">${inlineMd(line)}</p>`;
     }
 
-    closeList();
-    closeQuote();
+    closeList(); closeQuote();
     return html;
   }
 
   function inlineMd(text) {
     let s = escapeHtml(text);
-
-    // inline code `x`
     s = s.replace(/`([^`]+)`/g, (_, a) => `<code style="color:rgba(233,236,246,.78);background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.10);padding:2px 6px;border-radius:10px;">${a}</code>`);
-
-    // bold **x**
     s = s.replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
-
-    // italic *x*
     s = s.replace(/\*([^*]+)\*/g, "<i>$1</i>");
-
-    // checkbox [ ] / [x]
     s = s.replace(/\[ \]/g, "☐");
     s = s.replace(/\[x\]/gi, "☑");
-
     return s;
   }
 
@@ -546,7 +559,8 @@
   ----------------------------- */
   const packCache = {
     index: null,
-    manifests: new Map(),   // packId -> manifest json
+    manifests: new Map(),   // packId -> manifest
+    missions: new Map(),    // packId -> missions json
     textCache: new Map()    // url -> text
   };
 
@@ -561,16 +575,29 @@
 
   async function loadPackManifest(packId) {
     if (packCache.manifests.has(packId)) return packCache.manifests.get(packId);
-
-    const idx = await loadPacksIndex();
-    const entry = (idx.packs || []).find(p => p.id === packId);
-    if (!entry) throw new Error(`Pack não encontrado: ${packId}`);
-
+    await loadPacksIndex();
     const res = await fetch(`./packs/${packId}/manifest.json`, { cache: "no-cache" });
     if (!res.ok) throw new Error(`Falha ao carregar manifest do pack: ${packId}`);
     const manifest = await res.json();
     packCache.manifests.set(packId, manifest);
     return manifest;
+  }
+
+  async function loadPackMissions(packId) {
+    if (packCache.missions.has(packId)) return packCache.missions.get(packId);
+    const mf = await loadPackManifest(packId);
+    const file = mf.missions?.file;
+    if (!file) {
+      const empty = { dailyTemplates: [], weeklyChallenges: [] };
+      packCache.missions.set(packId, empty);
+      return empty;
+    }
+    const url = `./packs/${packId}/${file.replace("./", "")}`;
+    const res = await fetch(url, { cache: "no-cache" });
+    if (!res.ok) throw new Error(`Falha ao carregar missions do pack: ${packId}`);
+    const data = await res.json();
+    packCache.missions.set(packId, data);
+    return data;
   }
 
   async function fetchTextCached(url) {
@@ -597,15 +624,16 @@
     return manifests;
   }
 
+  /* -----------------------------
+     Progress helpers (lessons)
+  ----------------------------- */
   function lessonKey(packId, lessonId) {
     return `${packId}:${lessonId}`;
   }
 
   function markLessonCompleted(packId, lessonId) {
     store.set(s => {
-      s.progress.completedLessons[lessonKey(packId, lessonId)] = {
-        at: new Date().toISOString()
-      };
+      s.progress.completedLessons[lessonKey(packId, lessonId)] = { at: new Date().toISOString() };
       s.progress.continue = { packId, lessonId };
     });
   }
@@ -614,8 +642,213 @@
     return Boolean(st.progress.completedLessons[lessonKey(packId, lessonId)]);
   }
 
+  function findLessonInManifest(manifest, lessonId) {
+    for (const track of (manifest.tracks || [])) {
+      for (const unit of (track.units || [])) {
+        const lesson = (unit.lessons || []).find(l => l.id === lessonId);
+        if (lesson) return { track, unit, lesson };
+      }
+    }
+    return null;
+  }
+
   /* -----------------------------
-     Views
+     Missions Engine (daily + weekly)
+  ----------------------------- */
+  function computeDailyXP(intensity, minutesPlanned) {
+    // simples, coerente e seguro
+    const base = intensity === "leve" ? 25 : 40;
+    const bonus = clamp(Math.round((minutesPlanned - 10) * 1.2), 0, 25);
+    return base + bonus;
+  }
+
+  function chooseTemplate(templates, status, minutesPerDay) {
+    const mins = clamp(minutesPerDay || 10, 5, 60);
+
+    // se dor/rouquidão => sempre escolher leve (ou o mais leve disponível)
+    if (status === "pain" || status === "hoarse") {
+      const light = templates.find(t => t.id === "daily_sovt_light") || templates.find(t => t.intensity === "leve") || templates[0];
+      return { template: light, minutesPlanned: clamp(mins, light?.minMinutes || 5, light?.maxMinutes || 15) };
+    }
+
+    // caso cansado => preferir leve/moderada curta
+    if (status === "tired") {
+      const candidates = templates.filter(t => (t.intensity === "leve" || t.intensity === "moderada"));
+      const pick = candidates[Math.floor(Math.random() * Math.max(1, candidates.length))] || templates[0];
+      return { template: pick, minutesPlanned: clamp(Math.min(mins, 12), pick?.minMinutes || 5, pick?.maxMinutes || 20) };
+    }
+
+    // normal => moderada variada
+    const moderate = templates.filter(t => t.intensity === "moderada");
+    const pick = moderate[Math.floor(Math.random() * Math.max(1, moderate.length))] || templates[0];
+    return { template: pick, minutesPlanned: clamp(mins, pick?.minMinutes || 8, pick?.maxMinutes || 25) };
+  }
+
+  async function getTodayMission() {
+    const st = store.get();
+    const date = todayISO();
+
+    // se já existe missão do dia
+    if (st.progress.todayMission?.date === date) return st.progress.todayMission;
+
+    const packId = (st.packs.activePackIds || ["base"])[0] || "base";
+    const missions = await loadPackMissions(packId);
+
+    const status = st.diary.lastCheckinDate === date ? st.diary.lastStatus : null;
+    const { template, minutesPlanned } = chooseTemplate(missions.dailyTemplates || [], status, st.user.minutesPerDay);
+
+    const tm = {
+      date,
+      packId,
+      templateId: template?.id || "daily_sovt_light",
+      minutesPlanned
+    };
+
+    store.set(s => { s.progress.todayMission = tm; });
+    return tm;
+  }
+
+  async function resolveMissionTemplate(packId, templateId) {
+    const missions = await loadPackMissions(packId);
+    return (missions.dailyTemplates || []).find(t => t.id === templateId) || null;
+  }
+
+  function isDailyCompleted(dateISO) {
+    const st = store.get();
+    return Boolean(st.progress.completedMissions?.[dateISO]);
+  }
+
+  function updateWeeklyProgressOnDailyComplete(dateISO, hadDiaryNote) {
+    const st = store.get();
+    const weekStart = startOfWeekISO(dateISO);
+
+    store.set(s => {
+      if (!s.progress.week[weekStart]) {
+        s.progress.week[weekStart] = { daysCompleted: 0, diaryNotesCount: 0, claimed: {} };
+      }
+      s.progress.week[weekStart].daysCompleted += 1;
+      if (hadDiaryNote) s.progress.week[weekStart].diaryNotesCount += 1;
+    });
+  }
+
+  function canClaimWeekly(challengeId) {
+    const st = store.get();
+    const weekStart = startOfWeekISO(todayISO());
+    const w = st.progress.week[weekStart] || { daysCompleted: 0, diaryNotesCount: 0, claimed: {} };
+
+    // base challenges do pack base
+    if (challengeId === "weekly_consistency_4") return w.daysCompleted >= 4 && !w.claimed?.[challengeId];
+    if (challengeId === "weekly_record_2") return w.diaryNotesCount >= 2 && !w.claimed?.[challengeId];
+    return false;
+  }
+
+  async function claimWeekly(challengeId) {
+    const st = store.get();
+    const weekStart = startOfWeekISO(todayISO());
+    const packId = (st.packs.activePackIds || ["base"])[0] || "base";
+    const missions = await loadPackMissions(packId);
+    const ch = (missions.weeklyChallenges || []).find(x => x.id === challengeId);
+    if (!ch) return toast("Desafio não encontrado");
+
+    if (!canClaimWeekly(challengeId)) return toast("Ainda não atingiu a meta");
+
+    store.set(s => {
+      if (!s.progress.week[weekStart]) s.progress.week[weekStart] = { daysCompleted: 0, diaryNotesCount: 0, claimed: {} };
+      s.progress.week[weekStart].claimed[challengeId] = true;
+    });
+
+    addXP(ch.rewardXP || 80, "Desafio semanal");
+    toast("Recompensa semanal coletada ✅");
+  }
+
+  async function completeTodayMission() {
+    const tm = await getTodayMission();
+    const st = store.get();
+    const date = tm.date;
+
+    if (st.progress.completedMissions?.[date]) {
+      toast("Missão do dia já concluída");
+      return;
+    }
+
+    const template = await resolveMissionTemplate(tm.packId, tm.templateId);
+    const intensity = template?.intensity || "moderada";
+    const xp = computeDailyXP(intensity, tm.minutesPlanned);
+
+    // verificar se hoje tem nota no diário
+    const todayEntry = (st.diary.entries || []).find(e => e.date === date);
+    const hadDiaryNote = Boolean(todayEntry?.note?.trim());
+
+    store.set(s => {
+      if (!s.progress.completedMissions) s.progress.completedMissions = {};
+      s.progress.completedMissions[date] = { at: new Date().toISOString(), packId: tm.packId, templateId: tm.templateId, xp };
+      touchStreak(s);
+
+      const first = ensureBadge(s, "first_mission");
+      if (first) {} // badge concedida
+
+      if (s.gamification.streak >= 7) ensureBadge(s, "streak_7");
+    });
+
+    updateWeeklyProgressOnDailyComplete(date, hadDiaryNote);
+    addXP(xp, "Missão do dia");
+    toast("Missão concluída ✅");
+  }
+
+  /* -----------------------------
+     Diary
+  ----------------------------- */
+  function addDiaryEntry(status, note = "") {
+    const date = todayISO();
+    store.set(s => {
+      s.diary.lastCheckinDate = date;
+      s.diary.lastStatus = status;
+
+      // substitui entrada do dia se já existe
+      const idx = (s.diary.entries || []).findIndex(e => e.date === date);
+      const entry = { date, status, note: note || "" };
+      if (idx >= 0) s.diary.entries[idx] = entry;
+      else s.diary.entries.unshift(entry);
+
+      // manter histórico limitado
+      s.diary.entries = (s.diary.entries || []).slice(0, 60);
+    });
+  }
+
+  function openDiaryNoteModal(status) {
+    const label = statusLabel(status);
+    openModal({
+      title: `Check-in: ${label}`,
+      contentHtml: `
+        <p style="margin:0;color:rgba(233,236,246,.78);line-height:1.45">
+          Escreva uma nota rápida (opcional): como a voz respondeu hoje?
+        </p>
+        <div style="height:10px"></div>
+        <textarea id="diaryNote" class="input" rows="4" placeholder="Ex.: hoje a voz estava leve, mas cansei após 10 min…"></textarea>
+        <div style="height:8px"></div>
+        <div style="color:rgba(233,236,246,.52);font-size:12px;line-height:1.35">
+          Se houver <b>dor</b> ou <b>rouquidão</b>, o app vai sugerir “Dia Leve”.
+        </div>
+      `,
+      primaryText: "Salvar",
+      secondaryText: "Cancelar",
+      onPrimary: () => {
+        const note = ($("#diaryNote")?.value || "").trim();
+        addDiaryEntry(status, note);
+        closeModal();
+        toast("Check-in salvo");
+        rerender();
+      }
+    });
+  }
+
+  function statusLabel(s) {
+    const map = { ok: "Sem desconforto", tired: "Cansado", hoarse: "Rouquidão", pain: "Dor" };
+    return map[s] || s || "—";
+  }
+
+  /* -----------------------------
+     Views (UI)
   ----------------------------- */
   function renderKpis(st) {
     return `
@@ -700,9 +933,15 @@
     const name = st.user?.name?.trim() || "Aluno";
     const goal = st.user?.goal || "Misto";
     const minutes = st.user?.minutesPerDay || 10;
-    const adminBadge = isAdminEnabled()
-      ? `<span style="font-size:11px;color:rgba(233,236,246,.52);border:1px solid rgba(255,255,255,.10);padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.03);">Admin</span>`
-      : "";
+
+    const tm = await getTodayMission();
+    const template = await resolveMissionTemplate(tm.packId, tm.templateId);
+
+    const status = (st.diary.lastCheckinDate === todayISO()) ? st.diary.lastStatus : null;
+    const statusTxt = status ? `• Check-in: ${statusLabel(status)}` : "• Sem check-in hoje";
+
+    const missionTitle = template?.title || "Missão do dia";
+    const missionMeta = `${tm.minutesPlanned} min • ${template?.intensity || "moderada"} ${statusTxt}`;
 
     const manifests = await getActiveManifests();
     const base = manifests[0];
@@ -734,44 +973,37 @@
       : [];
 
     const quick = [
-      { title: "Missão de hoje", meta: `${minutes} min • (Parte 4 fica completa)`, route: "missions" },
+      { title: missionTitle, meta: missionMeta, route: "missions" },
       { title: "Trilha", meta: "Capítulos e lições", route: "path" },
       { title: "Biblioteca", meta: "Artigos e fundamentos", route: "library" }
     ];
 
+    const adminBadge = isAdminEnabled()
+      ? `<span style="font-size:11px;color:rgba(233,236,246,.52);border:1px solid rgba(255,255,255,.10);padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.03);">Admin</span>`
+      : "";
+
     const rows = [];
     if (continueCard) rows.push(renderSection("Continue", "Retome de onde parou", [continueCard]));
+    rows.push(renderSection("Hoje", "Sua missão e atalhos", quick));
     rows.push(renderSection("Recomendado", "Comece por aqui", recommended.slice(0, 10)));
-    rows.push(renderSection("Atalhos", "Acesso rápido", quick));
 
     return `
       <div class="hero">
         <div class="hero__kicker">Bem-vindo(a), ${escapeHtml(name)} • Objetivo: ${escapeHtml(goal)} ${adminBadge}</div>
-        <div class="hero__title">Trilha vocal completa — agora com Packs</div>
+        <div class="hero__title">Treino vocal com segurança — e hábito diário</div>
         <p class="hero__desc">
-          Você está com o pack <b>Base — Fundamentos 1</b> ativo. Hoje: ${minutes} min.
-          Estude lições, ganhe XP e mantenha consistência.
+          Missões se adaptam ao seu check-in. Se houver <b>dor</b> ou <b>rouquidão</b>, o app sugere automaticamente um <b>Dia Leve</b>.
         </p>
         <div class="hero__actions">
-          <button class="btn btnPrimary" data-action="startDaily">Missão de hoje</button>
-          <button class="btn" data-action="openPlacement">Teste de classificação</button>
+          <button class="btn btnPrimary" data-action="goMissions">Missão de hoje</button>
           <button class="btn" data-action="openProfile">Editar perfil</button>
+          <button class="btn" data-action="openAdmin">Admin</button>
         </div>
       </div>
 
       ${renderKpis(st)}
       ${rows.join("")}
     `;
-  }
-
-  function findLessonInManifest(manifest, lessonId) {
-    for (const track of (manifest.tracks || [])) {
-      for (const unit of (track.units || [])) {
-        const lesson = (unit.lessons || []).find(l => l.id === lessonId);
-        if (lesson) return { track, unit, lesson };
-      }
-    }
-    return null;
   }
 
   async function viewPath() {
@@ -836,10 +1068,10 @@
           <div>
             <div style="font-weight:900;font-size:16px;">Trilha</div>
             <div style="color:rgba(233,236,246,.52);font-size:12px;margin-top:4px;">
-              Trilhas carregadas por Packs (DLC). Sem quebrar o app quando você expandir.
+              Trilhas carregadas por Packs (DLC). Você expande conteúdo sem mexer no core.
             </div>
           </div>
-          <button class="btn btnPrimary" data-action="jumpToDaily">Missão</button>
+          <button class="btn btnPrimary" data-action="goMissions">Missão</button>
         </div>
       </div>
 
@@ -1025,43 +1257,116 @@
     `;
   }
 
-  function viewMissions() {
+  async function viewMissions() {
     const st = store.get();
-    const mins = st.user?.minutesPerDay || 10;
+    const tm = await getTodayMission();
+    const template = await resolveMissionTemplate(tm.packId, tm.templateId);
+
+    const date = todayISO();
+    const completed = isDailyCompleted(date);
+
+    const status = (st.diary.lastCheckinDate === date) ? st.diary.lastStatus : null;
+    const statusTxt = status ? statusLabel(status) : "Sem check-in hoje";
+
+    const steps = (template?.steps || []).map(s => `
+      <div class="panel" style="background:rgba(255,255,255,.03);">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+          <div style="font-weight:850;">${escapeHtml(s.title)}</div>
+          <div style="color:rgba(233,236,246,.52);font-size:12px;">~${escapeHtml(String(s.minutes || 0))} min</div>
+        </div>
+        <div style="color:rgba(233,236,246,.78);font-size:13px;line-height:1.45;margin-top:8px;">
+          ${escapeHtml(s.text || "")}
+        </div>
+      </div>
+    `).join("<div style='height:10px'></div>");
+
+    const safety = (template?.safety || []).map(x => `• ${escapeHtml(x)}`).join("<br/>");
+
+    // desafios semanais
+    const packId = (st.packs.activePackIds || ["base"])[0] || "base";
+    const missions = await loadPackMissions(packId);
+    const weekStart = startOfWeekISO(date);
+    const w = st.progress.week?.[weekStart] || { daysCompleted: 0, diaryNotesCount: 0, claimed: {} };
+
+    const weeklyHtml = (missions.weeklyChallenges || []).map(ch => {
+      const claimed = Boolean(w.claimed?.[ch.id]);
+      const can = canClaimWeekly(ch.id);
+      const progressTxt =
+        ch.id === "weekly_consistency_4"
+          ? `${w.daysCompleted}/${ch.target}`
+          : ch.id === "weekly_record_2"
+          ? `${w.diaryNotesCount}/${ch.target}`
+          : "0/0";
+
+      return `
+        <div class="panel" style="background:rgba(255,255,255,.03);">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;">
+            <div>
+              <div style="font-weight:900;">${escapeHtml(ch.title)}</div>
+              <div style="color:rgba(233,236,246,.52);font-size:12px;margin-top:6px;">
+                Progresso: <b>${escapeHtml(progressTxt)}</b> • Recompensa: <b>${escapeHtml(String(ch.rewardXP || 0))} XP</b>
+              </div>
+              <div style="color:rgba(233,236,246,.78);font-size:13px;line-height:1.45;margin-top:8px;">
+                ${escapeHtml(ch.description || "")}
+              </div>
+            </div>
+            <div>
+              <button class="btn ${can ? "btnPrimary" : ""}" data-action="claimWeekly" data-ch="${escapeHtml(ch.id)}" ${(!can || claimed) ? "disabled" : ""}>
+                ${claimed ? "Coletado" : can ? "Coletar" : "Meta"}
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join("<div style='height:10px'></div>");
+
+    // histórico do diário
+    const diaryList = (st.diary.entries || []).slice(0, 8).map(e => `
+      <div style="border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);padding:10px 12px;border-radius:14px;margin-bottom:8px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+          <div style="font-weight:850;">${escapeHtml(e.date)} • ${escapeHtml(statusLabel(e.status))}</div>
+          <div style="color:rgba(233,236,246,.52);font-size:12px;">${e.note?.trim() ? "📝" : ""}</div>
+        </div>
+        ${e.note?.trim()
+          ? `<div style="color:rgba(233,236,246,.78);font-size:13px;line-height:1.45;margin-top:6px;">${escapeHtml(e.note)}</div>`
+          : `<div style="color:rgba(233,236,246,.52);font-size:12px;margin-top:6px;">Sem nota</div>`
+        }
+      </div>
+    `).join("");
 
     return `
       <div class="panel">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
           <div>
-            <div style="font-weight:900;font-size:16px;">Missões</div>
-            <div style="color:rgba(233,236,246,.52);font-size:12px;margin-top:3px;">
-              Missão do dia • ${mins} min (Parte 4 vai ficar completa com packs e adaptação)
+            <div style="font-weight:950;font-size:16px;">Missão de hoje</div>
+            <div style="color:rgba(233,236,246,.52);font-size:12px;margin-top:4px;">
+              ${escapeHtml(template?.title || "Missão")} • ${tm.minutesPlanned} min • Intensidade: <b>${escapeHtml(template?.intensity || "moderada")}</b>
+              • Check-in: <b>${escapeHtml(statusTxt)}</b>
             </div>
           </div>
-          <button class="btn btnPrimary" data-action="completeDaily">Concluir</button>
+          <button class="btn btnPrimary" data-action="completeToday" ${completed ? "disabled" : ""}>
+            ${completed ? "Concluída" : "Concluir"}
+          </button>
         </div>
 
         <hr class="sep" />
 
+        ${steps || `<div class="panel" style="background:rgba(255,255,255,.03);"><div style="font-weight:850;">Sem passos</div></div>`}
+
+        <div style="height:12px"></div>
+
         <div class="panel">
-          <div style="font-weight:850;">Missão de hoje (base)</div>
-          <div style="color:rgba(233,236,246,.78);font-size:13px;line-height:1.45;margin-top:8px;">
-            <ol style="margin:0 0 0 18px;padding:0;">
-              <li><b>Aquecimento SOVT</b> (2–3 min): lip trill ou humming leve.</li>
-              <li><b>Foco técnico</b> (5–8 min): 5 notas em “no/nu”, confortável.</li>
-              <li><b>Aplicação</b> (2–4 min): 1 trecho fácil com o mesmo conforto.</li>
-            </ol>
-            <div style="height:10px"></div>
-            <div style="color:rgba(233,236,246,.52);font-size:12px;">
-              Pare se houver dor/rouquidão.
-            </div>
+          <div style="font-weight:900;">Segurança</div>
+          <div style="height:8px"></div>
+          <div style="color:rgba(233,236,246,.78);font-size:13px;line-height:1.45;">
+            ${safety || "• Pare se houver dor.\n• Reduza volume se houver aperto."}
           </div>
         </div>
 
         <div style="height:12px"></div>
 
         <div class="panel">
-          <div style="font-weight:850;">Check-in vocal (rápido)</div>
+          <div style="font-weight:900;">Check-in vocal (com nota)</div>
           <div style="height:10px"></div>
           <div class="grid grid--2">
             <button class="btn" data-action="checkin" data-status="ok">✅ Sem desconforto</button>
@@ -1071,8 +1376,25 @@
           </div>
           <div style="height:10px"></div>
           <div style="color:rgba(233,236,246,.52);font-size:12px;line-height:1.35;">
-            Na Parte 4 isso vira diário vocal e adapta as missões automaticamente.
+            Se marcar rouquidão/dor, a próxima missão fica automaticamente “Dia Leve”.
           </div>
+        </div>
+
+        <div style="height:12px"></div>
+
+        <div class="panel">
+          <div style="font-weight:900;">Desafios semanais</div>
+          <div style="color:rgba(233,236,246,.52);font-size:12px;margin-top:6px;">Semana iniciada em ${escapeHtml(weekStart)}</div>
+          <div style="height:10px"></div>
+          ${weeklyHtml || `<div style="color:rgba(233,236,246,.52);font-size:12px;">Sem desafios</div>`}
+        </div>
+
+        <div style="height:12px"></div>
+
+        <div class="panel">
+          <div style="font-weight:900;">Diário vocal (últimos registros)</div>
+          <div style="height:10px"></div>
+          ${diaryList || `<div style="color:rgba(233,236,246,.52);font-size:12px;">Sem registros ainda.</div>`}
         </div>
       </div>
     `;
@@ -1082,14 +1404,21 @@
     const st = store.get();
     const u = st.user;
 
+    const badges = (st.gamification.badges || []).map(b => {
+      const map = {
+        first_mission: "Primeira missão ✅",
+        streak_3: "Streak 3 dias 🔥",
+        streak_7: "Streak 7 dias 🏆"
+      };
+      return `<span style="border:1px solid rgba(255,255,255,.10);padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.03);margin-right:6px;display:inline-block;margin-bottom:6px;">${escapeHtml(map[b] || b)}</span>`;
+    }).join("");
+
     return `
       <div class="panel">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
           <div>
             <div style="font-weight:900;font-size:16px;">Perfil</div>
-            <div style="color:rgba(233,236,246,.52);font-size:12px;margin-top:3px;">
-              Ajustes e estatísticas
-            </div>
+            <div style="color:rgba(233,236,246,.52);font-size:12px;margin-top:3px;">Ajustes e estatísticas</div>
           </div>
           <button class="btn btnPrimary" data-action="openProfile">Editar</button>
         </div>
@@ -1111,42 +1440,33 @@
         <div style="height:12px"></div>
 
         <div class="panel">
-          <div style="font-weight:850;">Packs ativos</div>
+          <div style="font-weight:900;">Badges</div>
           <div style="height:10px"></div>
-          ${(store.get().packs.activePackIds || []).map(id => `
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);padding:10px 12px;border-radius:14px;margin-bottom:8px;">
-              <div style="color:rgba(233,236,246,.78);font-size:13px;"><b>${escapeHtml(id)}</b></div>
-              <div style="color:rgba(233,236,246,.52);font-size:12px;">ativo</div>
-            </div>
-          `).join("")}
-          <div style="color:rgba(233,236,246,.52);font-size:12px;line-height:1.35;">
-            Na Parte 6, você terá Admin completo para importar/ativar/desativar packs.
-          </div>
+          ${badges || `<div style="color:rgba(233,236,246,.52);font-size:12px;">Nenhuma badge ainda. Conclua missões e mantenha streak.</div>`}
         </div>
 
         <div style="height:12px"></div>
 
         <div class="panel">
-          <div style="font-weight:850;">Dados</div>
+          <div style="font-weight:900;">Admin</div>
+          <div style="height:10px"></div>
+          <div style="color:rgba(233,236,246,.78);font-size:13px;line-height:1.4;">
+            Status: <b>${isAdminEnabled() ? "ativo" : "inativo"}</b> • Senha atual: <code style="color:rgba(233,236,246,.78)">imvadmin</code>
+          </div>
+          <div style="height:10px"></div>
+          <button class="btn" data-action="openAdmin">Abrir Admin</button>
+        </div>
+
+        <div style="height:12px"></div>
+
+        <div class="panel">
+          <div style="font-weight:900;">Dados</div>
           <div style="height:10px"></div>
           <button class="btn" data-action="resetApp">Resetar app (apagar dados)</button>
           <div style="height:10px"></div>
           <div style="color:rgba(233,236,246,.52);font-size:12px;line-height:1.35;">
             Reset apaga seu progresso local (localStorage). Use com cuidado.
           </div>
-        </div>
-
-        <div style="height:12px"></div>
-
-        <div class="panel">
-          <div style="font-weight:850;">Admin</div>
-          <div style="height:10px"></div>
-          <div style="color:rgba(233,236,246,.78);font-size:13px;line-height:1.4;">
-            Status: <b>${isAdminEnabled() ? "ativo" : "inativo"}</b> •
-            Senha padrão nesta fase: <code style="color:rgba(233,236,246,.78)">imvadmin</code>
-          </div>
-          <div style="height:10px"></div>
-          <button class="btn" data-action="openAdmin">Abrir Admin</button>
         </div>
       </div>
     `;
@@ -1156,9 +1476,7 @@
     return `
       <div class="panel">
         <div style="font-weight:900;font-size:16px;">Página não encontrada</div>
-        <div style="color:rgba(233,236,246,.72);margin-top:8px;line-height:1.45">
-          Essa rota ainda não existe.
-        </div>
+        <div style="color:rgba(233,236,246,.72);margin-top:8px;line-height:1.45">Essa rota ainda não existe.</div>
         <div style="height:12px"></div>
         <button class="btn btnPrimary" data-action="goHome">Voltar ao Início</button>
       </div>
@@ -1166,38 +1484,157 @@
   }
 
   /* -----------------------------
-     Placement teaser
+     Router / Render
   ----------------------------- */
-  function openPlacementTeaser() {
-    openModal({
-      title: "Teste de classificação (Parte 5)",
-      contentHtml: `
-        <p style="margin:0;color:rgba(233,236,246,.78);line-height:1.45">
-          Na Parte 5, o app terá placement completo:
-          questionário + recomendações por objetivo + checkpoints e plano de 14 dias.
-        </p>
-      `,
-      primaryText: "Ok",
-      secondaryText: null,
-      onPrimary: () => closeModal()
+  const main = $("#main");
+
+  async function render() {
+    if (!main) return;
+
+    const { route, query } = getRouteAndQuery();
+    store.set(s => { s.progress.lastRoute = route; });
+
+    updateTabbar(route);
+
+    main.innerHTML = `
+      <div class="panel">
+        <div style="font-weight:900;">Carregando…</div>
+        <div style="color:rgba(233,236,246,.52);font-size:12px;margin-top:6px;">Preparando conteúdo</div>
+      </div>
+    `;
+
+    let html = "";
+    try {
+      if (route === "home") html = await viewHome();
+      else if (route === "path") html = await viewPath();
+      else if (route === "lesson") html = await viewLesson(query);
+      else if (route === "missions") html = await viewMissions();
+      else if (route === "library") html = await viewLibrary(query);
+      else if (route === "article") html = await viewArticle(query);
+      else if (route === "profile") html = viewProfile();
+      else html = viewNotFound();
+    } catch (e) {
+      html = `
+        <div class="panel">
+          <div style="font-weight:900;">Erro ao renderizar</div>
+          <div style="color:rgba(233,236,246,.72);margin-top:8px;line-height:1.45">${escapeHtml(String(e))}</div>
+          <div style="height:12px"></div>
+          <button class="btn btnPrimary" data-action="goHome">Voltar ao Início</button>
+        </div>
+      `;
+    }
+
+    main.innerHTML = html;
+    bindMainHandlers();
+  }
+
+  function rerender() { render(); }
+
+  function updateTabbar(route) {
+    const active =
+      (route === "lesson") ? "path" :
+      (route === "article") ? "library" :
+      route;
+    $$(".tabbar__item").forEach(btn => {
+      const r = btn.getAttribute("data-route");
+      btn.classList.toggle("is-active", r === active);
     });
   }
 
   /* -----------------------------
-     Missions (demo)
+     Actions / Handlers
   ----------------------------- */
-  function completeDaily() {
-    addXP(40, "Missão diária");
-    toast("Missão concluída ✅");
-  }
-
-  function checkin(status) {
-    store.set(s => {
-      s.diary.lastCheckinDate = todayISO();
-      s.diary.lastStatus = status;
+  function bindMainHandlers() {
+    // cards navegam
+    $$(".card").forEach(card => {
+      const go = () => {
+        const r = card.getAttribute("data-route");
+        const packId = card.getAttribute("data-pack") || "";
+        const lessonId = card.getAttribute("data-lesson") || "";
+        const articleId = card.getAttribute("data-article") || "";
+        if (r === "lesson") setHash("lesson", { pack: packId, lesson: lessonId });
+        else if (r === "article") setHash("article", { pack: packId, article: articleId });
+        else if (r) setHash(r);
+      };
+      card.addEventListener("click", go);
+      card.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); }
+      });
     });
-    if (status === "pain" || status === "hoarse") toast("Sugestão: dia leve + descanso");
-    else toast("Check-in registrado");
+
+    // actions
+    $$("[data-action]").forEach(el => {
+      el.addEventListener("click", async () => {
+        const act = el.getAttribute("data-action");
+        if (!act) return;
+
+        switch (act) {
+          case "goHome": setHash("home"); break;
+          case "goMissions": setHash("missions"); break;
+          case "goPath": setHash("path"); break;
+          case "goLibrary": setHash("library"); break;
+
+          case "openProfile": openProfileEditor(); break;
+          case "openAdmin": openAdminGate(); break;
+
+          case "checkin": {
+            const status = el.getAttribute("data-status") || "ok";
+            openDiaryNoteModal(status);
+            break;
+          }
+
+          case "completeToday":
+            await completeTodayMission();
+            rerender();
+            break;
+
+          case "openLesson": {
+            const packId = el.getAttribute("data-pack") || "base";
+            const lessonId = el.getAttribute("data-lesson") || "";
+            setHash("lesson", { pack: packId, lesson: lessonId });
+            break;
+          }
+
+          case "completeLesson": {
+            const packId = el.getAttribute("data-pack") || "base";
+            const lessonId = el.getAttribute("data-lesson") || "";
+            if (!lessonId) return;
+            const st = store.get();
+            if (isLessonCompleted(st, packId, lessonId)) return toast("Já concluída");
+            markLessonCompleted(packId, lessonId);
+            addXP(25, "Lição concluída");
+            toast("Lição concluída ✅");
+            rerender();
+            break;
+          }
+
+          case "claimWeekly": {
+            const ch = el.getAttribute("data-ch") || "";
+            await claimWeekly(ch);
+            rerender();
+            break;
+          }
+
+          case "resetApp":
+            resetApp();
+            break;
+
+          default:
+            toast("Ação não implementada");
+        }
+      });
+    });
+
+    // Busca biblioteca
+    const libSearch = $("#libSearch");
+    if (libSearch) {
+      libSearch.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") setHash("library", { q: (libSearch.value || "").trim() });
+      });
+      libSearch.addEventListener("change", () => {
+        setHash("library", { q: (libSearch.value || "").trim() });
+      });
+    }
   }
 
   function resetApp() {
@@ -1225,176 +1662,6 @@
   }
 
   /* -----------------------------
-     Router / Render
-  ----------------------------- */
-  const main = $("#main");
-
-  async function render() {
-    if (!main) return;
-
-    const { route, query } = getRouteAndQuery();
-    store.set(s => { s.progress.lastRoute = route; });
-
-    updateTabbar(route);
-
-    // carregamento
-    main.innerHTML = `
-      <div class="panel">
-        <div style="font-weight:900;">Carregando…</div>
-        <div style="color:rgba(233,236,246,.52);font-size:12px;margin-top:6px;">Preparando conteúdo</div>
-      </div>
-    `;
-
-    let html = "";
-    try {
-      if (route === "home") html = await viewHome();
-      else if (route === "path") html = await viewPath();
-      else if (route === "lesson") html = await viewLesson(query);
-      else if (route === "missions") html = viewMissions();
-      else if (route === "library") html = await viewLibrary(query);
-      else if (route === "article") html = await viewArticle(query);
-      else if (route === "profile") html = viewProfile();
-      else html = viewNotFound();
-    } catch (e) {
-      html = `
-        <div class="panel">
-          <div style="font-weight:900;">Erro ao renderizar</div>
-          <div style="color:rgba(233,236,246,.72);margin-top:8px;line-height:1.45">${escapeHtml(String(e))}</div>
-          <div style="height:12px"></div>
-          <button class="btn btnPrimary" data-action="goHome">Voltar ao Início</button>
-        </div>
-      `;
-    }
-
-    main.innerHTML = html;
-    bindMainHandlers();
-  }
-
-  function rerender() { render(); }
-
-  function updateTabbar(route) {
-    // marcar tab ativa; rotas lesson/article ficam sob trilha/biblioteca
-    const active = (route === "lesson") ? "path" : (route === "article") ? "library" : route;
-    $$(".tabbar__item").forEach(btn => {
-      const r = btn.getAttribute("data-route");
-      btn.classList.toggle("is-active", r === active);
-    });
-  }
-
-  function bindMainHandlers() {
-    // cards navegáveis
-    $$(".card").forEach(card => {
-      const go = () => {
-        const r = card.getAttribute("data-route");
-        const packId = card.getAttribute("data-pack") || "";
-        const lessonId = card.getAttribute("data-lesson") || "";
-        const articleId = card.getAttribute("data-article") || "";
-
-        if (r === "lesson") setHash("lesson", { pack: packId, lesson: lessonId });
-        else if (r === "article") setHash("article", { pack: packId, article: articleId });
-        else if (r) setHash(r);
-      };
-      card.addEventListener("click", go);
-      card.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); }
-      });
-    });
-
-    // ações
-    $$("[data-action]").forEach(el => {
-      el.addEventListener("click", async () => {
-        const act = el.getAttribute("data-action");
-        if (!act) return;
-
-        switch (act) {
-          case "startDaily":
-          case "jumpToDaily":
-            setHash("missions");
-            break;
-
-          case "openPlacement":
-            openPlacementTeaser();
-            break;
-
-          case "openProfile":
-            openProfileEditor();
-            break;
-
-          case "openAdmin":
-            openAdminGate();
-            break;
-
-          case "completeDaily":
-            completeDaily();
-            break;
-
-          case "checkin":
-            checkin(el.getAttribute("data-status") || "ok");
-            break;
-
-          case "openLesson": {
-            const packId = el.getAttribute("data-pack") || "base";
-            const lessonId = el.getAttribute("data-lesson") || "";
-            setHash("lesson", { pack: packId, lesson: lessonId });
-            break;
-          }
-
-          case "completeLesson": {
-            const packId = el.getAttribute("data-pack") || "base";
-            const lessonId = el.getAttribute("data-lesson") || "";
-            if (!lessonId) return;
-
-            const st = store.get();
-            if (isLessonCompleted(st, packId, lessonId)) {
-              toast("Já concluída");
-              return;
-            }
-            markLessonCompleted(packId, lessonId);
-            addXP(25, "Lição concluída");
-            toast("Lição concluída ✅");
-            rerender();
-            break;
-          }
-
-          case "goHome":
-            setHash("home");
-            break;
-
-          case "goPath":
-            setHash("path");
-            break;
-
-          case "goLibrary":
-            setHash("library");
-            break;
-
-          case "resetApp":
-            resetApp();
-            break;
-
-          default:
-            toast("Ação não implementada");
-        }
-      });
-    });
-
-    // busca biblioteca
-    const libSearch = $("#libSearch");
-    if (libSearch) {
-      libSearch.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") {
-          const v = (libSearch.value || "").trim();
-          setHash("library", { q: v });
-        }
-      });
-      libSearch.addEventListener("change", () => {
-        const v = (libSearch.value || "").trim();
-        setHash("library", { q: v });
-      });
-    }
-  }
-
-  /* -----------------------------
      Global handlers (topbar/tabbar)
   ----------------------------- */
   function bindGlobalHandlers() {
@@ -1418,23 +1685,21 @@
 
     if (!location.hash) setHash("home");
 
-    // pré-carregar index/manifest base (suave)
+    // preload base pack
     try {
       await loadPacksIndex();
       await loadPackManifest("base");
+      await loadPackMissions("base");
     } catch (e) {
       console.warn(e);
-      toast("Aviso: packs não carregaram");
+      toast("Aviso: packs/missões não carregaram");
     }
 
     await render();
     setTimeout(() => ensureProfileOrPrompt(), 300);
 
     window.addEventListener("hashchange", () => render());
-    store.subscribe(() => {
-      // re-render leve
-      render();
-    });
+    store.subscribe(() => { render(); });
   }
 
   boot();
