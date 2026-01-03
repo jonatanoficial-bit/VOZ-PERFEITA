@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0d12" />
+  <meta name="description" content="Trilha completa de aprendizagem vocal: popular, erudito e coral — com missões e progresso." />
+
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="styles.css" />
+
+  <title>IMVpedia Voice</title>
+</head>
+
+<body>
+  <!-- App Shell -->
+  <div id="app">
+    <header class="topbar">
+      <div class="topbar__left">
+        <div class="brand" role="button" tabindex="0" aria-label="Ir para início">
+          <span class="brand__dot"></span>
+          <span class="brand__name">IMVpedia Voice</span>
+        </div>
+      </div>
+
+      <div class="topbar__right">
+        <button id="btnInstall" class="btn btn--ghost" type="button" aria-label="Instalar app" hidden>
+          Instalar
+        </button>
+        <button id="btnAdmin" class="btn btn--ghost" type="button" aria-label="Admin">
+          Admin
+        </button>
+      </div>
+    </header>
+
+    <main id="main" class="main" aria-live="polite">
+      <!-- Conteúdo renderizado por app.js -->
+      <div class="skeleton">
+        <div class="skeleton__hero"></div>
+        <div class="skeleton__row"></div>
+        <div class="skeleton__row"></div>
+      </div>
+    </main>
+
+    <nav class="tabbar" aria-label="Navegação principal">
+      <button class="tabbar__item is-active" data-route="home" type="button">
+        <span class="tabbar__icon">🏠</span>
+        <span class="tabbar__label">Início</span>
+      </button>
+
+      <button class="tabbar__item" data-route="path" type="button">
+        <span class="tabbar__icon">🧭</span>
+        <span class="tabbar__label">Trilha</span>
+      </button>
+
+      <button class="tabbar__item" data-route="missions" type="button">
+        <span class="tabbar__icon">✅</span>
+        <span class="tabbar__label">Missões</span>
+      </button>
+
+      <button class="tabbar__item" data-route="library" type="button">
+        <span class="tabbar__icon">📚</span>
+        <span class="tabbar__label">Biblioteca</span>
+      </button>
+
+      <button class="tabbar__item" data-route="profile" type="button">
+        <span class="tabbar__icon">👤</span>
+        <span class="tabbar__label">Perfil</span>
+      </button>
+    </nav>
+
+    <div id="toastHost" class="toastHost" aria-live="polite" aria-atomic="true"></div>
+  </div>
+
+  <script defer src="app.js"></script>
+
+  <script>
+    // SW registration (mantém simples e confiável)
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>
