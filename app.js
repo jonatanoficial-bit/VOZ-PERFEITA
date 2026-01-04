@@ -1,9 +1,16 @@
+// ===== IMVpedia Voice — app.js (PARTE 6/6) — BLOCO 1/6 =====
 /* =========================================================
-   IMVpedia Voice — app.js (FULL)
-   Upgrade:
-   - Tabbar ativa por rota
-   - Home com carrosséis horizontais (Netflix-like)
-   - Rotas: home, tracks, missions, library, profile, placement, pack, path, lesson, article
+   IMVpedia Voice — MERGE FINAL COMPLETO + ADMIN PACK EDITOR
+   ---------------------------------------------------------
+   Core:
+   - Home / Path / Lesson / Missions / Library / Article / Profile / Placement / Admin
+   - Packs (DLC): ./packs/index.json + ./packs/<id>/manifest.json (+ lessons/articles markdown)
+   - Gamification: XP / Level / Streak / Badges
+   - Daily Missions + Weekly Challenges + Vocal Diary
+   - Placement test (Duolingo-like) integrado ao perfil
+   Admin:
+   - Gate por senha
+   - Editor/import/export de Packs (manifest + missions + markdown templates)
 ========================================================= */
 (() => {
   "use strict";
@@ -13,6 +20,7 @@
   ============================= */
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+
   const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
   const uid = () => Math.random().toString(16).slice(2) + Date.now().toString(16);
 
@@ -29,7 +37,10 @@
     const day = d.getDay(); // 0 dom
     const diff = (day === 0 ? -6 : 1 - day); // monday start
     d.setDate(d.getDate() + diff);
-    return d.toISOString().slice(0, 10);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const da = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${da}`;
   }
 
   function escapeHtml(str) {
@@ -48,7 +59,8 @@
   function setHash(route, query = {}) {
     const base = route.startsWith("#/") ? route : `#/${route}`;
     const qs = new URLSearchParams(query).toString();
-    location.hash = qs ? `${base}?${qs}` : base;
+    const full = qs ? `${base}?${qs}` : base;
+    if (location.hash !== full) location.hash = full;
   }
 
   function getRouteAndQuery() {
@@ -58,31 +70,73 @@
     return { route: (path || "home"), query: Object.fromEntries(new URLSearchParams(qs || "")) };
   }
 
-  function bottomSpacer() { return `<div style="height:110px"></div>`; }
+  // garante que nada fique escondido atrás da tabbar
+  function bottomSpacer() { return `<div style="height:100px"></div>`; }
 
   /* =============================
-     Storage + State
+     Storage keys
   ============================= */
   const LS = {
-    STATE: "imv_voice_state_final_v3",
-    CUSTOM_PACKS: "imv_voice_custom_packs_v1",
-    ADMIN: "imv_voice_admin_enabled_v1"
+    STATE: "imv_voice_state_final_v1",
+    ADMIN: "imv_voice_admin_enabled_v1",
+    CUSTOM_PACKS: "imv_voice_custom_packs_v1" // rascunhos/editáveis
   };
 
+  /* =============================
+     Default State
+  ============================= */
   const DEFAULT_STATE = {
-    meta: { createdAt: new Date().toISOString(), lastOpenAt: new Date().toISOString(), appVersion: "1.2.0" },
-    user: { id: uid(), name: "Aluno", avatar: "🎤", goal: "Misto", minutesPerDay: 10, placementDone: false, levelReal: null },
-    gamification: { xp: 0, level: 1, streak: 0, lastActiveDate: null },
-    packs: { activePackIds: ["base"] },
-    progress: {
-      completedLessons: {},              // key: `${packId}:${lessonId}` -> {at}
-      continue: null,                   // {packId,pathId,lessonId}
-      todayMission: null,               // mission object
-      completedMissions: {},            // date -> {at,xp,templateId,packId}
-      week: {}                          // weekStart -> {daysCompleted, diaryNotesCount}
+    meta: {
+      createdAt: new Date().toISOString(),
+      lastOpenAt: new Date().toISOString(),
+      appVersion: "1.0.0",
+      contentVersion: "final-merge-v1"
     },
-    diary: { entries: [], lastCheckinDate: null, lastStatus: null },
-    placement: { answers: {}, score: 0, result: null, plan14: [] }
+    user: {
+      id: uid(),
+      name: "",
+      avatar: "🎤",
+      goal: "Misto",         // Popular | Erudito | Coral | Misto
+      levelSelf: "Iniciante",
+      levelReal: null,       // Placement result
+      minutesPerDay: 10,
+      placementDone: false,
+      recommendedPath: null
+    },
+    gamification: {
+      xp: 0,
+      level: 1,
+      streak: 0,
+      lastActiveDate: null,
+      badges: [] // first_mission, streak_3, streak_7, placement_done, pack_creator
+    },
+    packs: {
+      activePackIds: ["base"], // DLC
+      seen: {}
+    },
+    progress: {
+      lastRoute: "home",
+      completedLessons: {}, // key pack:lesson -> {at}
+      continue: null,       // {packId, lessonId}
+
+      todayMission: null,       // {date, packId, templateId, minutesPlanned}
+      completedMissions: {},    // date -> {at, packId, templateId, xp}
+      week: {}                  // weekStart -> {daysCompleted, diaryNotesCount, claimed:{}}
+    },
+    diary: {
+      lastCheckinDate: null,
+      lastStatus: null, // ok|tired|hoarse|pain
+      entries: []       // [{date,status,note}]
+    },
+    placement: {
+      answers: {},
+      score: 0,
+      result: null,
+      plan14: [] // [{day,focus,intensity}]
+    },
+    settings: {
+      reduceMotion: false
+    }
   };
 
   function deepMerge(target, source) {
@@ -91,8 +145,9 @@
       const sv = source[k];
       const tv = target[k];
       if (Array.isArray(sv)) target[k] = sv.slice();
-      else if (sv && typeof sv === "object" && tv && typeof tv === "object" && !Array.isArray(tv)) target[k] = deepMerge(tv, sv);
-      else target[k] = sv;
+      else if (sv && typeof sv === "object" && tv && typeof tv === "object" && !Array.isArray(tv)) {
+        target[k] = deepMerge(tv, sv);
+      } else target[k] = sv;
     }
     return target;
   }
@@ -114,13 +169,16 @@
 
   const store = {
     state: loadState(),
+    listeners: new Set(),
     get() { return this.state; },
     set(mutator) {
       const next = structuredClone(this.state);
       mutator(next);
       this.state = next;
       persistState(this.state);
-    }
+      this.listeners.forEach(fn => fn(this.state));
+    },
+    subscribe(fn) { this.listeners.add(fn); return () => this.listeners.delete(fn); }
   };
 
   /* =============================
@@ -145,14 +203,16 @@
   ============================= */
   function computeLevelFromXP(xp) {
     let level = 1;
-    let need = 50;
-    let acc = 0;
-    while (xp >= acc + need) {
-      acc += need;
-      level += 1;
-      need = Math.floor(50 + (level - 1) * 30);
+    while (xp >= 50 * level * (level - 1)) level++;
+    return Math.max(1, level - 1);
+  }
+
+  function ensureBadge(draft, id) {
+    if (!draft.gamification.badges.includes(id)) {
+      draft.gamification.badges.push(id);
+      return true;
     }
-    return level;
+    return false;
   }
 
   function touchStreak(draft) {
@@ -174,6 +234,8 @@
     else if (diffDays > 1) draft.gamification.streak = 1;
 
     draft.gamification.lastActiveDate = today;
+    if (draft.gamification.streak >= 3) ensureBadge(draft, "streak_3");
+    if (draft.gamification.streak >= 7) ensureBadge(draft, "streak_7");
   }
 
   function addXP(amount, reason = "") {
@@ -185,11 +247,12 @@
       touchStreak(s);
     });
     toast(`+${amt} XP${reason ? ` • ${reason}` : ""}`);
-    render(); // atualiza badges/XP na UI
   }
 
   /* =============================
-     Markdown -> HTML (safe)
+     Markdown (leve e seguro)
+     - Suporta: títulos # ## ###, negrito, itálico, código inline, listas, links
+     - Não executa HTML arbitrário (seguro)
   ============================= */
   function mdToHtml(md) {
     const text = String(md ?? "");
@@ -197,7 +260,9 @@
     const out = [];
     let inUl = false;
 
-    const flushUl = () => { if (inUl) { out.push("</ul>"); inUl = false; } };
+    const flushUl = () => {
+      if (inUl) { out.push("</ul>"); inUl = false; }
+    };
 
     const inline = (s) => {
       let x = escapeHtml(s);
@@ -234,8 +299,18 @@
 
   /* =============================
      Packs (DLC) Loader
+     Estrutura esperada:
+     - /packs/index.json  -> { packs:[{id,title,cover,desc,enabledDefault}] }
+     - /packs/<id>/manifest.json ->
+         { id,title,desc,cover,paths:[{id,title,desc,lessons:[{id,title,md}] }], library:[{id,title,md,tag}] ,
+           missions:{ templates:[{id,title,minutesMin,minutesMax,xp,kind,desc}] } }
+     Observação: "md" pode ser caminho .md (ex: "lessons/apoio.md") ou texto markdown direto.
   ============================= */
-  const packCache = { index: null, manifests: new Map(), md: new Map() };
+  const packCache = {
+    index: null,
+    manifests: new Map(),  // id -> manifest
+    md: new Map()          // url -> text
+  };
 
   async function fetchJson(url) {
     const res = await fetch(url, { cache: "no-store" });
@@ -258,6 +333,10 @@
     return Array.isArray(arr) ? arr : [];
   }
 
+  function saveCustomPacks(packsArr) {
+    try { localStorage.setItem(LS.CUSTOM_PACKS, JSON.stringify(packsArr || [])); } catch {}
+  }
+
   function normalizeManifest(man) {
     const m = structuredClone(man || {});
     if (!m.id) m.id = "custom_" + uid();
@@ -269,10 +348,10 @@
     if (!m.missions) m.missions = {};
     if (!Array.isArray(m.missions.templates)) m.missions.templates = [];
 
+    // garante ids
     m.paths.forEach((p, pi) => {
       if (!p.id) p.id = `path_${pi + 1}`;
       if (!p.title) p.title = `Trilha ${pi + 1}`;
-      if (!p.desc) p.desc = "";
       if (!Array.isArray(p.lessons)) p.lessons = [];
       p.lessons.forEach((l, li) => {
         if (!l.id) l.id = `lesson_${li + 1}`;
@@ -291,9 +370,9 @@
     m.missions.templates.forEach((t, ti) => {
       if (!t.id) t.id = `m_${ti + 1}`;
       if (!t.title) t.title = `Missão ${ti + 1}`;
-      if (t.minutesMin == null) t.minutesMin = 6;
-      if (t.minutesMax == null) t.minutesMax = Math.max(t.minutesMin, 12);
-      if (t.xp == null) t.xp = 10;
+      if (!t.minutesMin) t.minutesMin = 6;
+      if (!t.minutesMax) t.minutesMax = Math.max(t.minutesMin, 12);
+      if (!t.xp) t.xp = 10;
       if (!t.kind) t.kind = "técnica";
       if (!t.desc) t.desc = "Complete a missão com conforto vocal.";
     });
@@ -303,12 +382,23 @@
 
   async function loadPackIndex() {
     if (packCache.index) return packCache.index;
-    let idx = { packs: [] };
-    try { idx = await fetchJson("./packs/index.json"); } catch { idx = { packs: [] }; }
-    if (!Array.isArray(idx.packs)) idx.packs = [];
 
+    // inclui packs de /packs/index.json + packs custom do LS
+    let idx = { packs: [] };
+    try {
+      idx = await fetchJson("./packs/index.json");
+    } catch {
+      // se não existir, continua só com custom
+      idx = { packs: [] };
+    }
+
+    if (!Array.isArray(idx.packs)) idx.packs = [];
     const custom = getCustomPacks().map(normalizeManifest).map(m => ({
-      id: m.id, title: m.title, cover: m.cover || "", desc: m.desc || "", isCustom: true
+      id: m.id,
+      title: m.title,
+      cover: m.cover || "",
+      desc: m.desc || "",
+      isCustom: true
     }));
 
     packCache.index = { packs: [...idx.packs, ...custom] };
@@ -318,16 +408,24 @@
   async function loadManifest(packId) {
     if (packCache.manifests.has(packId)) return packCache.manifests.get(packId);
 
+    // tenta custom primeiro
     const customs = getCustomPacks().map(normalizeManifest);
     const found = customs.find(p => p.id === packId);
-    if (found) { packCache.manifests.set(packId, found); return found; }
+    if (found) {
+      packCache.manifests.set(packId, found);
+      return found;
+    }
 
+    // depois fetch normal
     const man = normalizeManifest(await fetchJson(`./packs/${encodeURIComponent(packId)}/manifest.json`));
+
+    // resolve md paths (lazy: só quando abrir lição/artigo; aqui deixa como está)
     packCache.manifests.set(packId, man);
     return man;
   }
 
   async function resolveMd(packId, mdOrPath) {
+    // se parece caminho .md, busca em ./packs/<id>/<path>
     const v = String(mdOrPath ?? "");
     if (!v) return "";
     const looksPath = v.includes(".md") || v.startsWith("lessons/") || v.startsWith("library/");
@@ -340,87 +438,145 @@
     const st = store.get();
     const ids = Array.isArray(st.packs.activePackIds) ? st.packs.activePackIds : ["base"];
     const arr = [];
-    for (const id of ids) { try { arr.push(await loadManifest(id)); } catch {} }
-    if (!arr.length) arr.push(getFallbackBaseManifest());
+    for (const id of ids) {
+      try { arr.push(await loadManifest(id)); } catch {}
+    }
+    // se nada carregou, cria base mínima (em memória)
+    if (!arr.length) {
+      arr.push(normalizeManifest({
+        id: "base",
+        title: "Base",
+        desc: "Fundamentos essenciais",
+        cover: "",
+        paths: [{
+          id: "base_fund",
+          title: "Fundamentos",
+          desc: "Respiração, apoio, SOVT, afinação",
+          lessons: [
+            { id: "apoio", title: "Apoio vocal", md: "# Apoio vocal\n\n- Conceito\n- Sensações\n- Exercícios\n" },
+            { id: "sovt", title: "SOVT", md: "# SOVT\n\n- O que é\n- Por que funciona\n- Rotina leve\n" }
+          ]
+        }],
+        library: [
+          { id: "fisiologia", title: "Fisiologia vocal", tag: "Saúde", md: "# Fisiologia vocal\n\nConteúdo em breve.\n" }
+        ],
+        missions: {
+          templates: [
+            { id: "m_sovt_10", title: "SOVT leve 10 min", minutesMin: 8, minutesMax: 12, xp: 12, kind: "técnica", desc: "Lip trill/humming/canudo com conforto." },
+            { id: "m_afina_10", title: "Afinação 10 min", minutesMin: 8, minutesMax: 12, xp: 12, kind: "musical", desc: "Notas longas e ataques suaves." }
+          ]
+        }
+      }));
+    }
     return arr;
   }
 
-  function getFallbackBaseManifest() {
-    return normalizeManifest({
-      id: "base",
-      title: "Base",
-      desc: "Fundamentos essenciais",
-      cover: "",
-      paths: [{
-        id: "fund",
-        title: "Fundamentos",
-        desc: "Respiração, apoio, SOVT, afinação",
-        lessons: [
-          { id: "apoio", title: "Apoio vocal", md: "# Apoio vocal\n\n- Conceito\n- Sensações\n- Exercícios\n" },
-          { id: "sovt", title: "SOVT", md: "# SOVT\n\n- O que é\n- Por que funciona\n- Rotina leve\n" }
-        ]
-      }],
-      library: [
-        { id: "fisiologia", title: "Fisiologia vocal", tag: "Saúde", md: "# Fisiologia vocal\n\nConteúdo em breve.\n" }
-      ],
-      missions: {
-        templates: [
-          { id: "m_sovt_10", title: "SOVT leve", minutesMin: 8, minutesMax: 12, xp: 12, kind: "técnica", desc: "Lip trill/humming/canudo na região confortável, sem apertar." },
-          { id: "m_afina_10", title: "Afinação básica", minutesMin: 8, minutesMax: 12, xp: 12, kind: "musical", desc: "Notas longas + ataques suaves (sem forçar volume)." }
-        ]
-      }
-    });
-  }
-
-  function getAllPaths(manifests) {
-    const out = [];
-    for (const m of manifests) (m.paths || []).forEach(p => out.push({ packId: m.id, packTitle: m.title, ...p }));
-    return out;
-  }
-
-  function getAllArticles(manifests) {
-    const out = [];
-    for (const m of manifests) (m.library || []).forEach(a => out.push({ packId: m.id, packTitle: m.title, ...a }));
-    return out;
+  function getAllPathsFromManifests(manifests) {
+    const paths = [];
+    for (const m of manifests) {
+      (m.paths || []).forEach(p => paths.push({ packId: m.id, packTitle: m.title, ...p }));
+    }
+    return paths;
   }
 
   /* =============================
-     Placement (leve e seguro)
+     Placement Engine (integrado)
   ============================= */
   const PLACEMENT_QUESTIONS = [
-    { id: "experience", title: "Experiência vocal", question: "Há quanto tempo você canta com regularidade?", options: [
-      { label: "Nunca estudei", score: 0 }, { label: "Menos de 1 ano", score: 1 }, { label: "1 a 3 anos", score: 2 }, { label: "Mais de 3 anos", score: 3 }
-    ]},
-    { id: "health", title: "Saúde vocal", question: "Com que frequência rola rouquidão/cansaço ao cantar?", options: [
-      { label: "Quase sempre", score: 0 }, { label: "Às vezes", score: 1 }, { label: "Raramente", score: 2 }, { label: "Quase nunca", score: 3 }
-    ]},
-    { id: "pitch", title: "Afinação", question: "Você costuma acertar a nota ao repetir uma melodia?", options: [
-      { label: "Tenho dificuldade", score: 0 }, { label: "Consigo com esforço", score: 1 }, { label: "Consigo bem", score: 2 }, { label: "Com facilidade", score: 3 }
-    ]},
-    { id: "breath", title: "Ar/controle", question: "Você controla o ar sem apertar o pescoço?", options: [
-      { label: "Não sei como", score: 0 }, { label: "Às vezes", score: 1 }, { label: "Na maioria", score: 2 }, { label: "Sim, consistente", score: 3 }
-    ]},
-    { id: "repertoire", title: "Repertório", question: "Você canta músicas completas com segurança?", options: [
-      { label: "Ainda não", score: 0 }, { label: "Partes", score: 1 }, { label: "Sim, confortável", score: 2 }, { label: "Sim, com estilo", score: 3 }
-    ]}
+    {
+      id: "experience",
+      title: "Experiência vocal",
+      question: "Há quanto tempo você canta com alguma regularidade?",
+      options: [
+        { label: "Nunca estudei canto", score: 0 },
+        { label: "Menos de 1 ano", score: 1 },
+        { label: "1 a 3 anos", score: 2 },
+        { label: "Mais de 3 anos", score: 3 }
+      ]
+    },
+    {
+      id: "technique",
+      title: "Consciência técnica",
+      question: "Você já estudou técnica vocal formalmente?",
+      options: [
+        { label: "Nunca", score: 0 },
+        { label: "Pouco / vídeos soltos", score: 1 },
+        { label: "Com professor ou método", score: 2 },
+        { label: "Estudo contínuo e aplicado", score: 3 }
+      ]
+    },
+    {
+      id: "range",
+      title: "Extensão confortável",
+      question: "Sua voz se mantém confortável em notas médias e agudas?",
+      options: [
+        { label: "Não, forço ou evito", score: 0 },
+        { label: "Às vezes", score: 1 },
+        { label: "Sim, com controle", score: 2 },
+        { label: "Sim, com facilidade", score: 3 }
+      ]
+    },
+    {
+      id: "health",
+      title: "Saúde vocal",
+      question: "Com que frequência você sente rouquidão ou cansaço?",
+      options: [
+        { label: "Quase sempre", score: 0 },
+        { label: "Às vezes", score: 1 },
+        { label: "Raramente", score: 2 },
+        { label: "Quase nunca", score: 3 }
+      ]
+    },
+    {
+      id: "reading",
+      title: "Leitura / percepção",
+      question: "Você consegue repetir melodias ou ler cifras/partitura?",
+      options: [
+        { label: "Tenho muita dificuldade", score: 0 },
+        { label: "Consigo com ajuda", score: 1 },
+        { label: "Consigo bem", score: 2 },
+        { label: "Com facilidade", score: 3 }
+      ]
+    }
   ];
 
   function calculatePlacement(score) {
-    if (score <= 5) return "Iniciante";
-    if (score <= 11) return "Intermediário";
+    if (score <= 4) return "Iniciante";
+    if (score <= 9) return "Intermediário";
     return "Avançado";
   }
 
   function buildPlan14(level) {
     const base = {
-      Iniciante: ["Respiração funcional", "SOVT leve", "Afinação básica", "Conforto e postura"],
-      Intermediário: ["Coordenação ar-voz", "Ressonância", "Transição de registros", "Aplicação musical"],
-      Avançado: ["Eficiência vocal", "Dinâmica e resistência", "Extensão/registro", "Interpretação/estilo"]
+      Iniciante: ["Respiração funcional", "SOVT leve", "Afinação básica", "Consciência corporal"],
+      Intermediário: ["Coordenação ar-voz", "Ressonância", "Agilidade vocal", "Aplicação musical"],
+      Avançado: ["Eficiência vocal", "Extensão e dinâmica", "Estilo e interpretação", "Manutenção vocal"]
     };
     const themes = base[level] || base.Iniciante;
     const plan = [];
-    for (let i = 0; i < 14; i++) plan.push({ day: i + 1, focus: themes[i % themes.length], intensity: i % 4 === 0 ? "leve" : "moderada" });
+    for (let i = 0; i < 14; i++) {
+      plan.push({ day: i + 1, focus: themes[i % themes.length], intensity: i % 4 === 0 ? "leve" : "moderada" });
+    }
     return plan;
+  }
+
+  function recommendTrack(goal, level) {
+    let minutes = 10;
+    let intensity = "moderada";
+    if (level === "Intermediário") minutes = 15;
+    if (level === "Avançado") minutes = 20;
+
+    if (goal === "Coral") minutes = clamp(minutes, 8, 18);
+    if (goal === "Erudito" && level === "Iniciante") minutes = 12;
+    if (goal === "Popular" && level === "Avançado") minutes = 22;
+
+    const pathTitle =
+      goal === "Popular" ? "Popular — Base e Estilo" :
+      goal === "Erudito" ? "Erudito — Técnica e Sustentação" :
+      goal === "Coral" ? "Coral — Blend, Afinação e Ritmo" :
+      "Misto — Fundamentos universais";
+
+    return { pathTitle, minutes, intensity };
   }
 
   function runPlacementAndBuildResult() {
@@ -433,453 +589,252 @@
   }
 
   /* =============================
-     Missions + Diary
+     UI components
   ============================= */
-  function pickFrom(arr) { return arr && arr.length ? arr[Math.floor(Math.random() * arr.length)] : null; }
-
-  function computeMinutesForMission(userMinutes, template) {
-    const base = clamp(Number(userMinutes) || 10, 5, 60);
-    const min = clamp(Number(template.minutesMin) || 6, 3, 60);
-    const max = clamp(Number(template.minutesMax) || Math.max(min, 12), min, 60);
-    return clamp(base, min, max);
+  function cardPack(p) {
+    const cover = p.cover ? `<img src="${escapeHtml(p.cover)}" alt="" />` : "";
+    return `
+      <div class="card" data-action="openPack" data-pack="${escapeHtml(p.id)}">
+        <div class="card__cover">${cover}</div>
+        <div class="card__body">
+          <div class="card__title">${escapeHtml(p.title || p.id)}</div>
+          <div class="card__desc">${escapeHtml(p.desc || "")}</div>
+        </div>
+      </div>
+    `;
   }
 
-  async function ensureTodayMission() {
-    const st = store.get();
-    const t = todayISO();
-    const existing = st.progress.todayMission;
-    if (existing && existing.date === t) return existing;
-
-    const manifests = await getActiveManifests();
-    const templates = [];
-    for (const man of manifests) (man.missions?.templates || []).forEach(tp => templates.push({ packId: man.id, ...tp }));
-
-    const chosen = pickFrom(templates) || { packId: "base", id: "m_default", title: "Missão leve", minutesMin: 6, minutesMax: 12, xp: 10, kind: "técnica", desc: "Faça um aquecimento leve com conforto." };
-    const minutesPlanned = computeMinutesForMission(st.user.minutesPerDay, chosen);
-
-    const mission = {
-      date: t,
-      packId: chosen.packId,
-      templateId: chosen.id,
-      title: chosen.title,
-      kind: chosen.kind,
-      desc: chosen.desc,
-      minutesPlanned,
-      xp: Number(chosen.xp) || 10
-    };
-
-    store.set(s => { s.progress.todayMission = mission; });
-    return mission;
+  function rowItem({ icon = "📘", title = "", sub = "", action = "", data = {} }) {
+    const dataAttrs = Object.entries(data).map(([k, v]) => `data-${k}="${escapeHtml(String(v))}"`).join(" ");
+    return `
+      <div class="row" data-action="${escapeHtml(action)}" ${dataAttrs}>
+        <div class="row__left">${escapeHtml(icon)}</div>
+        <div class="row__body">
+          <div class="row__title">${escapeHtml(title)}</div>
+          <div class="row__sub">${escapeHtml(sub)}</div>
+        </div>
+        <div class="row__right">›</div>
+      </div>
+    `;
   }
 
-  function completeTodayMission() {
-    const st = store.get();
-    const m = st.progress.todayMission;
-    if (!m) return;
-
-    const date = m.date || todayISO();
-    if (st.progress.completedMissions[date]) {
-      toast("Missão de hoje já concluída.");
-      return;
-    }
-
-    store.set(s => {
-      s.progress.completedMissions[date] = { at: new Date().toISOString(), xp: m.xp, templateId: m.templateId, packId: m.packId };
-      const ws = startOfWeekISO(date);
-      if (!s.progress.week[ws]) s.progress.week[ws] = { daysCompleted: 0, diaryNotesCount: 0 };
-      s.progress.week[ws].daysCompleted += 1;
-    });
-
-    addXP(m.xp, "Missão concluída");
-    toast("Concluída ✅");
+  function pill(text, icon = "") {
+    return `<span class="pill">${icon ? `${escapeHtml(icon)} ` : ""}${escapeHtml(text)}</span>`;
   }
 
-  async function rerollTodayMission() {
-    const st = store.get();
-    const date = todayISO();
-    if (st.progress.completedMissions[date]) {
-      toast("Hoje já foi concluída — não dá pra trocar.");
-      return;
-    }
-
-    const manifests = await getActiveManifests();
-    const templates = [];
-    for (const man of manifests) (man.missions?.templates || []).forEach(tp => templates.push({ packId: man.id, ...tp }));
-
-    const chosen = pickFrom(templates) || { packId: "base", id: "m_default", title: "Missão leve", minutesMin: 6, minutesMax: 12, xp: 10, kind: "técnica", desc: "Faça um aquecimento leve com conforto." };
-    const minutesPlanned = computeMinutesForMission(st.user.minutesPerDay, chosen);
-
-    store.set(s => {
-      s.progress.todayMission = {
-        date,
-        packId: chosen.packId,
-        templateId: chosen.id,
-        title: chosen.title,
-        kind: chosen.kind,
-        desc: chosen.desc,
-        minutesPlanned,
-        xp: Number(chosen.xp) || 10
+  /* =============================
+     Missions / Week progress / Diary
+  ============================= */
+  function getWeekState(st, weekStartISO) {
+    if (!st.progress.week[weekStartISO]) {
+      st.progress.week[weekStartISO] = {
+        daysCompleted: 0,
+        diaryNotesCount: 0,
+        claimed: {}
       };
-    });
+    }
+    return st.progress.week[weekStartISO];
+  }
 
-    toast("Missão trocada");
-    render();
+  function markDayCompleted(draft) {
+    const today = todayISO();
+    const ws = startOfWeekISO(today);
+    const w = getWeekState(draft, ws);
+    // conta dias completados no array de missões do weekStart, mas simplificado:
+    w.daysCompleted = Math.min(7, (w.daysCompleted || 0) + 1);
   }
 
   function addDiaryEntry(status, note) {
     const date = todayISO();
     store.set(s => {
-      s.diary.entries.unshift({ date, status, note: (note || "").trim() });
       s.diary.lastCheckinDate = date;
       s.diary.lastStatus = status;
+      s.diary.entries.unshift({ date, status, note: (note || "").slice(0, 400) });
 
       const ws = startOfWeekISO(date);
-      if (!s.progress.week[ws]) s.progress.week[ws] = { daysCompleted: 0, diaryNotesCount: 0 };
-      s.progress.week[ws].diaryNotesCount += 1;
+      const w = getWeekState(s, ws);
+      w.diaryNotesCount = (w.diaryNotesCount || 0) + (note?.trim() ? 1 : 0);
     });
-    toast("Check-in salvo");
-    render();
+    toast("Check-in registrado");
   }
 
   /* =============================
-     UI building blocks (Netflix-like rows)
+     Mission selection (template)
   ============================= */
-  function hRow(title, subtitle, innerHtml) {
-    return `
-      <div class="section">
-        <div class="section__title">${escapeHtml(title)}</div>
-        ${subtitle ? `<div class="section__sub">${escapeHtml(subtitle)}</div>` : ""}
-        <div style="display:flex;gap:12px;overflow:auto;padding-bottom:6px;scroll-snap-type:x mandatory;">
-          ${innerHtml}
-        </div>
-      </div>
-    `;
+  async function getMissionTemplates() {
+    const mans = await getActiveManifests();
+    const out = [];
+    for (const m of mans) {
+      const t = (m.missions && Array.isArray(m.missions.templates)) ? m.missions.templates : [];
+      for (const one of t) out.push({ packId: m.id, packTitle: m.title, ...one });
+    }
+    // fallback
+    if (!out.length) {
+      out.push({ packId: "base", templateId: "m_sovt_10", id: "m_sovt_10", title: "SOVT leve", minutesMin: 8, minutesMax: 12, xp: 12, kind: "técnica", desc: "Lip trill/humming/canudo com conforto." });
+    }
+    return out;
   }
 
-  function miniCard(title, desc, onHash, emoji = "🎵") {
-    return `
-      <a class="card" href="${onHash}" style="min-width:240px;max-width:240px;scroll-snap-align:start;">
-        <div class="card__cover">${/* cover placeholder is via CSS */""}</div>
-        <div class="card__body">
-          <div class="card__title">${escapeHtml(title)}</div>
-          <div class="card__desc">${escapeHtml(desc || "")}</div>
-          <div style="height:10px"></div>
-          <div class="pill">${emoji} Abrir</div>
-        </div>
-      </a>
-    `;
+  function chooseDailyTemplate(templates) {
+    // determinístico por dia (para não mudar ao recarregar)
+    const date = todayISO();
+    let seed = 0;
+    for (let i = 0; i < date.length; i++) seed += date.charCodeAt(i) * (i + 1);
+    const idx = seed % templates.length;
+    return templates[idx];
   }
 
-  function miniRow(title, sub, href, leftEmoji = "📌") {
-    return `
-      <a class="row" href="${href}" style="min-width:320px;scroll-snap-align:start;">
-        <div class="row__left">${leftEmoji}</div>
-        <div class="row__body">
-          <div class="row__title">${escapeHtml(title)}</div>
-          <div class="row__sub">${escapeHtml(sub || "")}</div>
-        </div>
-        <div class="row__right">›</div>
-      </a>
-    `;
+  function ensureTodayMission(draft, template) {
+    const date = todayISO();
+    if (draft.progress.todayMission && draft.progress.todayMission.date === date) return;
+
+    const minutesPlanned = clamp(
+      (draft.user.minutesPerDay || 10),
+      template.minutesMin || 6,
+      template.minutesMax || 15
+    );
+
+    draft.progress.todayMission = {
+      date,
+      packId: template.packId,
+      templateId: template.id,
+      minutesPlanned
+    };
+  }
+
+  function isMissionCompleted(st, dateISO) {
+    return !!st.progress.completedMissions[dateISO];
+  }
+
+  async function completeTodayMission() {
+    const st = store.get();
+    const today = todayISO();
+    if (isMissionCompleted(st, today)) {
+      toast("Missão já concluída hoje");
+      return;
+    }
+    const templates = await getMissionTemplates();
+    const chosen = chooseDailyTemplate(templates);
+
+    store.set(s => {
+      ensureTodayMission(s, chosen);
+      s.progress.completedMissions[today] = { at: new Date().toISOString(), packId: chosen.packId, templateId: chosen.id, xp: chosen.xp || 10 };
+      markDayCompleted(s);
+      touchStreak(s);
+      ensureBadge(s, "first_mission");
+    });
+
+    addXP(chosen.xp || 10, "Missão do dia");
+  }
+
+  async function swapTodayMission() {
+    const templates = await getMissionTemplates();
+    if (!templates.length) return;
+
+    // pega outra missão diferente (melhor esforço)
+    store.set(s => {
+      const today = todayISO();
+      const current = s.progress.todayMission;
+      let chosen = chooseDailyTemplate(templates);
+      if (current && chosen.id === current.templateId) {
+        chosen = templates[(templates.findIndex(t => t.id === chosen.id) + 1) % templates.length];
+      }
+      ensureTodayMission(s, chosen);
+      toast("Missão trocada");
+    });
+    await render();
   }
 
   /* =============================
-     Views
+     Views — Home / Packs / Paths / Lessons / Library / Profile
   ============================= */
   async function viewHome() {
     const st = store.get();
-    const u = st.user;
-
-    const manifests = await getActiveManifests();
-    const paths = getAllPaths(manifests);
-    const articles = getAllArticles(manifests);
     const idx = await loadPackIndex();
 
-    const mission = await ensureTodayMission();
-    const doneToday = !!st.progress.completedMissions[todayISO()];
+    // mission
+    const templates = await getMissionTemplates();
+    const chosen = chooseDailyTemplate(templates);
 
+    store.set(s => ensureTodayMission(s, chosen));
+    const st2 = store.get();
+    const tm = st2.progress.todayMission;
+
+    const done = isMissionCompleted(st2, todayISO());
     const ws = startOfWeekISO(todayISO());
-    const weekData = st.progress.week[ws] || { daysCompleted: 0, diaryNotesCount: 0 };
+    const week = st2.progress.week[ws] || { daysCompleted: 0, diaryNotesCount: 0 };
 
-    const hero = `
+    return `
       <div class="hero">
-        <div class="hero__kicker">Olá, ${escapeHtml(u.name || "Aluno")} • Nível ${st.gamification.level} • Streak ${st.gamification.streak} 🔥</div>
+        <div class="hero__kicker">
+          Olá, ${escapeHtml(st2.user.name || "Aluno")} • Nível ${st2.gamification.level} • Streak ${st2.gamification.streak} 🔥
+        </div>
         <div class="hero__title">IMVpedia Voice</div>
-        <p class="hero__desc">Trilha vocal guiada com técnica, saúde e repertório (popular, erudito e coral).</p>
+        <p class="hero__desc">
+          Trilha vocal guiada com técnica, saúde e repertório (popular, erudito e coral).
+        </p>
         <div class="hero__actions">
-          <button class="btn btnPrimary" data-action="goPlacement">${u.placementDone ? "Ver placement" : "Fazer placement"}</button>
+          <button class="btn btnPrimary" data-action="goPlacement">
+            ${st2.user.placementDone ? "Ver placement" : "Fazer placement"}
+          </button>
           <button class="btn" data-action="goProfile">Perfil</button>
         </div>
       </div>
-    `;
 
-    const missionCard = `
-      <div class="panel" style="margin-top:14px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
-          <div>
-            <div class="panel__title">Missão do dia</div>
-            <div style="color:rgba(240,244,255,.55);font-size:12px;">${escapeHtml(mission.date)} • ${escapeHtml(mission.kind || "técnica")}</div>
-          </div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
-            <span class="pill">${mission.minutesPlanned} min</span>
-            <span class="pill">+${mission.xp} XP</span>
-          </div>
-        </div>
-
-        <div style="height:10px"></div>
-        <div style="font-weight:950;font-size:18px;">${escapeHtml(mission.title)}</div>
-        <div style="color:rgba(240,244,255,.70);line-height:1.4;margin-top:6px;">${escapeHtml(mission.desc)}</div>
-
-        <div style="height:14px"></div>
-        <div style="display:flex;gap:10px;justify-content:flex-end;">
-          <button class="btn" data-action="rerollMission">Trocar</button>
-          <button class="btn btnPrimary" data-action="completeMission">${doneToday ? "Concluída ✅" : "Concluir"}</button>
-        </div>
-      </div>
-    `;
-
-    const weekCard = `
-      <div class="panel" style="margin-top:12px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;">
-          <div class="panel__title">Semana</div>
-          <div style="color:rgba(240,244,255,.45);font-size:12px;">${escapeHtml(ws)} →</div>
-        </div>
-        <div class="bar" style="margin-top:10px;">
-          <div class="bar__fill" style="width:${clamp((weekData.daysCompleted / 7) * 100, 0, 100)}%"></div>
-        </div>
-        <div style="height:10px"></div>
-        <div style="color:rgba(240,244,255,.70);line-height:1.4;">
-          Missões concluídas: <b>${weekData.daysCompleted}/7</b><br/>
-          Check-ins no diário: <b>${weekData.diaryNotesCount}</b>
-        </div>
-        <div style="height:12px"></div>
-        <div style="display:flex;gap:10px;justify-content:flex-end;">
-          <a class="btn" href="#/missions">Ver Missões</a>
-          <a class="btn" href="#/library">Abrir Biblioteca</a>
-        </div>
-      </div>
-    `;
-
-    const packsRow = hRow(
-      "Packs",
-      "Conteúdos por módulos (DLC). Sem capa? O app mostra placeholder premium.",
-      (idx.packs || []).slice(0, 10).map(p =>
-        miniCard(p.title || p.id, p.desc || "Abrir conteúdo", `#/pack?id=${encodeURIComponent(p.id)}`, "📦")
-      ).join("")
-    );
-
-    const tracksRow = hRow(
-      "Trilhas",
-      "Escolha uma trilha e avance lição por lição.",
-      paths.slice(0, 12).map(p =>
-        miniRow(
-          `${p.title}`,
-          `${p.packTitle} • ${(p.lessons || []).length} lições`,
-          `#/path?pack=${encodeURIComponent(p.packId)}&id=${encodeURIComponent(p.id)}`,
-          "🧭"
-        )
-      ).join("")
-    );
-
-    const libRow = hRow(
-      "Biblioteca",
-      "Artigos rápidos (saúde, técnica, estilo).",
-      articles.slice(0, 12).map(a =>
-        miniRow(
-          a.title,
-          `${a.tag || "Geral"} • ${a.packTitle}`,
-          `#/article?pack=${encodeURIComponent(a.packId)}&id=${encodeURIComponent(a.id)}`,
-          "📚"
-        )
-      ).join("")
-    );
-
-    return `${hero}${missionCard}${weekCard}${packsRow}${tracksRow}${libRow}${bottomSpacer()}`;
-  }
-
-  async function viewTracks() {
-    const manifests = await getActiveManifests();
-    const paths = getAllPaths(manifests);
-
-    const content = `
-      <div class="section__title">Trilhas</div>
-      <div class="section__sub">Escolha uma trilha para estudar em ordem (lições).</div>
-
-      <div class="list">
-        ${paths.map(p => `
-          <a class="row" href="#/path?pack=${encodeURIComponent(p.packId)}&id=${encodeURIComponent(p.id)}">
-            <div class="row__left">🧭</div>
-            <div class="row__body">
-              <div class="row__title">${escapeHtml(p.title)}</div>
-              <div class="row__sub">${escapeHtml(p.packTitle)} • ${escapeHtml(p.desc || "")}</div>
-            </div>
-            <div class="row__right">›</div>
-          </a>
-        `).join("")}
-      </div>
-
-      ${bottomSpacer()}
-    `;
-    return content;
-  }
-
-  async function viewMissions() {
-    const st = store.get();
-    const m = await ensureTodayMission();
-    const today = todayISO();
-    const doneToday = !!st.progress.completedMissions[today];
-
-    const diaryLast = st.diary.entries[0];
-    const diaryLine = diaryLast
-      ? `Último check-in: <b>${escapeHtml(diaryLast.date)}</b> • ${escapeHtml(diaryLast.status)}`
-      : `Nenhum check-in ainda.`;
-
-    return `
-      <div class="section__title">Missões</div>
-      <div class="section__sub">Rotina diária + consistência semanal.</div>
-
-      <div class="panel">
-        <div class="panel__title">Missão de hoje</div>
-        <div style="color:rgba(240,244,255,.55);font-size:12px;">${escapeHtml(m.date)} • ${escapeHtml(m.kind)}</div>
-        <div style="height:10px"></div>
-        <div style="font-weight:950;font-size:18px;">${escapeHtml(m.title)}</div>
-        <div style="color:rgba(240,244,255,.70);line-height:1.45;margin-top:6px;">${escapeHtml(m.desc)}</div>
-
-        <div style="height:12px"></div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <span class="pill">${m.minutesPlanned} min</span>
-          <span class="pill">+${m.xp} XP</span>
-        </div>
-
-        <div style="height:14px"></div>
-        <div style="display:flex;gap:10px;justify-content:flex-end;">
-          <button class="btn" data-action="rerollMission">Trocar</button>
-          <button class="btn btnPrimary" data-action="completeMission">${doneToday ? "Concluída ✅" : "Concluir"}</button>
-        </div>
-      </div>
-
-      <div style="height:12px"></div>
-
-      <div class="panel">
-        <div class="panel__title">Diário vocal</div>
-        <div style="color:rgba(240,244,255,.70);line-height:1.45;">${diaryLine}</div>
-
-        <div style="height:12px"></div>
-        <div class="grid grid--2">
-          <button class="btn" data-action="diary" data-status="ok">✅ Sem desconforto</button>
-          <button class="btn" data-action="diary" data-status="tired">😮‍💨 Cansado</button>
-          <button class="btn" data-action="diary" data-status="hoarse">🗣️ Rouquidão</button>
-          <button class="btn" data-action="diary" data-status="pain">⚠️ Dor</button>
-        </div>
-      </div>
-
-      <div style="height:12px"></div>
-
-      <div class="panel">
-        <div class="panel__title">Histórico</div>
-        <div style="color:rgba(240,244,255,.55);font-size:12px;">Concluídas recentemente</div>
-        <div style="height:10px"></div>
-
-        <div class="list">
-          ${Object.keys(st.progress.completedMissions).sort().reverse().slice(0, 10).map(d => {
-            const x = st.progress.completedMissions[d];
-            return `
-              <div class="row" style="cursor:default;">
-                <div class="row__left">✅</div>
-                <div class="row__body">
-                  <div class="row__title">${escapeHtml(d)}</div>
-                  <div class="row__sub">+${x.xp} XP • ${escapeHtml(x.templateId || "")}</div>
-                </div>
-                <div class="row__right"> </div>
+      <div class="section">
+        <div class="section__title">Missão do dia</div>
+        <div class="panel">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+            <div>
+              <div style="color:rgba(233,236,246,.55);font-size:12px;">
+                ${escapeHtml(tm?.date || todayISO())} • ${escapeHtml(chosen.kind || "técnica")}
               </div>
-            `;
-          }).join("") || `<div style="color:rgba(240,244,255,.60);">Nenhuma missão concluída ainda.</div>`}
-        </div>
-      </div>
-
-      ${bottomSpacer()}
-    `;
-  }
-
-  async function viewLibrary() {
-    const manifests = await getActiveManifests();
-    const articles = getAllArticles(manifests);
-
-    const tags = Array.from(new Set(articles.map(a => a.tag || "Geral"))).sort();
-    const currentTag = (getRouteAndQuery().query.tag || "Todos").trim();
-
-    const filtered = currentTag === "Todos"
-      ? articles
-      : articles.filter(a => (a.tag || "Geral") === currentTag);
-
-    return `
-      <div class="section__title">Biblioteca</div>
-      <div class="section__sub">Artigos organizados por tema. Use os filtros.</div>
-
-      <div style="display:flex;gap:8px;overflow:auto;padding-bottom:6px;">
-        <a class="pill" href="#/library?tag=Todos" style="${currentTag==="Todos" ? "border-color:rgba(91,140,255,.35);background:rgba(91,140,255,.12);" : ""}">Todos</a>
-        ${tags.map(t => `
-          <a class="pill" href="#/library?tag=${encodeURIComponent(t)}" style="${currentTag===t ? "border-color:rgba(91,140,255,.35);background:rgba(91,140,255,.12);" : ""}">
-            ${escapeHtml(t)}
-          </a>
-        `).join("")}
-      </div>
-
-      <div style="height:12px"></div>
-
-      <div class="list">
-        ${filtered.map(a => `
-          <a class="row" href="#/article?pack=${encodeURIComponent(a.packId)}&id=${encodeURIComponent(a.id)}">
-            <div class="row__left">📚</div>
-            <div class="row__body">
-              <div class="row__title">${escapeHtml(a.title)}</div>
-              <div class="row__sub">${escapeHtml(a.tag || "Geral")} • ${escapeHtml(a.packTitle)}</div>
+              <div style="font-weight:950;font-size:18px;margin-top:2px;">
+                ${escapeHtml(chosen.title || "Missão")}
+              </div>
+              <div style="color:rgba(233,236,246,.72);line-height:1.45;margin-top:6px;">
+                ${escapeHtml(chosen.desc || "")}
+              </div>
             </div>
-            <div class="row__right">›</div>
-          </a>
-        `).join("") || `<div style="color:rgba(240,244,255,.60);">Nada neste filtro ainda.</div>`}
+
+            <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;">
+              ${pill(`${tm?.minutesPlanned || 10} min`, "⏱️")}
+              ${pill(`+${chosen.xp || 10} XP`, "✨")}
+            </div>
+          </div>
+
+          <div style="height:12px"></div>
+
+          <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">
+            <button class="btn" data-action="swapMission">Trocar</button>
+            <button class="btn btnPrimary" data-action="completeMission" ${done ? "disabled" : ""}>
+              ${done ? "Concluída" : "Concluir"}
+            </button>
+          </div>
+        </div>
       </div>
 
-      ${bottomSpacer()}
-    `;
-  }
-
-  async function viewProfile() {
-    const st = store.get();
-    const u = st.user;
-
-    return `
-      <div class="section__title">Perfil</div>
-      <div class="section__sub">Ajuste objetivo, minutos/dia e veja seu progresso.</div>
-
-      <div class="panel">
-        <div class="grid grid--2">
-          <div>
-            <label class="lab">Nome</label>
-            <input id="pfName" class="input" value="${escapeHtml(u.name || "Aluno")}" />
+      <div class="section">
+        <div class="section__title">Semana</div>
+        <div class="panel">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+            <div style="font-weight:900;">${escapeHtml(ws)} →</div>
+            <div style="color:rgba(233,236,246,.52);font-size:12px;">progresso semanal</div>
           </div>
-          <div>
-            <label class="lab">Objetivo</label>
-            <select id="pfGoal" class="input">
-              ${["Popular","Erudito","Coral","Misto"].map(x => `<option ${x===u.goal?"selected":""}>${x}</option>`).join("")}
-            </select>
+          <div style="height:10px"></div>
+          <div class="bar"><div class="bar__fill" style="width:${clamp(((week.daysCompleted || 0) / 7) * 100, 0, 100)}%"></div></div>
+          <div style="height:10px"></div>
+          <div style="color:rgba(233,236,246,.72);line-height:1.45;">
+            Missões concluídas: <b>${week.daysCompleted || 0}/7</b><br/>
+            Check-ins no diário: <b>${week.diaryNotesCount || 0}</b>
           </div>
         </div>
+      </div>
 
-        <div style="height:10px"></div>
-        <label class="lab">Minutos por dia</label>
-        <input id="pfMin" class="input" type="number" min="5" max="60" step="1" value="${u.minutesPerDay || 10}" />
-
-        <div style="height:12px"></div>
-        <div style="color:rgba(240,244,255,.70);line-height:1.45;">
-          XP: <b>${st.gamification.xp}</b> • Nível: <b>${st.gamification.level}</b> • Streak: <b>${st.gamification.streak}</b><br/>
-          Placement: <b>${u.placementDone ? "Concluído" : "Pendente"}</b> ${u.levelReal ? `• Nível auto: <b>${escapeHtml(u.levelReal)}</b>` : ""}
-        </div>
-
-        <div style="height:14px"></div>
-        <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">
-          <button class="btn" data-action="goPlacement">${u.placementDone ? "Ver/Refazer placement" : "Fazer placement"}</button>
-          <button class="btn btnPrimary" data-action="saveProfile">Salvar</button>
+      <div class="section">
+        <div class="section__title">Packs</div>
+        <div class="cards">
+          ${idx.packs.map(cardPack).join("")}
         </div>
       </div>
 
@@ -888,45 +843,49 @@
   }
 
   async function viewPack(packId) {
-    const man = await loadManifest(packId).catch(() => getFallbackBaseManifest());
-    const paths = (man.paths || []);
-    const articles = (man.library || []);
+    const man = await loadManifest(packId);
+    const st = store.get();
+    const active = (st.packs.activePackIds || []).includes(packId);
+
+    const paths = (man.paths || []).map(p => rowItem({
+      icon: "🎯",
+      title: p.title,
+      sub: p.desc || "",
+      action: "openPath",
+      data: { pack: packId, path: p.id }
+    })).join("");
 
     return `
-      <div class="section__title">${escapeHtml(man.title)}</div>
-      <div class="section__sub">${escapeHtml(man.desc || "")}</div>
+      <div class="section">
+        <div class="section__title">${escapeHtml(man.title)}</div>
+        <p class="section__sub">${escapeHtml(man.desc || "")}</p>
 
-      <div class="panel">
-        <div class="panel__title">Trilhas</div>
-        <div class="list">
-          ${paths.map(p => `
-            <a class="row" href="#/path?pack=${encodeURIComponent(man.id)}&id=${encodeURIComponent(p.id)}">
-              <div class="row__left">🧭</div>
-              <div class="row__body">
-                <div class="row__title">${escapeHtml(p.title)}</div>
-                <div class="row__sub">${escapeHtml(p.desc || "")}</div>
-              </div>
-              <div class="row__right">›</div>
-            </a>
-          `).join("") || `<div style="color:rgba(240,244,255,.60);">Sem trilhas ainda.</div>`}
+        <div class="panel" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+          <div>
+            <div style="font-weight:900;">Status</div>
+            <div style="color:rgba(233,236,246,.62);font-size:13px;margin-top:4px;">
+              ${active ? "Ativo (conteúdo aparece na Trilha/Biblioteca/Missões)" : "Inativo (não aparece no app)"}
+            </div>
+          </div>
+          <button class="btn ${active ? "" : "btnPrimary"}" data-action="togglePack" data-pack="${escapeHtml(packId)}">
+            ${active ? "Desativar" : "Ativar"}
+          </button>
         </div>
-      </div>
 
-      <div style="height:12px"></div>
+        <div style="height:12px"></div>
 
-      <div class="panel">
-        <div class="panel__title">Biblioteca</div>
-        <div class="list">
-          ${articles.map(a => `
-            <a class="row" href="#/article?pack=${encodeURIComponent(man.id)}&id=${encodeURIComponent(a.id)}">
-              <div class="row__left">📚</div>
-              <div class="row__body">
-                <div class="row__title">${escapeHtml(a.title)}</div>
-                <div class="row__sub">${escapeHtml(a.tag || "Geral")}</div>
-              </div>
-              <div class="row__right">›</div>
-            </a>
-          `).join("") || `<div style="color:rgba(240,244,255,.60);">Sem artigos ainda.</div>`}
+        <div class="panel">
+          <div style="font-weight:950;margin-bottom:8px;">Trilhas</div>
+          <div class="list">
+            ${paths || `<div style="color:rgba(233,236,246,.55);">Sem trilhas neste pack.</div>`}
+          </div>
+        </div>
+
+        <div style="height:12px"></div>
+
+        <div class="panel">
+          <div style="font-weight:950;margin-bottom:8px;">Biblioteca</div>
+          <button class="btn" data-action="openLibrary" data-pack="${escapeHtml(packId)}">Ver artigos</button>
         </div>
       </div>
 
@@ -935,167 +894,351 @@
   }
 
   async function viewPath(packId, pathId) {
-    const man = await loadManifest(packId).catch(() => getFallbackBaseManifest());
-    const p = (man.paths || []).find(x => x.id === pathId);
-    if (!p) return `<div class="panel">Trilha não encontrada.</div>${bottomSpacer()}`;
+    const man = await loadManifest(packId);
+    const path = (man.paths || []).find(p => p.id === pathId);
+    if (!path) return `
+      <div class="panel">Trilha não encontrada.</div>
+      ${bottomSpacer()}
+    `;
 
-    const st = store.get();
-    const lessons = (p.lessons || []).map(l => {
-      const done = !!st.progress.completedLessons[`${packId}:${l.id}`];
-      return { ...l, done };
-    });
+    const lessons = (path.lessons || []).map((l, idx) => rowItem({
+      icon: "📗",
+      title: l.title,
+      sub: `Lição ${idx + 1}`,
+      action: "openLesson",
+      data: { pack: packId, lesson: l.id, path: pathId }
+    })).join("");
 
     return `
-      <div class="section__title">${escapeHtml(p.title)}</div>
-      <div class="section__sub">${escapeHtml(p.desc || man.title || "")}</div>
+      <div class="section">
+        <div class="section__title">${escapeHtml(path.title)}</div>
+        <p class="section__sub">${escapeHtml(path.desc || "")}</p>
 
-      <div class="panel">
-        <div class="panel__title">Lições</div>
+        <div class="panel">
+          <div style="font-weight:950;margin-bottom:8px;">Lições</div>
+          <div class="list">${lessons}</div>
+        </div>
+      </div>
+
+      ${bottomSpacer()}
+    `;
+  }
+
+  async function viewLesson(packId, lessonId) {
+    const st = store.get();
+    const man = await loadManifest(packId);
+
+    let found = null;
+    let pathRef = null;
+
+    for (const p of (man.paths || [])) {
+      const l = (p.lessons || []).find(x => x.id === lessonId);
+      if (l) { found = l; pathRef = p; break; }
+    }
+    if (!found) return `<div class="panel">Lição não encontrada.</div>${bottomSpacer()}`;
+
+    const md = await resolveMd(packId, found.md);
+    const key = `${packId}:${lessonId}`;
+    const done = !!st.progress.completedLessons[key];
+
+    return `
+      <div class="section">
+        <div class="section__title">${escapeHtml(found.title)}</div>
+        <p class="section__sub">${escapeHtml(man.title)} • ${escapeHtml(pathRef?.title || "")}</p>
+
+        <div class="panel md">
+          ${mdToHtml(md)}
+        </div>
+
+        <div style="height:12px"></div>
+
+        <div class="panel">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+            <div>
+              <div style="font-weight:900;">Progresso</div>
+              <div style="color:rgba(233,236,246,.62);font-size:13px;margin-top:4px;">
+                ${done ? "Lição concluída ✅" : "Ainda não concluída"}
+              </div>
+            </div>
+            <button class="btn ${done ? "" : "btnPrimary"}" data-action="toggleLessonDone" data-pack="${escapeHtml(packId)}" data-lesson="${escapeHtml(lessonId)}">
+              ${done ? "Marcar como não concluída" : "Concluir lição"}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      ${bottomSpacer()}
+    `;
+  }
+
+  async function viewLibrary(packId) {
+    const man = await loadManifest(packId);
+
+    const tags = Array.from(new Set((man.library || []).map(a => a.tag || "Geral")));
+    const chips = tags.map(t => `<button class="btn btn--chip" data-action="filterLib" data-pack="${escapeHtml(packId)}" data-tag="${escapeHtml(t)}">${escapeHtml(t)}</button>`).join("");
+
+    const rows = (man.library || []).map(a => rowItem({
+      icon: "📚",
+      title: a.title,
+      sub: a.tag || "Geral",
+      action: "openArticle",
+      data: { pack: packId, art: a.id }
+    })).join("");
+
+    return `
+      <div class="section">
+        <div class="section__title">Biblioteca</div>
+        <p class="section__sub">${escapeHtml(man.title)}</p>
+
+        <div class="panel">
+          <div style="font-weight:950;margin-bottom:8px;">Categorias</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">${chips || ""}</div>
+        </div>
+
+        <div style="height:12px"></div>
+
+        <div class="panel">
+          <div style="font-weight:950;margin-bottom:8px;">Artigos</div>
+          <div class="list">${rows || `<div style="color:rgba(233,236,246,.55);">Sem artigos.</div>`}</div>
+        </div>
+      </div>
+
+      ${bottomSpacer()}
+    `;
+  }
+
+  async function viewLibraryFiltered(packId, tag) {
+    const man = await loadManifest(packId);
+    const rows = (man.library || [])
+      .filter(a => (a.tag || "Geral") === tag)
+      .map(a => rowItem({
+        icon: "📚",
+        title: a.title,
+        sub: a.tag || "Geral",
+        action: "openArticle",
+        data: { pack: packId, art: a.id }
+      })).join("");
+
+    return `
+      <div class="section">
+        <div class="section__title">Biblioteca</div>
+        <p class="section__sub">${escapeHtml(man.title)} • ${escapeHtml(tag)}</p>
+
+        <div class="panel">
+          <button class="btn" data-action="openLibrary" data-pack="${escapeHtml(packId)}">← Voltar</button>
+        </div>
+
+        <div style="height:12px"></div>
+
+        <div class="panel">
+          <div class="list">${rows || `<div style="color:rgba(233,236,246,.55);">Sem artigos nesta categoria.</div>`}</div>
+        </div>
+      </div>
+
+      ${bottomSpacer()}
+    `;
+  }
+
+  async function viewArticle(packId, artId) {
+    const man = await loadManifest(packId);
+    const art = (man.library || []).find(a => a.id === artId);
+    if (!art) return `<div class="panel">Artigo não encontrado.</div>${bottomSpacer()}`;
+
+    const md = await resolveMd(packId, art.md);
+
+    return `
+      <div class="section">
+        <div class="section__title">${escapeHtml(art.title)}</div>
+        <p class="section__sub">${escapeHtml(man.title)} • ${escapeHtml(art.tag || "Geral")}</p>
+
+        <div class="panel md">
+          ${mdToHtml(md)}
+        </div>
+
+        ${bottomSpacer()}
+      </div>
+    `;
+  }
+
+  function viewProfile() {
+    const st = store.get();
+    const u = st.user;
+
+    const badges = (st.gamification.badges || []).map(b => pill(b.replaceAll("_", " "), "🏷️")).join(" ");
+
+    return `
+      <div class="section">
+        <div class="section__title">Perfil</div>
+        <p class="section__sub">Configurações do aluno</p>
+
+        <div class="panel">
+          <label class="lab">Nome</label>
+          <input id="pfName" class="input" type="text" placeholder="Seu nome" value="${escapeHtml(u.name || "")}" />
+
+          <div style="height:10px"></div>
+
+          <div class="grid grid--2">
+            <div>
+              <label class="lab">Objetivo</label>
+              <select id="pfGoal" class="input">
+                ${["Popular","Erudito","Coral","Misto"].map(x => `<option ${x === u.goal ? "selected" : ""}>${x}</option>`).join("")}
+              </select>
+            </div>
+
+            <div>
+              <label class="lab">Minutos/dia</label>
+              <input id="pfMin" class="input" type="number" min="5" max="60" step="1" value="${escapeHtml(String(u.minutesPerDay || 10))}" />
+            </div>
+          </div>
+
+          <div style="height:12px"></div>
+
+          <button class="btn btnPrimary" data-action="saveProfile">Salvar</button>
+        </div>
+
+        <div style="height:12px"></div>
+
+        <div class="panel">
+          <div style="font-weight:950;font-size:16px;">Gamificação</div>
+          <div style="height:10px"></div>
+          <div class="grid grid--2">
+            <div class="kpi">
+              <div>
+                <div class="kpi__label">XP</div>
+                <div class="kpi__value">${st.gamification.xp}</div>
+              </div>
+              <div style="font-size:18px;">✨</div>
+            </div>
+
+            <div class="kpi">
+              <div>
+                <div class="kpi__label">Nível</div>
+                <div class="kpi__value">${st.gamification.level}</div>
+              </div>
+              <div style="font-size:18px;">🏅</div>
+            </div>
+
+            <div class="kpi">
+              <div>
+                <div class="kpi__label">Streak</div>
+                <div class="kpi__value">${st.gamification.streak}</div>
+              </div>
+              <div style="font-size:18px;">🔥</div>
+            </div>
+
+            <div class="kpi">
+              <div>
+                <div class="kpi__label">Placement</div>
+                <div class="kpi__value">${u.placementDone ? "OK" : "—"}</div>
+              </div>
+              <div style="font-size:18px;">🧪</div>
+            </div>
+          </div>
+
+          <div style="height:12px"></div>
+
+          <div style="color:rgba(233,236,246,.55);font-size:12px;">Badges:</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:8px;">
+            ${badges || `<span style="color:rgba(233,236,246,.45);">Nenhum ainda.</span>`}
+          </div>
+        </div>
+
+        <div style="height:12px"></div>
+
+        <div class="panel">
+          <div style="font-weight:950;font-size:16px;">Diário Vocal</div>
+          <div style="color:rgba(233,236,246,.55);font-size:12px;margin-top:6px;">
+            Registre como está sua voz hoje.
+          </div>
+
+          <div style="height:10px"></div>
+
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="btn" data-action="diary" data-status="ok">✅ Sem desconforto</button>
+            <button class="btn" data-action="diary" data-status="tired">😮‍💨 Cansado</button>
+            <button class="btn" data-action="diary" data-status="hoarse">🗣️ Rouquidão</button>
+            <button class="btn" data-action="diary" data-status="pain">⚠️ Dor</button>
+          </div>
+
+          <div style="height:10px"></div>
+          <textarea id="diaryNote" class="input" rows="3" placeholder="Notas (opcional)"></textarea>
+          <div style="height:10px"></div>
+
+          <button class="btn btnPrimary" data-action="saveDiary">Salvar check-in</button>
+        </div>
+
+        ${bottomSpacer()}
+      </div>
+    `;
+  }
+
+  function viewDiary() {
+    const st = store.get();
+    const entries = (st.diary.entries || []).slice(0, 20);
+
+    const rows = entries.map(e => `
+      <div class="panel" style="background:rgba(255,255,255,.03);">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+          <div style="font-weight:900;">${escapeHtml(e.date)}</div>
+          <div style="color:rgba(233,236,246,.55);font-size:12px;">${escapeHtml(e.status)}</div>
+        </div>
+        ${e.note ? `<div style="margin-top:8px;color:rgba(233,236,246,.78);line-height:1.45;">${escapeHtml(e.note)}</div>` : ""}
+      </div>
+    `).join("");
+
+    return `
+      <div class="section">
+        <div class="section__title">Diário</div>
+        <p class="section__sub">Histórico de check-ins</p>
         <div class="list">
-          ${lessons.map(l => `
-            <a class="row" href="#/lesson?pack=${encodeURIComponent(packId)}&path=${encodeURIComponent(pathId)}&id=${encodeURIComponent(l.id)}">
-              <div class="row__left">${l.done ? "✅" : "🎧"}</div>
-              <div class="row__body">
-                <div class="row__title">${escapeHtml(l.title)}</div>
-                <div class="row__sub">${l.done ? "Concluída" : "Toque para abrir"}</div>
-              </div>
-              <div class="row__right">›</div>
-            </a>
-          `).join("")}
+          ${rows || `<div class="panel" style="color:rgba(233,236,246,.55);">Sem registros ainda.</div>`}
         </div>
       </div>
-
       ${bottomSpacer()}
     `;
   }
 
-  async function viewLesson(packId, pathId, lessonId) {
-    const man = await loadManifest(packId).catch(() => getFallbackBaseManifest());
-    const p = (man.paths || []).find(x => x.id === pathId);
-    const l = p?.lessons?.find(x => x.id === lessonId);
-    if (!l) return `<div class="panel">Lição não encontrada.</div>${bottomSpacer()}`;
-
-    const md = await resolveMd(packId, l.md);
-    const st = store.get();
-    const done = !!st.progress.completedLessons[`${packId}:${lessonId}`];
-
+  /* =============================
+     Views — Placement
+  ============================= */
+  function viewPlacementIntro() {
     return `
       <div class="panel">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
-          <div>
-            <div style="color:rgba(240,244,255,.55);font-size:12px;">${escapeHtml(man.title)} • ${escapeHtml(p?.title || "")}</div>
-            <div class="panel__title">${escapeHtml(l.title)}</div>
-          </div>
-          <a class="btn" href="#/path?pack=${encodeURIComponent(packId)}&id=${encodeURIComponent(pathId)}">Voltar</a>
-        </div>
-
-        <div style="height:12px"></div>
-        <div class="md">${mdToHtml(md)}</div>
-
-        <div style="height:14px"></div>
-        <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">
-          <button class="btn" data-action="markLessonDone" data-pack="${escapeHtml(packId)}" data-lesson="${escapeHtml(lessonId)}" data-path="${escapeHtml(pathId)}">
-            ${done ? "Concluída ✅" : "Marcar como concluída"}
-          </button>
-          <a class="btn btnPrimary" href="#/missions">Ir para missões</a>
-        </div>
+        <div style="font-weight:900;font-size:18px;">Teste de Classificação Vocal</div>
+        <p style="color:rgba(233,236,246,.78);line-height:1.45;margin-top:10px;">
+          Este teste rápido ajuda o app a ajustar sua trilha, intensidade e missões.
+        </p>
+        <p style="color:rgba(233,236,246,.52);font-size:13px;">
+          Não é um teste de talento, e sim de ponto de partida.
+        </p>
+        <div style="height:16px"></div>
+        <button class="btn btnPrimary" data-action="startPlacement">Começar</button>
       </div>
-
       ${bottomSpacer()}
     `;
   }
 
-  async function viewArticle(packId, articleId) {
-    const man = await loadManifest(packId).catch(() => getFallbackBaseManifest());
-    const a = (man.library || []).find(x => x.id === articleId);
-    if (!a) return `<div class="panel">Artigo não encontrado.</div>${bottomSpacer()}`;
-
-    const md = await resolveMd(packId, a.md);
-
-    return `
-      <div class="panel">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
-          <div>
-            <div style="color:rgba(240,244,255,.55);font-size:12px;">${escapeHtml(man.title)} • ${escapeHtml(a.tag || "Geral")}</div>
-            <div class="panel__title">${escapeHtml(a.title)}</div>
-          </div>
-          <a class="btn" href="#/library">Voltar</a>
-        </div>
-
-        <div style="height:12px"></div>
-        <div class="md">${mdToHtml(md)}</div>
-      </div>
-
-      ${bottomSpacer()}
-    `;
-  }
-
-  async function viewPlacement() {
-    const st = store.get();
-    const step = Number(getRouteAndQuery().query.step || "0");
-    const done = !!st.user.placementDone;
-
-    if (step <= 0) {
-      return `
-        <div class="panel">
-          <div class="panel__title">Teste de placement</div>
-          <div style="color:rgba(240,244,255,.72);line-height:1.45;">
-            Ajuda o app a ajustar trilha, intensidade e plano inicial (14 dias).
-          </div>
-          <div style="height:12px"></div>
-          <button class="btn btnPrimary" data-action="placementStart">${done ? "Refazer" : "Começar"}</button>
-        </div>
-        ${bottomSpacer()}
-      `;
-    }
-
-    const qIndex = step - 1;
+  function viewPlacementQuestion(qIndex) {
     const q = PLACEMENT_QUESTIONS[qIndex];
-    if (!q) {
-      const { score, result, plan14 } = runPlacementAndBuildResult();
-      return `
-        <div class="panel">
-          <div style="color:rgba(240,244,255,.55);font-size:12px;">Resultado</div>
-          <div class="panel__title">${escapeHtml(result)}</div>
-          <div style="color:rgba(240,244,255,.72);line-height:1.45;">
-            Pontuação: <b>${score}</b><br/>
-            Plano inicial gerado (14 dias).
-          </div>
-
-          <div style="height:12px"></div>
-          <div class="list">
-            ${plan14.map(p => `
-              <div class="row" style="cursor:default;">
-                <div class="row__left">📅</div>
-                <div class="row__body">
-                  <div class="row__title">Dia ${p.day}: ${escapeHtml(p.focus)}</div>
-                  <div class="row__sub">${p.intensity === "leve" ? "Leve" : "Moderado"}</div>
-                </div>
-                <div class="row__right"></div>
-              </div>
-            `).join("")}
-          </div>
-
-          <div style="height:14px"></div>
-          <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">
-            <button class="btn" data-action="placementReset">Refazer</button>
-            <button class="btn btnPrimary" data-action="placementSave">Salvar e continuar</button>
-          </div>
-        </div>
-        ${bottomSpacer()}
-      `;
-    }
+    if (!q) return "";
 
     return `
       <div class="panel">
-        <div style="color:rgba(240,244,255,.55);font-size:12px;">Pergunta ${qIndex + 1} de ${PLACEMENT_QUESTIONS.length}</div>
-        <div class="panel__title">${escapeHtml(q.title)}</div>
-        <div style="color:rgba(240,244,255,.72);line-height:1.45;">${escapeHtml(q.question)}</div>
+        <div style="font-size:12px;color:rgba(233,236,246,.52);">
+          Pergunta ${qIndex + 1} de ${PLACEMENT_QUESTIONS.length}
+        </div>
+        <div style="font-weight:900;font-size:17px;margin-top:6px;">
+          ${escapeHtml(q.title)}
+        </div>
+        <p style="color:rgba(233,236,246,.78);line-height:1.45;">
+          ${escapeHtml(q.question)}
+        </p>
 
-        <div style="height:12px"></div>
-        <div style="display:grid;gap:10px;">
-          ${q.options.map(o => `
-            <button class="btn" data-action="placementAnswer" data-q="${escapeHtml(q.id)}" data-score="${o.score}" data-next="${step + 1}">
+        <div style="margin-top:14px;display:grid;gap:10px;">
+          ${q.options.map((o) => `
+            <button class="btn" data-action="answer"
+                    data-q="${qIndex}"
+                    data-score="${o.score}">
               ${escapeHtml(o.label)}
             </button>
           `).join("")}
@@ -1105,206 +1248,838 @@
     `;
   }
 
-  /* =============================
-     Admin (stub simples)
-  ============================= */
-  async function viewAdmin() {
-    const enabled = localStorage.getItem(LS.ADMIN) === "1";
-    return `
-      <div class="section__title">Admin</div>
-      <div class="section__sub">Área reservada (por enquanto: liberar/desligar).</div>
+  function viewPlacementResult(result, score, plan14) {
+    const st = store.get();
+    const goal = st.user.goal || "Misto";
 
+    const tipsByLevel = {
+      Iniciante: [
+        "Priorize conforto e consistência (5–12 min/dia).",
+        "Use SOVT (lip trill/humming/canudo) para aquecer.",
+        "Evite volume alto: qualidade > força.",
+        "Se houver dor, pare e reduza carga."
+      ],
+      Intermediário: [
+        "Trabalhe transições de registro (leve, sem empurrar).",
+        "Inclua afinação aplicada (notas longas e ataques limpos).",
+        "Aumente repertório gradualmente (trechos curtos).",
+        "Mantenha 1–2 dias mais leves por semana."
+      ],
+      Avançado: [
+        "Otimize eficiência (menos esforço, mais resultado).",
+        "Trabalhe dinâmica e resistência sem apertar.",
+        "Refine estilo e interpretação com intenção clara.",
+        "Monitore sinais de fadiga e ajuste o treino."
+      ]
+    };
+
+    const rec = recommendTrack(goal, result);
+
+    return `
       <div class="panel">
-        <div class="panel__title">Acesso</div>
-        <div style="color:rgba(240,244,255,.72);line-height:1.45;">
-          Status: <b>${enabled ? "Liberado" : "Bloqueado"}</b>
+        <div style="font-size:12px;color:rgba(233,236,246,.52);">Resultado do teste</div>
+        <div style="font-weight:950;font-size:22px;margin-top:6px;">
+          ${escapeHtml(result)}
+        </div>
+
+        <div style="height:10px"></div>
+
+        <div class="panel" style="background:rgba(255,255,255,.03);">
+          <div style="font-weight:900;">Recomendação</div>
+          <div style="height:8px"></div>
+          <div style="color:rgba(233,236,246,.78);line-height:1.45;">
+            Objetivo: <b>${escapeHtml(goal)}</b><br/>
+            Trilha sugerida: <b>${escapeHtml(rec.pathTitle)}</b><br/>
+            Intensidade padrão: <b>${escapeHtml(rec.intensity)}</b><br/>
+            Minutos sugeridos: <b>${escapeHtml(String(rec.minutes))} min/dia</b>
+          </div>
         </div>
 
         <div style="height:12px"></div>
+
+        <div class="panel">
+          <div style="font-weight:900;">Dicas rápidas</div>
+          <div style="height:8px"></div>
+          <div style="color:rgba(233,236,246,.78);line-height:1.5;">
+            ${(tipsByLevel[result] || tipsByLevel.Iniciante).map(t => `• ${escapeHtml(t)}`).join("<br/>")}
+          </div>
+        </div>
+
+        <div style="height:12px"></div>
+
+        <div class="panel">
+          <div style="font-weight:900;">Plano inicial (14 dias)</div>
+          <div style="color:rgba(233,236,246,.52);font-size:12px;margin-top:6px;">
+            Alterna dias leves e moderados para criar hábito e proteger a voz.
+          </div>
+          <div style="height:10px"></div>
+          <div style="display:grid;gap:8px;">
+            ${plan14.map(p => `
+              <div style="border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);padding:10px 12px;border-radius:14px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+                  <div style="font-weight:850;">Dia ${p.day}: ${escapeHtml(p.focus)}</div>
+                  <div style="color:rgba(233,236,246,.52);font-size:12px;">
+                    ${p.intensity === "leve" ? "Leve" : "Moderado"}
+                  </div>
+                </div>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+
+        <div style="height:14px"></div>
+
         <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;">
-          <button class="btn" data-action="adminToggle">${enabled ? "Desativar" : "Ativar"}</button>
-          <a class="btn" href="#/home">Voltar</a>
+          <button class="btn" data-action="restartPlacement">Refazer</button>
+          <button class="btn btnPrimary" data-action="savePlacement">Salvar e continuar</button>
+        </div>
+      </div>
+      ${bottomSpacer()}
+    `;
+  }
+
+  /* =============================
+     Admin (packs editor/import/export)
+  ============================= */
+  function isAdminEnabled() {
+    return localStorage.getItem(LS.ADMIN) === "1";
+  }
+
+  function setAdminEnabled(v) {
+    localStorage.setItem(LS.ADMIN, v ? "1" : "0");
+  }
+
+  function adminPrompt() {
+    openModal({
+      title: "Admin",
+      contentHtml: `
+        <div style="color:rgba(233,236,246,.72);line-height:1.45;">
+          Digite a senha para habilitar o modo Admin.
+        </div>
+        <div style="height:10px"></div>
+        <input id="admPwd" class="input" type="password" placeholder="Senha" />
+        <div style="height:10px"></div>
+        <div style="color:rgba(233,236,246,.45);font-size:12px;">
+          Dica: você pode trocar essa senha no app.js depois.
+        </div>
+      `,
+      primaryText: "Entrar",
+      secondaryText: "Cancelar",
+      onPrimary: () => {
+        const pwd = ($("#admPwd")?.value || "").trim();
+        if (pwd === "imvadmin") {
+          setAdminEnabled(true);
+          closeModal();
+          toast("Admin habilitado");
+          setHash("admin");
+        } else {
+          toast("Senha incorreta");
+        }
+      }
+    });
+  }
+
+  async function viewAdminEditor() {
+    const enabled = isAdminEnabled();
+    if (!enabled) {
+      return `
+        <div class="panel">
+          <div style="font-weight:950;font-size:18px;">Admin</div>
+          <p style="color:rgba(233,236,246,.72);line-height:1.45;margin-top:8px;">
+            Habilite o modo Admin para editar/importar packs (DLC).
+          </p>
+          <button class="btn btnPrimary" data-action="adminLogin">Entrar</button>
+        </div>
+        ${bottomSpacer()}
+      `;
+    }
+
+    const idx = await loadPackIndex();
+    const customs = getCustomPacks().map(normalizeManifest);
+
+    const packRows = idx.packs.map(p => {
+      const isCustom = !!p.isCustom || p.id.startsWith("custom_");
+      return `
+        <div class="panel" style="background:rgba(255,255,255,.03);">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+            <div style="min-width:0;">
+              <div style="font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                ${escapeHtml(p.title || p.id)}
+              </div>
+              <div style="color:rgba(233,236,246,.55);font-size:12px;margin-top:4px;">
+                id: <b>${escapeHtml(p.id)}</b> ${isCustom ? "• custom" : "• arquivo"}
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <button class="btn btn--tiny" data-action="adminOpenPack" data-pack="${escapeHtml(p.id)}">Editar</button>
+              ${isCustom ? `<button class="btn btn--tiny" data-action="adminDeletePack" data-pack="${escapeHtml(p.id)}">Excluir</button>` : ``}
+            </div>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    return `
+      <div class="section">
+        <div class="section__title">Admin</div>
+        <p class="section__sub">Editor de packs (DLC) — criar, editar, importar e exportar.</p>
+
+        <div class="panel">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:space-between;align-items:center;">
+            <button class="btn btnPrimary" data-action="adminNewPack">Novo pack</button>
+            <button class="btn" data-action="adminImportPack">Importar JSON</button>
+            <button class="btn" data-action="adminExportAll">Exportar todos</button>
+            <button class="btn" data-action="adminLogout">Sair</button>
+          </div>
+        </div>
+
+        <div style="height:12px"></div>
+
+        <div class="list">
+          ${packRows || `<div class="panel" style="color:rgba(233,236,246,.55);">Nenhum pack.</div>`}
         </div>
       </div>
 
       ${bottomSpacer()}
     `;
   }
-/* =============================
-     Router + Render + Tabbar Active
-  ============================= */
-  function setActiveTab(route) {
-    const map = {
-      home: "#/home",
-      tracks: "#/tracks",
-      missions: "#/missions",
-      library: "#/library",
-      profile: "#/profile"
-    };
-    const target = map[route] || "#/home";
-    $$(".tabbar__item").forEach(a => {
-      const href = (a.getAttribute("href") || "").trim();
-      const isActive = href === target;
-      if (isActive) a.classList.add("is-active");
-      else a.classList.remove("is-active");
+
+  function openModal({ title, contentHtml, primaryText, secondaryText, onPrimary, onSecondary }) {
+    closeModal();
+    const el = document.createElement("div");
+    el.id = "modalOverlay";
+    el.style.position = "fixed";
+    el.style.inset = "0";
+    el.style.zIndex = "200";
+    el.style.background = "rgba(0,0,0,.55)";
+    el.style.backdropFilter = "blur(10px)";
+    el.innerHTML = `
+      <div style="max-width:520px;margin:10vh auto;padding:0 14px;">
+        <div style="border:1px solid rgba(255,255,255,.10);border-radius:18px;background:rgba(17,21,34,.92);box-shadow:0 18px 60px rgba(0,0,0,.55);overflow:hidden;">
+          <div style="padding:14px 14px 10px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;justify-content:space-between;gap:10px;">
+            <div style="font-weight:860;letter-spacing:.2px;">${escapeHtml(title || "")}</div>
+            <button id="modalClose" class="btn btn--ghost" type="button">✕</button>
+          </div>
+          <div style="padding:14px;">
+            ${contentHtml || ""}
+            <div style="height:14px"></div>
+            <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">
+              ${secondaryText ? `<button id="modalSecondary" class="btn" type="button">${escapeHtml(secondaryText)}</button>` : ""}
+              ${primaryText ? `<button id="modalPrimary" class="btn btnPrimary" type="button">${escapeHtml(primaryText)}</button>` : ""}
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(el);
+
+    $("#modalClose")?.addEventListener("click", () => {
+      closeModal();
+      onSecondary?.();
+    });
+    $("#modalSecondary")?.addEventListener("click", () => {
+      closeModal();
+      onSecondary?.();
+    });
+    $("#modalPrimary")?.addEventListener("click", () => {
+      onPrimary?.();
     });
   }
 
-  async function render() {
-    const root = $("#app");
-    if (!root) return;
+  function closeModal() {
+    const el = $("#modalOverlay");
+    if (el) el.remove();
+  }
 
+  function adminOpenPackEditor(man) {
+    const m = normalizeManifest(man);
+    const jsonStr = JSON.stringify(m, null, 2);
+
+    openModal({
+      title: `Editar pack: ${m.title}`,
+      contentHtml: `
+        <div style="color:rgba(233,236,246,.72);line-height:1.45;">
+          Edite o JSON do pack. Ao salvar, ele vira um <b>pack custom</b> (guardado no navegador).
+        </div>
+        <div style="height:10px"></div>
+        <textarea id="admPackJson" class="input" rows="14" style="font-family:ui-monospace,monospace;font-size:12px;line-height:1.35;">${escapeHtml(jsonStr)}</textarea>
+        <div style="height:8px"></div>
+        <div style="color:rgba(233,236,246,.45);font-size:12px;">
+          Dica: para publicar no GitHub, copie esse JSON e salve em <b>/packs/&lt;id&gt;/manifest.json</b>.
+        </div>
+      `,
+      primaryText: "Salvar",
+      secondaryText: "Cancelar",
+      onPrimary: () => {
+        const raw = ($("#admPackJson")?.value || "").trim();
+        const parsed = safeJsonParse(raw, null);
+        if (!parsed) { toast("JSON inválido"); return; }
+        const norm = normalizeManifest(parsed);
+
+        const list = getCustomPacks().map(normalizeManifest);
+        const i = list.findIndex(x => x.id === norm.id);
+        if (i >= 0) list[i] = norm;
+        else list.unshift(norm);
+        saveCustomPacks(list);
+        ensureAdminBadge();
+        closeModal();
+        toast("Pack salvo (custom)");
+        packCache.index = null;
+        packCache.manifests.delete(norm.id);
+        setHash("admin");
+      }
+    });
+  }
+
+  function ensureAdminBadge() {
+    store.set(s => {
+      const ok = ensureBadge(s, "pack_creator");
+      if (ok) toast("Badge: pack_creator");
+    });
+  }
+
+  function downloadJson(filename, obj) {
+    const text = JSON.stringify(obj, null, 2);
+    const blob = new Blob([text], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  /* =============================
+     Tabbar
+  ============================= */
+  function tabbar(route) {
+    const active = (r) => (route === r ? "is-active" : "");
+    return `
+      <nav class="tabbar" aria-label="Navegação">
+        <div class="tabbar__item ${active("home")}" data-action="nav" data-to="home">
+          <div class="tabbar__icon">🏠</div>
+          <div>Início</div>
+        </div>
+        <div class="tabbar__item ${active("trilha")}" data-action="nav" data-to="trilha">
+          <div class="tabbar__icon">🧭</div>
+          <div>Trilha</div>
+        </div>
+        <div class="tabbar__item ${active("missions")}" data-action="nav" data-to="missions">
+          <div class="tabbar__icon">✅</div>
+          <div>Missões</div>
+        </div>
+        <div class="tabbar__item ${active("biblioteca")}" data-action="nav" data-to="biblioteca">
+          <div class="tabbar__icon">📚</div>
+          <div>Biblioteca</div>
+        </div>
+        <div class="tabbar__item ${active("profile")}" data-action="nav" data-to="profile">
+          <div class="tabbar__icon">👤</div>
+          <div>Perfil</div>
+        </div>
+      </nav>
+    `;
+  }
+
+  /* =============================
+     Views — Tab routes wrappers
+  ============================= */
+  async function viewTrilha() {
+    const mans = await getActiveManifests();
+    const paths = getAllPathsFromManifests(mans);
+
+    const rows = paths.map(p => rowItem({
+      icon: "🎯",
+      title: p.title,
+      sub: `${p.packTitle} • ${p.desc || ""}`,
+      action: "openPath",
+      data: { pack: p.packId, path: p.id }
+    })).join("");
+
+    return `
+      <div class="section">
+        <div class="section__title">Trilha</div>
+        <p class="section__sub">Conteúdos dos packs ativos</p>
+        <div class="panel">
+          <div class="list">${rows || `<div style="color:rgba(233,236,246,.55);">Nenhuma trilha ativa.</div>`}</div>
+        </div>
+      </div>
+      ${bottomSpacer()}
+    `;
+  }
+
+  async function viewMissions() {
+    const st = store.get();
+    const today = todayISO();
+    const done = isMissionCompleted(st, today);
+
+    const templates = await getMissionTemplates();
+    const chosen = chooseDailyTemplate(templates);
+    store.set(s => ensureTodayMission(s, chosen));
+    const tm = store.get().progress.todayMission;
+
+    return `
+      <div class="section">
+        <div class="section__title">Missões</div>
+        <p class="section__sub">Diária + progresso semanal</p>
+
+        <div class="panel">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+            <div>
+              <div style="color:rgba(233,236,246,.55);font-size:12px;">
+                ${escapeHtml(tm?.date || today)} • ${escapeHtml(chosen.kind || "técnica")}
+              </div>
+              <div style="font-weight:950;font-size:18px;margin-top:2px;">
+                ${escapeHtml(chosen.title || "Missão")}
+              </div>
+              <div style="color:rgba(233,236,246,.72);line-height:1.45;margin-top:6px;">
+                ${escapeHtml(chosen.desc || "")}
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;">
+              ${pill(`${tm?.minutesPlanned || 10} min`, "⏱️")}
+              ${pill(`+${chosen.xp || 10} XP`, "✨")}
+            </div>
+          </div>
+
+          <div style="height:12px"></div>
+
+          <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">
+            <button class="btn" data-action="swapMission">Trocar</button>
+            <button class="btn btnPrimary" data-action="completeMission" ${done ? "disabled" : ""}>
+              ${done ? "Concluída" : "Concluir"}
+            </button>
+          </div>
+        </div>
+
+        <div style="height:12px"></div>
+
+        <div class="panel">
+          <div style="font-weight:950;margin-bottom:8px;">Diário Vocal</div>
+          <button class="btn" data-action="nav" data-to="diary">Ver histórico</button>
+        </div>
+      </div>
+      ${bottomSpacer()}
+    `;
+  }
+
+  async function viewBiblioteca() {
+    const mans = await getActiveManifests();
+    const articles = [];
+    for (const m of mans) {
+      (m.library || []).forEach(a => articles.push({ packId: m.id, packTitle: m.title, ...a }));
+    }
+
+    // list
+    const rows = articles.map(a => rowItem({
+      icon: "📚",
+      title: a.title,
+      sub: `${a.packTitle} • ${a.tag || "Geral"}`,
+      action: "openArticle",
+      data: { pack: a.packId, art: a.id }
+    })).join("");
+
+    return `
+      <div class="section">
+        <div class="section__title">Biblioteca</div>
+        <p class="section__sub">Artigos dos packs ativos</p>
+        <div class="panel">
+          <div class="list">${rows || `<div style="color:rgba(233,236,246,.55);">Nenhum artigo ativo.</div>`}</div>
+        </div>
+      </div>
+      ${bottomSpacer()}
+    `;
+  }
+
+  /* =============================
+     Toggle pack on/off
+  ============================= */
+  function togglePackActive(packId) {
+    store.set(s => {
+      const ids = new Set(s.packs.activePackIds || []);
+      if (ids.has(packId)) ids.delete(packId);
+      else ids.add(packId);
+      s.packs.activePackIds = Array.from(ids);
+    });
+    toast("Packs atualizados");
+  }
+
+  function toggleLessonDone(packId, lessonId) {
+    const key = `${packId}:${lessonId}`;
+    store.set(s => {
+      if (s.progress.completedLessons[key]) delete s.progress.completedLessons[key];
+      else s.progress.completedLessons[key] = { at: new Date().toISOString() };
+    });
+    toast("Progresso atualizado");
+  }
+
+  /* =============================
+     App shell
+  ============================= */
+  function shell(route, contentHtml) {
+    return `
+      <header class="topbar">
+        <div class="topbar__left">
+          <div class="brandDot"></div>
+          <div class="topbar__title">IMVpedia Voice</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button class="btn btn--chip" data-action="admin">${isAdminEnabled() ? "Admin ✓" : "Admin"}</button>
+        </div>
+      </header>
+
+      <main class="app" id="app">
+        ${contentHtml || ""}
+      </main>
+
+      ${tabbar(route)}
+      <div class="toastHost" id="toastHost"></div>
+    `;
+  }
+
+  /* =============================
+     Router + Render
+  ============================= */
+  const rootEl = document.body;
+
+  async function render() {
     const { route, query } = getRouteAndQuery();
-    setActiveTab(route);
+    store.set(s => { s.progress.lastRoute = route; });
 
     let html = "";
+
     try {
-      if (route === "home") html = await viewHome();
-      else if (route === "tracks") html = await viewTracks();
-      else if (route === "missions") html = await viewMissions();
-      else if (route === "library") html = await viewLibrary();
-      else if (route === "profile") html = await viewProfile();
-      else if (route === "placement") html = await viewPlacement();
-      else if (route === "pack") html = await viewPack(String(query.id || "base"));
-      else if (route === "path") html = await viewPath(String(query.pack || "base"), String(query.id || ""));
-      else if (route === "lesson") html = await viewLesson(String(query.pack || "base"), String(query.path || ""), String(query.id || ""));
-      else if (route === "article") html = await viewArticle(String(query.pack || "base"), String(query.id || ""));
-      else if (route === "admin") html = await viewAdmin();
-      else html = await viewHome();
+      switch (route) {
+        case "home":
+          html = await viewHome();
+          break;
+        case "pack":
+          html = await viewPack(query.id);
+          break;
+        case "path":
+          html = await viewPath(query.pack, query.path);
+          break;
+        case "lesson":
+          html = await viewLesson(query.pack, query.lesson);
+          break;
+        case "library":
+          html = await viewLibrary(query.pack);
+          break;
+        case "library-tag":
+          html = await viewLibraryFiltered(query.pack, query.tag);
+          break;
+        case "article":
+          html = await viewArticle(query.pack, query.art);
+          break;
+        case "trilha":
+          html = await viewTrilha();
+          break;
+        case "missions":
+          html = await viewMissions();
+          break;
+        case "biblioteca":
+          html = await viewBiblioteca();
+          break;
+        case "profile":
+          html = viewProfile();
+          break;
+        case "diary":
+          html = viewDiary();
+          break;
+        case "placement":
+          html = viewPlacementIntro();
+          break;
+        case "placement-q":
+          html = viewPlacementQuestion(Number(query.q || 0));
+          break;
+        case "placement-result": {
+          const r = runPlacementAndBuildResult();
+          html = viewPlacementResult(r.result, r.score, r.plan14);
+          break;
+        }
+        case "admin":
+          html = await viewAdminEditor();
+          break;
+        default:
+          html = await viewHome();
+      }
     } catch (e) {
       html = `
         <div class="panel">
-          <div class="panel__title">Erro</div>
-          <div style="color:rgba(240,244,255,.72);line-height:1.45;">
-            Algo falhou ao renderizar esta tela.
+          <div style="font-weight:950;">Erro ao renderizar</div>
+          <div style="color:rgba(233,236,246,.62);margin-top:8px;line-height:1.45;">
+            ${escapeHtml(String(e?.message || e || "Erro desconhecido"))}
           </div>
           <div style="height:12px"></div>
-          <div style="color:rgba(240,244,255,.55);font-size:12px;word-break:break-word;">
-            ${escapeHtml(e?.message || String(e))}
-          </div>
-          <div style="height:12px"></div>
-          <a class="btn btnPrimary" href="#/home">Voltar</a>
+          <button class="btn" data-action="nav" data-to="home">Voltar</button>
         </div>
         ${bottomSpacer()}
       `;
     }
 
-    root.innerHTML = html;
-    bindActions();
+    rootEl.innerHTML = shell(route, html);
   }
 
-  function bindActions() {
-    $$("[data-action]").forEach(el => {
-      el.addEventListener("click", async (ev) => {
-        const a = el.getAttribute("data-action");
-        if (!a) return;
+  window.addEventListener("hashchange", () => render());
 
-        if (a === "goPlacement") { ev.preventDefault(); setHash("placement"); return; }
-        if (a === "goProfile") { ev.preventDefault(); setHash("profile"); return; }
+  /* =============================
+     Actions (cliques)
+  ============================= */
+  document.addEventListener("click", async (ev) => {
+    const btn = ev.target.closest("[data-action]");
+    if (!btn) return;
+    const act = btn.dataset.action;
 
-        if (a === "saveProfile") {
-          ev.preventDefault();
-          const name = ($("#pfName")?.value || "Aluno").trim() || "Aluno";
-          const goal = ($("#pfGoal")?.value || "Misto").trim() || "Misto";
-          const min = clamp(parseInt($("#pfMin")?.value || "10", 10) || 10, 5, 60);
+    try {
+      switch (act) {
+        case "nav":
+          setHash(btn.dataset.to || "home");
+          break;
 
+        case "openPack":
+          setHash("pack", { id: btn.dataset.pack });
+          break;
+
+        case "openPath":
+          setHash("path", { pack: btn.dataset.pack, path: btn.dataset.path });
+          break;
+
+        case "openLesson":
+          setHash("lesson", { pack: btn.dataset.pack, lesson: btn.dataset.lesson, path: btn.dataset.path || "" });
+          break;
+
+        case "openLibrary":
+          setHash("library", { pack: btn.dataset.pack });
+          break;
+
+        case "filterLib":
+          setHash("library-tag", { pack: btn.dataset.pack, tag: btn.dataset.tag });
+          break;
+
+        case "openArticle":
+          setHash("article", { pack: btn.dataset.pack, art: btn.dataset.art });
+          break;
+
+        case "togglePack":
+          togglePackActive(btn.dataset.pack);
+          await render();
+          break;
+
+        case "toggleLessonDone":
+          toggleLessonDone(btn.dataset.pack, btn.dataset.lesson);
+          await render();
+          break;
+
+        case "completeMission":
+          await completeTodayMission();
+          await render();
+          break;
+
+        case "swapMission":
+          await swapTodayMission();
+          break;
+
+        case "goPlacement":
+          setHash("placement");
+          break;
+
+        case "startPlacement":
+          store.set(s => { s.placement.answers = {}; });
+          setHash("placement-q", { q: "0" });
+          break;
+
+        case "answer": {
+          const qIndex = Number(btn.dataset.q || 0);
+          const score = Number(btn.dataset.score || 0);
+          const q = PLACEMENT_QUESTIONS[qIndex];
+          if (!q) return;
+          store.set(s => { s.placement.answers[q.id] = score; });
+
+          if (qIndex + 1 >= PLACEMENT_QUESTIONS.length) {
+            setHash("placement-result");
+          } else {
+            setHash("placement-q", { q: String(qIndex + 1) });
+          }
+          break;
+        }
+
+        case "restartPlacement":
+          store.set(s => { s.placement.answers = {}; s.placement.result = null; s.user.placementDone = false; });
+          setHash("placement");
+          break;
+
+        case "savePlacement": {
+          const r = runPlacementAndBuildResult();
           store.set(s => {
-            s.user.name = name;
+            s.placement.score = r.score;
+            s.placement.result = r.result;
+            s.placement.plan14 = r.plan14;
+            s.user.levelReal = r.result;
+            s.user.placementDone = true;
+            ensureBadge(s, "placement_done");
+            const rec = recommendTrack(s.user.goal || "Misto", r.result);
+            s.user.minutesPerDay = rec.minutes;
+            s.user.recommendedPath = rec.pathTitle;
+          });
+          toast("Placement salvo");
+          setHash("home");
+          break;
+        }
+
+        case "goProfile":
+          setHash("profile");
+          break;
+
+        case "saveProfile": {
+          const name = ($("#pfName")?.value || "").trim();
+          const goal = ($("#pfGoal")?.value || "Misto").trim();
+          const min = clamp(parseInt($("#pfMin")?.value || "10", 10) || 10, 5, 60);
+          store.set(s => {
+            s.user.name = name || "";
             s.user.goal = goal;
             s.user.minutesPerDay = min;
           });
-
           toast("Perfil salvo");
-          render();
-          return;
+          await render();
+          break;
         }
 
-        if (a === "completeMission") { ev.preventDefault(); completeTodayMission(); return; }
-        if (a === "rerollMission") { ev.preventDefault(); await rerollTodayMission(); return; }
+        case "diary":
+          // apenas marca status no botão; salvar é outra ação
+          store.set(s => { s.diary.lastStatus = btn.dataset.status; });
+          toast(`Status: ${btn.dataset.status}`);
+          break;
 
-        if (a === "diary") {
-          ev.preventDefault();
-          const status = el.getAttribute("data-status") || "ok";
-          const note = prompt("Quer deixar uma nota rápida? (opcional)") || "";
+        case "saveDiary": {
+          const st = store.get();
+          const status = st.diary.lastStatus || "ok";
+          const note = ($("#diaryNote")?.value || "").trim();
           addDiaryEntry(status, note);
-          return;
+          await render();
+          break;
         }
 
-        if (a === "markLessonDone") {
-          ev.preventDefault();
-          const packId = el.getAttribute("data-pack") || "base";
-          const lessonId = el.getAttribute("data-lesson") || "";
-          const pathId = el.getAttribute("data-path") || "";
-          if (!lessonId) return;
+        case "admin":
+          setHash("admin");
+          break;
 
-          store.set(s => {
-            s.progress.completedLessons[`${packId}:${lessonId}`] = { at: new Date().toISOString() };
-            s.progress.continue = { packId, pathId, lessonId };
-          });
-          addXP(8, "Lição concluída");
-          toast("Lição concluída ✅");
-          render();
-          return;
-        }
+        case "adminLogin":
+          adminPrompt();
+          break;
 
-        if (a === "placementStart") {
-          ev.preventDefault();
-          store.set(s => { s.placement.answers = {}; s.placement.score = 0; s.placement.result = null; s.placement.plan14 = []; });
-          setHash("placement", { step: "1" });
-          return;
-        }
-
-        if (a === "placementAnswer") {
-          ev.preventDefault();
-          const qid = el.getAttribute("data-q");
-          const score = Number(el.getAttribute("data-score") || "0");
-          const next = el.getAttribute("data-next") || "2";
-          if (!qid) return;
-
-          store.set(s => { s.placement.answers[qid] = score; });
-          setHash("placement", { step: next });
-          return;
-        }
-
-        if (a === "placementReset") {
-          ev.preventDefault();
-          store.set(s => { s.placement.answers = {}; s.placement.score = 0; s.placement.result = null; s.placement.plan14 = []; });
-          setHash("placement");
-          return;
-        }
-
-        if (a === "placementSave") {
-          ev.preventDefault();
-          const { score, result, plan14 } = runPlacementAndBuildResult();
-          store.set(s => {
-            s.placement.score = score;
-            s.placement.result = result;
-            s.placement.plan14 = plan14;
-            s.user.levelReal = result;
-            s.user.placementDone = true;
-          });
-          addXP(15, "Placement");
-          toast("Placement salvo");
+        case "adminLogout":
+          setAdminEnabled(false);
+          toast("Admin desabilitado");
           setHash("home");
-          return;
+          break;
+
+        case "adminNewPack": {
+          const base = normalizeManifest({
+            id: "custom_" + uid(),
+            title: "Novo Pack",
+            desc: "Descreva este pack",
+            cover: "",
+            paths: [
+              { id: "fund", title: "Trilha 1", desc: "Descrição", lessons: [{ id: "l1", title: "Lição 1", md: "# Lição 1\n\nConteúdo.\n" }] }
+            ],
+            library: [{ id: "a1", title: "Artigo 1", tag: "Geral", md: "# Artigo 1\n\nConteúdo.\n" }],
+            missions: { templates: [{ id: "m1", title: "Missão 1", minutesMin: 8, minutesMax: 12, xp: 10, kind: "técnica", desc: "Descrição." }] }
+          });
+          adminOpenPackEditor(base);
+          break;
         }
 
-        if (a === "adminToggle") {
-          ev.preventDefault();
-          const enabled = localStorage.getItem(LS.ADMIN) === "1";
-          localStorage.setItem(LS.ADMIN, enabled ? "0" : "1");
-          toast(enabled ? "Admin desativado" : "Admin ativado");
-          render();
-          return;
+        case "adminImportPack": {
+          openModal({
+            title: "Importar pack (JSON)",
+            contentHtml: `
+              <div style="color:rgba(233,236,246,.72);line-height:1.45;">
+                Cole aqui o JSON do pack (manifest).
+              </div>
+              <div style="height:10px"></div>
+              <textarea id="admImportJson" class="input" rows="14" style="font-family:ui-monospace,monospace;font-size:12px;line-height:1.35;"></textarea>
+            `,
+            primaryText: "Importar",
+            secondaryText: "Cancelar",
+            onPrimary: () => {
+              const raw = ($("#admImportJson")?.value || "").trim();
+              const parsed = safeJsonParse(raw, null);
+              if (!parsed) { toast("JSON inválido"); return; }
+              const norm = normalizeManifest(parsed);
+
+              const list = getCustomPacks().map(normalizeManifest);
+              const i = list.findIndex(x => x.id === norm.id);
+              if (i >= 0) list[i] = norm;
+              else list.unshift(norm);
+              saveCustomPacks(list);
+              ensureAdminBadge();
+              closeModal();
+              toast("Pack importado (custom)");
+              packCache.index = null;
+              packCache.manifests.delete(norm.id);
+              setHash("admin");
+            }
+          });
+          break;
         }
-      }, { passive: false });
-    });
-  }
+
+        case "adminExportAll": {
+          const list = getCustomPacks().map(normalizeManifest);
+          downloadJson("imv_custom_packs.json", list);
+          toast("Exportado");
+          break;
+        }
+
+        case "adminOpenPack": {
+          const packId = btn.dataset.pack;
+          const customs = getCustomPacks().map(normalizeManifest);
+          const found = customs.find(x => x.id === packId);
+          if (found) adminOpenPackEditor(found);
+          else {
+            // se for pack de arquivo, carrega e salva como custom ao editar
+            const man = await loadManifest(packId);
+            adminOpenPackEditor(man);
+          }
+          break;
+        }
+
+        case "adminDeletePack": {
+          const packId = btn.dataset.pack;
+          openModal({
+            title: "Excluir pack",
+            contentHtml: `
+              <div style="color:rgba(233,236,246,.72);line-height:1.45;">
+                Tem certeza que deseja excluir o pack <b>${escapeHtml(packId)}</b>?
+              </div>
+            `,
+            primaryText: "Excluir",
+            secondaryText: "Cancelar",
+            onPrimary: () => {
+              const list = getCustomPacks().map(normalizeManifest).filter(p => p.id !== packId);
+              saveCustomPacks(list);
+              closeModal();
+              toast("Pack excluído");
+              packCache.index = null;
+              packCache.manifests.delete(packId);
+              setHash("admin");
+            }
+          });
+          break;
+        }
+
+        default:
+          break;
+      }
+    } catch (e) {
+      toast("Erro: " + (e?.message || e));
+    }
+  });
 
   /* =============================
      Boot
   ============================= */
-  window.addEventListener("hashchange", () => render());
-  window.addEventListener("load", () => render());
+  if (!location.hash) setHash("home");
+  render();
 
 })();
