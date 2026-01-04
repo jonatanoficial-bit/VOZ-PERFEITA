@@ -2,9 +2,10 @@
   "packs": [
     {
       "id": "base",
-      "title": "Base — Fundamentos do Canto",
-      "cover": "",
-      "desc": "Respiração, apoio, SOVT, afinação, registros, ressonância e aplicação."
+      "title": "Base — Voz Perfeita",
+      "cover": "./packs/base/cover.jpg",
+      "desc": "Fundamentos universais (apoio, SOVT, afinação, ressonância, registros, saúde vocal).",
+      "enabledDefault": true
     }
   ]
 }
