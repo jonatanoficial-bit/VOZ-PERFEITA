@@ -1209,7 +1209,7 @@
      ROUTER / RENDER
   ========================================================= */
 
-  const app = document.getElementById("app");
+  const app = document.getElementById("view") || document.getElementById("app");
 
   /* =============================
      VIEW: MISSÕES
