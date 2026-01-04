@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IMVpedia Voice</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <span class="logo">IMVpedia Voice</span>
+      <button id="adminBtn">Admin</button>
+    </header>
+
+    <main id="view"></main>
+
+    <nav class="tabbar">
+      <button data-route="home">Início</button>
+      <button data-route="path">Trilha</button>
+      <button data-route="missions">Missões</button>
+      <button data-route="library">Biblioteca</button>
+      <button data-route="profile">Perfil</button>
+    </nav>
+  </div>
+
+  <div id="toastHost"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
