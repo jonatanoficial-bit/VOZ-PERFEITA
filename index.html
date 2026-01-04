@@ -2,48 +2,59 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0B0D12" />
   <title>IMVpedia Voice</title>
+
   <link rel="stylesheet" href="styles.css" />
 </head>
+
 <body>
-  <div id="app">
-    <header class="topbar">
-      <div class="topbar__left">
-        <span class="dot"></span>
-        <span class="brand">IMVpedia Voice</span>
-      </div>
-      <button class="btn btn--ghost" id="adminBtn" type="button">Admin</button>
-    </header>
+  <!-- Topbar fixa -->
+  <header class="topbar">
+    <div class="topbar__left">
+      <span class="brandDot"></span>
+      <span class="topbar__title">IMVpedia Voice</span>
+    </div>
 
-    <main id="view" class="view" role="main" aria-live="polite"></main>
+    <a class="btn btn--chip" href="#/admin">Admin</a>
+  </header>
 
-    <nav class="tabbar" role="navigation" aria-label="Navegação">
-      <a class="tabbar__item" href="#/home" data-route="home" aria-label="Início">
-        <span class="tabbar__icon">🏠</span>
-        <span class="tabbar__label">Início</span>
-      </a>
-      <a class="tabbar__item" href="#/path" data-route="path" aria-label="Trilha">
-        <span class="tabbar__icon">🧭</span>
-        <span class="tabbar__label">Trilha</span>
-      </a>
-      <a class="tabbar__item" href="#/missions" data-route="missions" aria-label="Missões">
-        <span class="tabbar__icon">✅</span>
-        <span class="tabbar__label">Missões</span>
-      </a>
-      <a class="tabbar__item" href="#/library" data-route="library" aria-label="Biblioteca">
-        <span class="tabbar__icon">📚</span>
-        <span class="tabbar__label">Biblioteca</span>
-      </a>
-      <a class="tabbar__item" href="#/profile" data-route="profile" aria-label="Perfil">
-        <span class="tabbar__icon">👤</span>
-        <span class="tabbar__label">Perfil</span>
-      </a>
-    </nav>
-  </div>
+  <!-- App (o JS injeta tudo aqui) -->
+  <main id="app" class="app"></main>
 
-  <div id="toastHost" aria-live="polite" aria-atomic="true"></div>
+  <!-- Toast host (o JS escreve aqui) -->
+  <div id="toastHost" class="toastHost"></div>
 
+  <!-- Tabbar fixa (navega por hash, sem depender do JS) -->
+  <nav class="tabbar" role="navigation" aria-label="Navegação">
+    <a class="tabbar__item" href="#/home">
+      <span class="tabbar__icon">🏠</span>
+      <span class="tabbar__label">Início</span>
+    </a>
+
+    <a class="tabbar__item" href="#/path">
+      <span class="tabbar__icon">🧭</span>
+      <span class="tabbar__label">Trilha</span>
+    </a>
+
+    <a class="tabbar__item" href="#/missions">
+      <span class="tabbar__icon">✅</span>
+      <span class="tabbar__label">Missões</span>
+    </a>
+
+    <a class="tabbar__item" href="#/library">
+      <span class="tabbar__icon">📚</span>
+      <span class="tabbar__label">Biblioteca</span>
+    </a>
+
+    <a class="tabbar__item" href="#/profile">
+      <span class="tabbar__icon">👤</span>
+      <span class="tabbar__label">Perfil</span>
+    </a>
+  </nav>
+
+  <!-- Seu app.js (o MERGE FINAL) -->
   <script src="app.js"></script>
 </body>
 </html>
