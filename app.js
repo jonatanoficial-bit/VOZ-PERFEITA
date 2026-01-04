@@ -827,6 +827,104 @@
     `;
   }
 
+
+  /* =============================
+     MISSÕES (tela dedicada)
+  ============================= */
+  async function viewMissions() {
+    const templates = await getMissionTemplates();
+    const chosen = chooseDailyTemplate(templates);
+    store.set(s => ensureTodayMission(s, chosen));
+    const st = store.get();
+    const tm = st.progress.todayMission;
+
+    const done = isMissionCompleted(st, todayISO());
+    const ws = startOfWeekISO(todayISO());
+    const week = st.progress.week[ws] || { daysCompleted: 0, diaryNotesCount: 0 };
+
+    // últimas 7 missões concluídas
+    const hist = Object.entries(st.progress.completedMissions || {})
+      .sort((a, b) => (a[0] < b[0] ? 1 : -1))
+      .slice(0, 7);
+
+    return `
+      <div class="section">
+        <div class="section__title">Missões</div>
+        <p class="section__sub">Missão diária + histórico. Conclua para ganhar XP e manter streak.</p>
+
+        <div class="panel">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;">
+            <div>
+              <div style="font-weight:950;font-size:18px;">Missão do dia</div>
+              <div style="color:rgba(233,236,246,.55);font-size:12px;margin-top:2px;">
+                ${escapeHtml(todayISO())} • ${escapeHtml(chosen.kind || "técnica")}
+              </div>
+              <div style="height:10px"></div>
+              <div style="font-weight:900;font-size:18px;">${escapeHtml(chosen.title || "Treino")}</div>
+              <div style="color:rgba(233,236,246,.72);margin-top:6px;line-height:1.45;">
+                ${escapeHtml(chosen.desc || "")}
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;">
+              ${pill(`${tm?.minutesPlanned || 10} min`, "⏱️")}
+              ${pill(`+${chosen.xp || 10} XP`, "✨")}
+            </div>
+          </div>
+
+          <div style="height:12px"></div>
+
+          <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">
+            <button class="btn" data-action="swapMission">Trocar</button>
+            <button class="btn btnPrimary" data-action="completeMission" ${done ? "disabled" : ""}>
+              ${done ? "Concluída" : "Concluir"}
+            </button>
+          </div>
+        </div>
+
+        <div style="height:14px"></div>
+
+        <div class="panel">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+            <div style="font-weight:900;">Semana</div>
+            <div style="color:rgba(233,236,246,.52);font-size:12px;">${escapeHtml(ws)} →</div>
+          </div>
+          <div style="height:10px"></div>
+          <div class="bar"><div class="bar__fill" style="width:${clamp(((week.daysCompleted || 0) / 7) * 100, 0, 100)}%"></div></div>
+          <div style="height:10px"></div>
+          <div style="color:rgba(233,236,246,.75);line-height:1.35;">
+            Missões concluídas: <b>${week.daysCompleted || 0}/7</b><br/>
+            Check-ins no diário: <b>${week.diaryNotesCount || 0}</b>
+          </div>
+        </div>
+
+        <div style="height:14px"></div>
+
+        <div class="panel">
+          <div style="font-weight:900;">Histórico (últimas 7)</div>
+          <div style="height:10px"></div>
+          ${hist.length ? `
+            <div style="display:grid;gap:10px;">
+              ${hist.map(([date, m]) => `
+                <div style="border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);padding:10px 12px;border-radius:14px;">
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+                    <div style="font-weight:850;">${escapeHtml(date)}</div>
+                    <div style="color:rgba(233,236,246,.55);font-size:12px;">+${escapeHtml(String(m.xp || 0))} XP</div>
+                  </div>
+                  <div style="color:rgba(233,236,246,.75);margin-top:6px;">
+                    ${escapeHtml(m.templateTitle || m.templateId || "Missão")}
+                  </div>
+                </div>
+              `).join("")}
+            </div>
+          ` : `
+            <div style="color:rgba(233,236,246,.62);">Nenhuma missão concluída ainda.</div>
+          `}
+        </div>
+      </div>
+      ${bottomSpacer()}
+    `;
+  }
+
   async function viewPacksManager() {
     const idx = await loadPackIndex();
     const st = store.get();
@@ -1198,9 +1296,16 @@
 
   function updateTabbarActive(route) {
     document.querySelectorAll(".tabbar__item").forEach(item => {
-      const to = item.dataset.to;
+      // Prefer data-to; fallback: parse href "#/route?..."
+      const to = item.dataset.to || (() => {
+        const href = item.getAttribute("href") || "";
+        if (!href.startsWith("#/")) return "";
+        const path = href.slice(2).split("?")[0];
+        return path || "";
+      })();
+
       if (!to) return;
-      if (route.startsWith(to)) item.classList.add("is-active");
+      if (route === to || route.startsWith(to + "-") || route.startsWith(to + "/")) item.classList.add("is-active");
       else item.classList.remove("is-active");
     });
   }
@@ -1215,7 +1320,7 @@
     let { route, query } = getRouteAndQuery();
 
     // Normaliza rotas curtas/antigas e evita 404 por hash inválido
-    const __alias = { h: "home", p: "profile", t: "path", m: "missions", b: "pack" };
+    const __alias = { h: "home", p: "profile", t: "path", m: "missions", l: "library" };
     if (__alias[route]) route = __alias[route];
 
     const __allowed = new Set([
@@ -1238,6 +1343,10 @@
 
       case "path":
         html = await viewPaths();
+        break;
+
+      case "missions":
+        html = await viewMissions();
         break;
 
       case "lesson":
