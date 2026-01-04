@@ -1,17 +1,17 @@
-// ===== IMVpedia Voice — app.js (PARTE 6/6) — BLOCO 1/6 =====
 /* =========================================================
-   IMVpedia Voice — MERGE FINAL COMPLETO + ADMIN PACK EDITOR
+   IMVpedia Voice — app.js (FINAL)
    ---------------------------------------------------------
    Core:
-   - Home / Path / Lesson / Missions / Library / Article / Profile / Placement / Admin
-   - Packs (DLC): ./packs/index.json + ./packs/<id>/manifest.json (+ lessons/articles markdown)
+   - Home / Packs / Pack / Path / Lesson / Missions / Library / Article / Profile / Placement / Admin
+   - Packs (DLC): ./packs/index.json + ./packs/<id>/manifest.json (+ markdown inline ou via arquivo)
    - Gamification: XP / Level / Streak / Badges
-   - Daily Missions + Weekly Challenges + Vocal Diary
-   - Placement test (Duolingo-like) integrado ao perfil
+   - Daily Missions + Weekly + Vocal Diary
+   - Placement test integrado ao perfil
    Admin:
-   - Gate por senha
-   - Editor/import/export de Packs (manifest + missions + markdown templates)
+   - Gate por senha (default: imvadmin)
+   - Editor/import/export de Packs (manifest JSON) guardado em LocalStorage (custom packs)
 ========================================================= */
+
 (() => {
   "use strict";
 
@@ -70,7 +70,6 @@
     return { route: (path || "home"), query: Object.fromEntries(new URLSearchParams(qs || "")) };
   }
 
-  // garante que nada fique escondido atrás da tabbar
   function bottomSpacer() { return `<div style="height:100px"></div>`; }
 
   /* =============================
@@ -79,7 +78,7 @@
   const LS = {
     STATE: "imv_voice_state_final_v1",
     ADMIN: "imv_voice_admin_enabled_v1",
-    CUSTOM_PACKS: "imv_voice_custom_packs_v1" // rascunhos/editáveis
+    CUSTOM_PACKS: "imv_voice_custom_packs_v1"
   };
 
   /* =============================
@@ -111,7 +110,7 @@
       badges: [] // first_mission, streak_3, streak_7, placement_done, pack_creator
     },
     packs: {
-      activePackIds: ["base"], // DLC
+      activePackIds: ["base"],
       seen: {}
     },
     progress: {
@@ -251,8 +250,6 @@
 
   /* =============================
      Markdown (leve e seguro)
-     - Suporta: títulos # ## ###, negrito, itálico, código inline, listas, links
-     - Não executa HTML arbitrário (seguro)
   ============================= */
   function mdToHtml(md) {
     const text = String(md ?? "");
@@ -299,17 +296,11 @@
 
   /* =============================
      Packs (DLC) Loader
-     Estrutura esperada:
-     - /packs/index.json  -> { packs:[{id,title,cover,desc,enabledDefault}] }
-     - /packs/<id>/manifest.json ->
-         { id,title,desc,cover,paths:[{id,title,desc,lessons:[{id,title,md}] }], library:[{id,title,md,tag}] ,
-           missions:{ templates:[{id,title,minutesMin,minutesMax,xp,kind,desc}] } }
-     Observação: "md" pode ser caminho .md (ex: "lessons/apoio.md") ou texto markdown direto.
   ============================= */
   const packCache = {
     index: null,
-    manifests: new Map(),  // id -> manifest
-    md: new Map()          // url -> text
+    manifests: new Map(),
+    md: new Map()
   };
 
   async function fetchJson(url) {
@@ -348,7 +339,6 @@
     if (!m.missions) m.missions = {};
     if (!Array.isArray(m.missions.templates)) m.missions.templates = [];
 
-    // garante ids
     m.paths.forEach((p, pi) => {
       if (!p.id) p.id = `path_${pi + 1}`;
       if (!p.title) p.title = `Trilha ${pi + 1}`;
@@ -383,12 +373,10 @@
   async function loadPackIndex() {
     if (packCache.index) return packCache.index;
 
-    // inclui packs de /packs/index.json + packs custom do LS
     let idx = { packs: [] };
     try {
       idx = await fetchJson("./packs/index.json");
     } catch {
-      // se não existir, continua só com custom
       idx = { packs: [] };
     }
 
@@ -408,7 +396,6 @@
   async function loadManifest(packId) {
     if (packCache.manifests.has(packId)) return packCache.manifests.get(packId);
 
-    // tenta custom primeiro
     const customs = getCustomPacks().map(normalizeManifest);
     const found = customs.find(p => p.id === packId);
     if (found) {
@@ -416,16 +403,12 @@
       return found;
     }
 
-    // depois fetch normal
     const man = normalizeManifest(await fetchJson(`./packs/${encodeURIComponent(packId)}/manifest.json`));
-
-    // resolve md paths (lazy: só quando abrir lição/artigo; aqui deixa como está)
     packCache.manifests.set(packId, man);
     return man;
   }
 
   async function resolveMd(packId, mdOrPath) {
-    // se parece caminho .md, busca em ./packs/<id>/<path>
     const v = String(mdOrPath ?? "");
     if (!v) return "";
     const looksPath = v.includes(".md") || v.startsWith("lessons/") || v.startsWith("library/");
@@ -441,7 +424,6 @@
     for (const id of ids) {
       try { arr.push(await loadManifest(id)); } catch {}
     }
-    // se nada carregou, cria base mínima (em memória)
     if (!arr.length) {
       arr.push(normalizeManifest({
         id: "base",
@@ -480,7 +462,7 @@
   }
 
   /* =============================
-     Placement Engine (integrado)
+     Placement Engine
   ============================= */
   const PLACEMENT_QUESTIONS = [
     {
@@ -640,7 +622,6 @@
     const today = todayISO();
     const ws = startOfWeekISO(today);
     const w = getWeekState(draft, ws);
-    // conta dias completados no array de missões do weekStart, mas simplificado:
     w.daysCompleted = Math.min(7, (w.daysCompleted || 0) + 1);
   }
 
@@ -657,9 +638,8 @@
     });
     toast("Check-in registrado");
   }
-
-  /* =============================
-     Mission selection (template)
+/* =============================
+     Mission selection (templates)
   ============================= */
   async function getMissionTemplates() {
     const mans = await getActiveManifests();
@@ -668,15 +648,13 @@
       const t = (m.missions && Array.isArray(m.missions.templates)) ? m.missions.templates : [];
       for (const one of t) out.push({ packId: m.id, packTitle: m.title, ...one });
     }
-    // fallback
     if (!out.length) {
-      out.push({ packId: "base", templateId: "m_sovt_10", id: "m_sovt_10", title: "SOVT leve", minutesMin: 8, minutesMax: 12, xp: 12, kind: "técnica", desc: "Lip trill/humming/canudo com conforto." });
+      out.push({ packId: "base", id: "m_sovt_10", title: "SOVT leve", minutesMin: 8, minutesMax: 12, xp: 12, kind: "técnica", desc: "Lip trill/humming/canudo com conforto." });
     }
     return out;
   }
 
   function chooseDailyTemplate(templates) {
-    // determinístico por dia (para não mudar ao recarregar)
     const date = todayISO();
     let seed = 0;
     for (let i = 0; i < date.length; i++) seed += date.charCodeAt(i) * (i + 1);
@@ -718,7 +696,12 @@
 
     store.set(s => {
       ensureTodayMission(s, chosen);
-      s.progress.completedMissions[today] = { at: new Date().toISOString(), packId: chosen.packId, templateId: chosen.id, xp: chosen.xp || 10 };
+      s.progress.completedMissions[today] = {
+        at: new Date().toISOString(),
+        packId: chosen.packId,
+        templateId: chosen.id,
+        xp: chosen.xp || 10
+      };
       markDayCompleted(s);
       touchStreak(s);
       ensureBadge(s, "first_mission");
@@ -731,9 +714,7 @@
     const templates = await getMissionTemplates();
     if (!templates.length) return;
 
-    // pega outra missão diferente (melhor esforço)
     store.set(s => {
-      const today = todayISO();
       const current = s.progress.todayMission;
       let chosen = chooseDailyTemplate(templates);
       if (current && chosen.id === current.templateId) {
@@ -746,16 +727,13 @@
   }
 
   /* =============================
-     Views — Home / Packs / Paths / Lessons / Library / Profile
+     Views — Home / Packs / Pack / Path / Lesson / Library / Article
   ============================= */
   async function viewHome() {
-    const st = store.get();
     const idx = await loadPackIndex();
 
-    // mission
     const templates = await getMissionTemplates();
     const chosen = chooseDailyTemplate(templates);
-
     store.set(s => ensureTodayMission(s, chosen));
     const st2 = store.get();
     const tm = st2.progress.todayMission;
@@ -833,8 +811,76 @@
 
       <div class="section">
         <div class="section__title">Packs</div>
+
+        <div style="display:flex;justify-content:flex-end;margin:6px 2px 10px;">
+          <button class="btn btn--chip" data-action="nav" data-to="packs">
+            Gerenciar packs
+          </button>
+        </div>
+
         <div class="cards">
           ${idx.packs.map(cardPack).join("")}
+        </div>
+      </div>
+
+      ${bottomSpacer()}
+    `;
+  }
+
+  async function viewPacksManager() {
+    const idx = await loadPackIndex();
+    const st = store.get();
+
+    const rows = idx.packs.map(p => {
+      const active = (st.packs.activePackIds || []).includes(p.id);
+
+      return `
+        <div class="panel" style="background:rgba(255,255,255,.03);">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+            <div style="min-width:0;">
+              <div style="font-weight:950;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                ${escapeHtml(p.title || p.id)}
+              </div>
+              <div style="color:rgba(233,236,246,.55);font-size:12px;margin-top:4px;line-height:1.35;">
+                ${escapeHtml(p.desc || "")}
+              </div>
+              <div style="margin-top:8px;color:rgba(233,236,246,.45);font-size:12px;">
+                ID: <b>${escapeHtml(p.id)}</b> • ${active ? "Ativo" : "Inativo"}
+              </div>
+            </div>
+
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
+              <button class="btn" data-action="openPack" data-pack="${escapeHtml(p.id)}">Abrir</button>
+              <button
+                class="btn ${active ? "" : "btnPrimary"}"
+                data-action="togglePack"
+                data-pack="${escapeHtml(p.id)}">
+                ${active ? "Desativar" : "Ativar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    return `
+      <div class="section">
+        <div class="section__title">Gerenciar Packs</div>
+        <p class="section__sub">
+          Ative/desative packs. Os packs ativos aparecem na Trilha, Biblioteca e Missões.
+        </p>
+
+        <div class="panel">
+          <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+            <button class="btn" data-action="nav" data-to="home">← Voltar</button>
+            <button class="btn" data-action="admin">Admin</button>
+          </div>
+        </div>
+
+        <div style="height:12px"></div>
+
+        <div class="list">
+          ${rows || `<div class="panel" style="color:rgba(233,236,246,.55);">Nenhum pack encontrado.</div>`}
         </div>
       </div>
 
@@ -896,10 +942,7 @@
   async function viewPath(packId, pathId) {
     const man = await loadManifest(packId);
     const path = (man.paths || []).find(p => p.id === pathId);
-    if (!path) return `
-      <div class="panel">Trilha não encontrada.</div>
-      ${bottomSpacer()}
-    `;
+    if (!path) return `<div class="panel">Trilha não encontrada.</div>${bottomSpacer()}`;
 
     const lessons = (path.lessons || []).map((l, idx) => rowItem({
       icon: "📗",
@@ -1059,1027 +1102,262 @@
       </div>
     `;
   }
+/* =========================================================
+     ACTIONS / EVENT BINDING
+  ========================================================= */
 
-  function viewProfile() {
+  function bindActions() {
+    document.querySelectorAll("[data-action]").forEach(el => {
+      el.onclick = async () => {
+        const action = el.dataset.action;
+
+        /* -------- Navegação -------- */
+        if (action === "nav") {
+          const to = el.dataset.to;
+          if (to) setHash(to);
+        }
+
+        /* -------- Placement -------- */
+        if (action === "goPlacement") {
+          setHash("placement");
+        }
+
+        if (action === "startPlacement") {
+          store.set(s => {
+            s.placement.answers = {};
+            s.placement.score = 0;
+            s.placement.result = null;
+          });
+          setHash("placement-q", { q: 0 });
+        }
+
+        if (action === "answer") {
+          const q = Number(el.dataset.q);
+          const score = Number(el.dataset.score);
+
+          store.set(s => {
+            s.placement.answers[q] = score;
+          });
+
+          if (q + 1 < PLACEMENT_QUESTIONS.length) {
+            setHash("placement-q", { q: q + 1 });
+          } else {
+            const res = runPlacementAndBuildResult();
+            store.set(s => {
+              s.placement.score = res.score;
+              s.placement.result = res.result;
+              s.placement.plan14 = res.plan14;
+              s.user.levelReal = res.result;
+              s.user.placementDone = true;
+            });
+            setHash("placement-result");
+          }
+        }
+
+        if (action === "finishPlacement") {
+          setHash("home");
+        }
+
+        /* -------- Packs Manager -------- */
+        if (action === "togglePack") {
+          const id = el.dataset.pack;
+          if (!id) return;
+
+          store.set(s => {
+            const arr = s.packs.activePackIds || [];
+            if (arr.includes(id)) {
+              s.packs.activePackIds = arr.filter(x => x !== id);
+            } else {
+              s.packs.activePackIds = [...arr, id];
+            }
+          });
+
+          render();
+        }
+
+        /* -------- Lessons -------- */
+        if (action === "openLesson") {
+          const packId = el.dataset.pack;
+          const lessonId = el.dataset.lesson;
+          if (packId && lessonId) {
+            setHash("lesson", { pack: packId, lesson: lessonId });
+          }
+        }
+
+        /* -------- Profile -------- */
+        if (action === "editProfile") {
+          openProfileEditor();
+        }
+      };
+    });
+  }
+
+  /* =========================================================
+     TABBAR ACTIVE STATE
+  ========================================================= */
+
+  function updateTabbarActive(route) {
+    document.querySelectorAll(".tabbar__item").forEach(item => {
+      const to = item.dataset.to;
+      if (!to) return;
+      if (route.startsWith(to)) item.classList.add("is-active");
+      else item.classList.remove("is-active");
+    });
+  }
+
+  /* =========================================================
+     ROUTER / RENDER
+  ========================================================= */
+
+  const app = document.getElementById("app");
+
+  async function render() {
+    const { route, query } = getRouteAndQuery();
+    let html = "";
+
+    switch (route) {
+      case "home":
+        html = await viewHome();
+        break;
+
+      case "packs":
+        html = await viewPacksManager();
+        break;
+
+      case "path":
+        html = await viewPaths();
+        break;
+
+      case "lesson":
+        html = await viewLesson(query.pack, query.lesson);
+        break;
+
+      case "library":
+        html = await viewLibrary();
+        break;
+
+      case "article":
+        html = await viewArticle(query.pack, query.article);
+        break;
+
+      case "profile":
+        html = await viewProfile();
+        break;
+
+      case "placement":
+        html = viewPlacementIntro();
+        break;
+
+      case "placement-q":
+        html = viewPlacementQuestion(Number(query.q || 0));
+        break;
+
+      case "placement-result":
+        html = viewPlacementResult(
+          store.get().placement.result,
+          store.get().placement.score,
+          store.get().placement.plan14
+        );
+        break;
+
+      default:
+        html = await viewHome();
+    }
+
+    app.innerHTML = html;
+    bindActions();
+    updateTabbarActive(route);
+  }
+
+  /* =========================================================
+     PROFILE EDITOR (MODAL SIMPLES)
+  ========================================================= */
+
+  let modalEl = null;
+
+  function openProfileEditor() {
     const st = store.get();
     const u = st.user;
 
-    const badges = (st.gamification.badges || []).map(b => pill(b.replaceAll("_", " "), "🏷️")).join(" ");
-
-    return `
-      <div class="section">
-        <div class="section__title">Perfil</div>
-        <p class="section__sub">Configurações do aluno</p>
-
-        <div class="panel">
-          <label class="lab">Nome</label>
-          <input id="pfName" class="input" type="text" placeholder="Seu nome" value="${escapeHtml(u.name || "")}" />
-
-          <div style="height:10px"></div>
-
-          <div class="grid grid--2">
-            <div>
-              <label class="lab">Objetivo</label>
-              <select id="pfGoal" class="input">
-                ${["Popular","Erudito","Coral","Misto"].map(x => `<option ${x === u.goal ? "selected" : ""}>${x}</option>`).join("")}
-              </select>
-            </div>
-
-            <div>
-              <label class="lab">Minutos/dia</label>
-              <input id="pfMin" class="input" type="number" min="5" max="60" step="1" value="${escapeHtml(String(u.minutesPerDay || 10))}" />
-            </div>
-          </div>
-
-          <div style="height:12px"></div>
-
-          <button class="btn btnPrimary" data-action="saveProfile">Salvar</button>
-        </div>
-
-        <div style="height:12px"></div>
-
-        <div class="panel">
-          <div style="font-weight:950;font-size:16px;">Gamificação</div>
-          <div style="height:10px"></div>
-          <div class="grid grid--2">
-            <div class="kpi">
-              <div>
-                <div class="kpi__label">XP</div>
-                <div class="kpi__value">${st.gamification.xp}</div>
-              </div>
-              <div style="font-size:18px;">✨</div>
-            </div>
-
-            <div class="kpi">
-              <div>
-                <div class="kpi__label">Nível</div>
-                <div class="kpi__value">${st.gamification.level}</div>
-              </div>
-              <div style="font-size:18px;">🏅</div>
-            </div>
-
-            <div class="kpi">
-              <div>
-                <div class="kpi__label">Streak</div>
-                <div class="kpi__value">${st.gamification.streak}</div>
-              </div>
-              <div style="font-size:18px;">🔥</div>
-            </div>
-
-            <div class="kpi">
-              <div>
-                <div class="kpi__label">Placement</div>
-                <div class="kpi__value">${u.placementDone ? "OK" : "—"}</div>
-              </div>
-              <div style="font-size:18px;">🧪</div>
-            </div>
-          </div>
-
-          <div style="height:12px"></div>
-
-          <div style="color:rgba(233,236,246,.55);font-size:12px;">Badges:</div>
-          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:8px;">
-            ${badges || `<span style="color:rgba(233,236,246,.45);">Nenhum ainda.</span>`}
-          </div>
-        </div>
-
-        <div style="height:12px"></div>
-
-        <div class="panel">
-          <div style="font-weight:950;font-size:16px;">Diário Vocal</div>
-          <div style="color:rgba(233,236,246,.55);font-size:12px;margin-top:6px;">
-            Registre como está sua voz hoje.
-          </div>
-
-          <div style="height:10px"></div>
-
-          <div style="display:flex;gap:10px;flex-wrap:wrap;">
-            <button class="btn" data-action="diary" data-status="ok">✅ Sem desconforto</button>
-            <button class="btn" data-action="diary" data-status="tired">😮‍💨 Cansado</button>
-            <button class="btn" data-action="diary" data-status="hoarse">🗣️ Rouquidão</button>
-            <button class="btn" data-action="diary" data-status="pain">⚠️ Dor</button>
-          </div>
-
-          <div style="height:10px"></div>
-          <textarea id="diaryNote" class="input" rows="3" placeholder="Notas (opcional)"></textarea>
-          <div style="height:10px"></div>
-
-          <button class="btn btnPrimary" data-action="saveDiary">Salvar check-in</button>
-        </div>
-
-        ${bottomSpacer()}
-      </div>
-    `;
-  }
-
-  function viewDiary() {
-    const st = store.get();
-    const entries = (st.diary.entries || []).slice(0, 20);
-
-    const rows = entries.map(e => `
-      <div class="panel" style="background:rgba(255,255,255,.03);">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
-          <div style="font-weight:900;">${escapeHtml(e.date)}</div>
-          <div style="color:rgba(233,236,246,.55);font-size:12px;">${escapeHtml(e.status)}</div>
-        </div>
-        ${e.note ? `<div style="margin-top:8px;color:rgba(233,236,246,.78);line-height:1.45;">${escapeHtml(e.note)}</div>` : ""}
-      </div>
-    `).join("");
-
-    return `
-      <div class="section">
-        <div class="section__title">Diário</div>
-        <p class="section__sub">Histórico de check-ins</p>
-        <div class="list">
-          ${rows || `<div class="panel" style="color:rgba(233,236,246,.55);">Sem registros ainda.</div>`}
-        </div>
-      </div>
-      ${bottomSpacer()}
-    `;
-  }
-
-  /* =============================
-     Views — Placement
-  ============================= */
-  function viewPlacementIntro() {
-    return `
-      <div class="panel">
-        <div style="font-weight:900;font-size:18px;">Teste de Classificação Vocal</div>
-        <p style="color:rgba(233,236,246,.78);line-height:1.45;margin-top:10px;">
-          Este teste rápido ajuda o app a ajustar sua trilha, intensidade e missões.
-        </p>
-        <p style="color:rgba(233,236,246,.52);font-size:13px;">
-          Não é um teste de talento, e sim de ponto de partida.
-        </p>
-        <div style="height:16px"></div>
-        <button class="btn btnPrimary" data-action="startPlacement">Começar</button>
-      </div>
-      ${bottomSpacer()}
-    `;
-  }
-
-  function viewPlacementQuestion(qIndex) {
-    const q = PLACEMENT_QUESTIONS[qIndex];
-    if (!q) return "";
-
-    return `
-      <div class="panel">
-        <div style="font-size:12px;color:rgba(233,236,246,.52);">
-          Pergunta ${qIndex + 1} de ${PLACEMENT_QUESTIONS.length}
-        </div>
-        <div style="font-weight:900;font-size:17px;margin-top:6px;">
-          ${escapeHtml(q.title)}
-        </div>
-        <p style="color:rgba(233,236,246,.78);line-height:1.45;">
-          ${escapeHtml(q.question)}
-        </p>
-
-        <div style="margin-top:14px;display:grid;gap:10px;">
-          ${q.options.map((o) => `
-            <button class="btn" data-action="answer"
-                    data-q="${qIndex}"
-                    data-score="${o.score}">
-              ${escapeHtml(o.label)}
-            </button>
-          `).join("")}
-        </div>
-      </div>
-      ${bottomSpacer()}
-    `;
-  }
-
-  function viewPlacementResult(result, score, plan14) {
-    const st = store.get();
-    const goal = st.user.goal || "Misto";
-
-    const tipsByLevel = {
-      Iniciante: [
-        "Priorize conforto e consistência (5–12 min/dia).",
-        "Use SOVT (lip trill/humming/canudo) para aquecer.",
-        "Evite volume alto: qualidade > força.",
-        "Se houver dor, pare e reduza carga."
-      ],
-      Intermediário: [
-        "Trabalhe transições de registro (leve, sem empurrar).",
-        "Inclua afinação aplicada (notas longas e ataques limpos).",
-        "Aumente repertório gradualmente (trechos curtos).",
-        "Mantenha 1–2 dias mais leves por semana."
-      ],
-      Avançado: [
-        "Otimize eficiência (menos esforço, mais resultado).",
-        "Trabalhe dinâmica e resistência sem apertar.",
-        "Refine estilo e interpretação com intenção clara.",
-        "Monitore sinais de fadiga e ajuste o treino."
-      ]
-    };
-
-    const rec = recommendTrack(goal, result);
-
-    return `
-      <div class="panel">
-        <div style="font-size:12px;color:rgba(233,236,246,.52);">Resultado do teste</div>
-        <div style="font-weight:950;font-size:22px;margin-top:6px;">
-          ${escapeHtml(result)}
-        </div>
-
-        <div style="height:10px"></div>
-
-        <div class="panel" style="background:rgba(255,255,255,.03);">
-          <div style="font-weight:900;">Recomendação</div>
-          <div style="height:8px"></div>
-          <div style="color:rgba(233,236,246,.78);line-height:1.45;">
-            Objetivo: <b>${escapeHtml(goal)}</b><br/>
-            Trilha sugerida: <b>${escapeHtml(rec.pathTitle)}</b><br/>
-            Intensidade padrão: <b>${escapeHtml(rec.intensity)}</b><br/>
-            Minutos sugeridos: <b>${escapeHtml(String(rec.minutes))} min/dia</b>
-          </div>
-        </div>
-
-        <div style="height:12px"></div>
-
-        <div class="panel">
-          <div style="font-weight:900;">Dicas rápidas</div>
-          <div style="height:8px"></div>
-          <div style="color:rgba(233,236,246,.78);line-height:1.5;">
-            ${(tipsByLevel[result] || tipsByLevel.Iniciante).map(t => `• ${escapeHtml(t)}`).join("<br/>")}
-          </div>
-        </div>
-
-        <div style="height:12px"></div>
-
-        <div class="panel">
-          <div style="font-weight:900;">Plano inicial (14 dias)</div>
-          <div style="color:rgba(233,236,246,.52);font-size:12px;margin-top:6px;">
-            Alterna dias leves e moderados para criar hábito e proteger a voz.
-          </div>
-          <div style="height:10px"></div>
-          <div style="display:grid;gap:8px;">
-            ${plan14.map(p => `
-              <div style="border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);padding:10px 12px;border-radius:14px;">
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
-                  <div style="font-weight:850;">Dia ${p.day}: ${escapeHtml(p.focus)}</div>
-                  <div style="color:rgba(233,236,246,.52);font-size:12px;">
-                    ${p.intensity === "leve" ? "Leve" : "Moderado"}
-                  </div>
-                </div>
-              </div>
-            `).join("")}
-          </div>
-        </div>
-
-        <div style="height:14px"></div>
-
-        <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;">
-          <button class="btn" data-action="restartPlacement">Refazer</button>
-          <button class="btn btnPrimary" data-action="savePlacement">Salvar e continuar</button>
-        </div>
-      </div>
-      ${bottomSpacer()}
-    `;
-  }
-
-  /* =============================
-     Admin (packs editor/import/export)
-  ============================= */
-  function isAdminEnabled() {
-    return localStorage.getItem(LS.ADMIN) === "1";
-  }
-
-  function setAdminEnabled(v) {
-    localStorage.setItem(LS.ADMIN, v ? "1" : "0");
-  }
-
-  function adminPrompt() {
     openModal({
-      title: "Admin",
+      title: "Editar perfil",
       contentHtml: `
-        <div style="color:rgba(233,236,246,.72);line-height:1.45;">
-          Digite a senha para habilitar o modo Admin.
-        </div>
+        <label class="lab">Nome</label>
+        <input id="pfName" class="input" value="${escapeHtml(u.name || "")}" />
+
         <div style="height:10px"></div>
-        <input id="admPwd" class="input" type="password" placeholder="Senha" />
-        <div style="height:10px"></div>
-        <div style="color:rgba(233,236,246,.45);font-size:12px;">
-          Dica: você pode trocar essa senha no app.js depois.
-        </div>
-      `,
-      primaryText: "Entrar",
-      secondaryText: "Cancelar",
-      onPrimary: () => {
-        const pwd = ($("#admPwd")?.value || "").trim();
-        if (pwd === "imvadmin") {
-          setAdminEnabled(true);
-          closeModal();
-          toast("Admin habilitado");
-          setHash("admin");
-        } else {
-          toast("Senha incorreta");
-        }
-      }
-    });
-  }
 
-  async function viewAdminEditor() {
-    const enabled = isAdminEnabled();
-    if (!enabled) {
-      return `
-        <div class="panel">
-          <div style="font-weight:950;font-size:18px;">Admin</div>
-          <p style="color:rgba(233,236,246,.72);line-height:1.45;margin-top:8px;">
-            Habilite o modo Admin para editar/importar packs (DLC).
-          </p>
-          <button class="btn btnPrimary" data-action="adminLogin">Entrar</button>
-        </div>
-        ${bottomSpacer()}
-      `;
-    }
-
-    const idx = await loadPackIndex();
-    const customs = getCustomPacks().map(normalizeManifest);
-
-    const packRows = idx.packs.map(p => {
-      const isCustom = !!p.isCustom || p.id.startsWith("custom_");
-      return `
-        <div class="panel" style="background:rgba(255,255,255,.03);">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-            <div style="min-width:0;">
-              <div style="font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                ${escapeHtml(p.title || p.id)}
-              </div>
-              <div style="color:rgba(233,236,246,.55);font-size:12px;margin-top:4px;">
-                id: <b>${escapeHtml(p.id)}</b> ${isCustom ? "• custom" : "• arquivo"}
-              </div>
-            </div>
-            <div style="display:flex;gap:8px;align-items:center;">
-              <button class="btn btn--tiny" data-action="adminOpenPack" data-pack="${escapeHtml(p.id)}">Editar</button>
-              ${isCustom ? `<button class="btn btn--tiny" data-action="adminDeletePack" data-pack="${escapeHtml(p.id)}">Excluir</button>` : ``}
-            </div>
-          </div>
-        </div>
-      `;
-    }).join("");
-
-    return `
-      <div class="section">
-        <div class="section__title">Admin</div>
-        <p class="section__sub">Editor de packs (DLC) — criar, editar, importar e exportar.</p>
-
-        <div class="panel">
-          <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:space-between;align-items:center;">
-            <button class="btn btnPrimary" data-action="adminNewPack">Novo pack</button>
-            <button class="btn" data-action="adminImportPack">Importar JSON</button>
-            <button class="btn" data-action="adminExportAll">Exportar todos</button>
-            <button class="btn" data-action="adminLogout">Sair</button>
-          </div>
-        </div>
-
-        <div style="height:12px"></div>
-
-        <div class="list">
-          ${packRows || `<div class="panel" style="color:rgba(233,236,246,.55);">Nenhum pack.</div>`}
-        </div>
-      </div>
-
-      ${bottomSpacer()}
-    `;
-  }
-
-  function openModal({ title, contentHtml, primaryText, secondaryText, onPrimary, onSecondary }) {
-    closeModal();
-    const el = document.createElement("div");
-    el.id = "modalOverlay";
-    el.style.position = "fixed";
-    el.style.inset = "0";
-    el.style.zIndex = "200";
-    el.style.background = "rgba(0,0,0,.55)";
-    el.style.backdropFilter = "blur(10px)";
-    el.innerHTML = `
-      <div style="max-width:520px;margin:10vh auto;padding:0 14px;">
-        <div style="border:1px solid rgba(255,255,255,.10);border-radius:18px;background:rgba(17,21,34,.92);box-shadow:0 18px 60px rgba(0,0,0,.55);overflow:hidden;">
-          <div style="padding:14px 14px 10px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;justify-content:space-between;gap:10px;">
-            <div style="font-weight:860;letter-spacing:.2px;">${escapeHtml(title || "")}</div>
-            <button id="modalClose" class="btn btn--ghost" type="button">✕</button>
-          </div>
-          <div style="padding:14px;">
-            ${contentHtml || ""}
-            <div style="height:14px"></div>
-            <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">
-              ${secondaryText ? `<button id="modalSecondary" class="btn" type="button">${escapeHtml(secondaryText)}</button>` : ""}
-              ${primaryText ? `<button id="modalPrimary" class="btn btnPrimary" type="button">${escapeHtml(primaryText)}</button>` : ""}
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(el);
-
-    $("#modalClose")?.addEventListener("click", () => {
-      closeModal();
-      onSecondary?.();
-    });
-    $("#modalSecondary")?.addEventListener("click", () => {
-      closeModal();
-      onSecondary?.();
-    });
-    $("#modalPrimary")?.addEventListener("click", () => {
-      onPrimary?.();
-    });
-  }
-
-  function closeModal() {
-    const el = $("#modalOverlay");
-    if (el) el.remove();
-  }
-
-  function adminOpenPackEditor(man) {
-    const m = normalizeManifest(man);
-    const jsonStr = JSON.stringify(m, null, 2);
-
-    openModal({
-      title: `Editar pack: ${m.title}`,
-      contentHtml: `
-        <div style="color:rgba(233,236,246,.72);line-height:1.45;">
-          Edite o JSON do pack. Ao salvar, ele vira um <b>pack custom</b> (guardado no navegador).
-        </div>
-        <div style="height:10px"></div>
-        <textarea id="admPackJson" class="input" rows="14" style="font-family:ui-monospace,monospace;font-size:12px;line-height:1.35;">${escapeHtml(jsonStr)}</textarea>
-        <div style="height:8px"></div>
-        <div style="color:rgba(233,236,246,.45);font-size:12px;">
-          Dica: para publicar no GitHub, copie esse JSON e salve em <b>/packs/&lt;id&gt;/manifest.json</b>.
-        </div>
+        <label class="lab">Objetivo</label>
+        <select id="pfGoal" class="input">
+          ${["Popular","Erudito","Coral","Misto"].map(g =>
+            `<option ${g===u.goal?"selected":""}>${g}</option>`
+          ).join("")}
+        </select>
       `,
       primaryText: "Salvar",
       secondaryText: "Cancelar",
       onPrimary: () => {
-        const raw = ($("#admPackJson")?.value || "").trim();
-        const parsed = safeJsonParse(raw, null);
-        if (!parsed) { toast("JSON inválido"); return; }
-        const norm = normalizeManifest(parsed);
+        const name = document.getElementById("pfName").value.trim();
+        const goal = document.getElementById("pfGoal").value;
 
-        const list = getCustomPacks().map(normalizeManifest);
-        const i = list.findIndex(x => x.id === norm.id);
-        if (i >= 0) list[i] = norm;
-        else list.unshift(norm);
-        saveCustomPacks(list);
-        ensureAdminBadge();
+        store.set(s => {
+          s.user.name = name || "Aluno";
+          s.user.goal = goal;
+        });
+
         closeModal();
-        toast("Pack salvo (custom)");
-        packCache.index = null;
-        packCache.manifests.delete(norm.id);
-        setHash("admin");
+        render();
       }
     });
   }
 
-  function ensureAdminBadge() {
-    store.set(s => {
-      const ok = ensureBadge(s, "pack_creator");
-      if (ok) toast("Badge: pack_creator");
-    });
-  }
+  function openModal({ title, contentHtml, primaryText, secondaryText, onPrimary }) {
+    closeModal();
 
-  function downloadJson(filename, obj) {
-    const text = JSON.stringify(obj, null, 2);
-    const blob = new Blob([text], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  }
+    modalEl = document.createElement("div");
+    modalEl.style.position = "fixed";
+    modalEl.style.inset = "0";
+    modalEl.style.zIndex = "300";
+    modalEl.style.background = "rgba(0,0,0,.55)";
+    modalEl.style.backdropFilter = "blur(10px)";
 
-  /* =============================
-     Tabbar
-  ============================= */
-  function tabbar(route) {
-    const active = (r) => (route === r ? "is-active" : "");
-    return `
-      <nav class="tabbar" aria-label="Navegação">
-        <div class="tabbar__item ${active("home")}" data-action="nav" data-to="home">
-          <div class="tabbar__icon">🏠</div>
-          <div>Início</div>
-        </div>
-        <div class="tabbar__item ${active("trilha")}" data-action="nav" data-to="trilha">
-          <div class="tabbar__icon">🧭</div>
-          <div>Trilha</div>
-        </div>
-        <div class="tabbar__item ${active("missions")}" data-action="nav" data-to="missions">
-          <div class="tabbar__icon">✅</div>
-          <div>Missões</div>
-        </div>
-        <div class="tabbar__item ${active("biblioteca")}" data-action="nav" data-to="biblioteca">
-          <div class="tabbar__icon">📚</div>
-          <div>Biblioteca</div>
-        </div>
-        <div class="tabbar__item ${active("profile")}" data-action="nav" data-to="profile">
-          <div class="tabbar__icon">👤</div>
-          <div>Perfil</div>
-        </div>
-      </nav>
-    `;
-  }
-
-  /* =============================
-     Views — Tab routes wrappers
-  ============================= */
-  async function viewTrilha() {
-    const mans = await getActiveManifests();
-    const paths = getAllPathsFromManifests(mans);
-
-    const rows = paths.map(p => rowItem({
-      icon: "🎯",
-      title: p.title,
-      sub: `${p.packTitle} • ${p.desc || ""}`,
-      action: "openPath",
-      data: { pack: p.packId, path: p.id }
-    })).join("");
-
-    return `
-      <div class="section">
-        <div class="section__title">Trilha</div>
-        <p class="section__sub">Conteúdos dos packs ativos</p>
-        <div class="panel">
-          <div class="list">${rows || `<div style="color:rgba(233,236,246,.55);">Nenhuma trilha ativa.</div>`}</div>
-        </div>
-      </div>
-      ${bottomSpacer()}
-    `;
-  }
-
-  async function viewMissions() {
-    const st = store.get();
-    const today = todayISO();
-    const done = isMissionCompleted(st, today);
-
-    const templates = await getMissionTemplates();
-    const chosen = chooseDailyTemplate(templates);
-    store.set(s => ensureTodayMission(s, chosen));
-    const tm = store.get().progress.todayMission;
-
-    return `
-      <div class="section">
-        <div class="section__title">Missões</div>
-        <p class="section__sub">Diária + progresso semanal</p>
-
-        <div class="panel">
-          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
-            <div>
-              <div style="color:rgba(233,236,246,.55);font-size:12px;">
-                ${escapeHtml(tm?.date || today)} • ${escapeHtml(chosen.kind || "técnica")}
-              </div>
-              <div style="font-weight:950;font-size:18px;margin-top:2px;">
-                ${escapeHtml(chosen.title || "Missão")}
-              </div>
-              <div style="color:rgba(233,236,246,.72);line-height:1.45;margin-top:6px;">
-                ${escapeHtml(chosen.desc || "")}
-              </div>
-            </div>
-            <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;">
-              ${pill(`${tm?.minutesPlanned || 10} min`, "⏱️")}
-              ${pill(`+${chosen.xp || 10} XP`, "✨")}
-            </div>
-          </div>
-
-          <div style="height:12px"></div>
-
-          <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">
-            <button class="btn" data-action="swapMission">Trocar</button>
-            <button class="btn btnPrimary" data-action="completeMission" ${done ? "disabled" : ""}>
-              ${done ? "Concluída" : "Concluir"}
-            </button>
+    modalEl.innerHTML = `
+      <div style="max-width:520px;margin:12vh auto;padding:0 14px;">
+        <div style="background:#0e1220;border-radius:18px;border:1px solid rgba(255,255,255,.1);padding:14px;">
+          <div style="font-weight:900;margin-bottom:10px;">${escapeHtml(title)}</div>
+          ${contentHtml}
+          <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px;">
+            ${secondaryText ? `<button class="btn btn--ghost" id="mCancel">${secondaryText}</button>` : ""}
+            <button class="btn btnPrimary" id="mOk">${primaryText}</button>
           </div>
         </div>
-
-        <div style="height:12px"></div>
-
-        <div class="panel">
-          <div style="font-weight:950;margin-bottom:8px;">Diário Vocal</div>
-          <button class="btn" data-action="nav" data-to="diary">Ver histórico</button>
-        </div>
       </div>
-      ${bottomSpacer()}
     `;
-  }
 
-  async function viewBiblioteca() {
-    const mans = await getActiveManifests();
-    const articles = [];
-    for (const m of mans) {
-      (m.library || []).forEach(a => articles.push({ packId: m.id, packTitle: m.title, ...a }));
+    document.body.appendChild(modalEl);
+
+    document.getElementById("mOk").onclick = onPrimary;
+    if (secondaryText) {
+      document.getElementById("mCancel").onclick = closeModal;
     }
-
-    // list
-    const rows = articles.map(a => rowItem({
-      icon: "📚",
-      title: a.title,
-      sub: `${a.packTitle} • ${a.tag || "Geral"}`,
-      action: "openArticle",
-      data: { pack: a.packId, art: a.id }
-    })).join("");
-
-    return `
-      <div class="section">
-        <div class="section__title">Biblioteca</div>
-        <p class="section__sub">Artigos dos packs ativos</p>
-        <div class="panel">
-          <div class="list">${rows || `<div style="color:rgba(233,236,246,.55);">Nenhum artigo ativo.</div>`}</div>
-        </div>
-      </div>
-      ${bottomSpacer()}
-    `;
   }
 
-  /* =============================
-     Toggle pack on/off
-  ============================= */
-  function togglePackActive(packId) {
-    store.set(s => {
-      const ids = new Set(s.packs.activePackIds || []);
-      if (ids.has(packId)) ids.delete(packId);
-      else ids.add(packId);
-      s.packs.activePackIds = Array.from(ids);
-    });
-    toast("Packs atualizados");
-  }
-
-  function toggleLessonDone(packId, lessonId) {
-    const key = `${packId}:${lessonId}`;
-    store.set(s => {
-      if (s.progress.completedLessons[key]) delete s.progress.completedLessons[key];
-      else s.progress.completedLessons[key] = { at: new Date().toISOString() };
-    });
-    toast("Progresso atualizado");
-  }
-
-  /* =============================
-     App shell
-  ============================= */
-  function shell(route, contentHtml) {
-    return `
-      <header class="topbar">
-        <div class="topbar__left">
-          <div class="brandDot"></div>
-          <div class="topbar__title">IMVpedia Voice</div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;">
-          <button class="btn btn--chip" data-action="admin">${isAdminEnabled() ? "Admin ✓" : "Admin"}</button>
-        </div>
-      </header>
-
-      <main class="app" id="app">
-        ${contentHtml || ""}
-      </main>
-
-      ${tabbar(route)}
-      <div class="toastHost" id="toastHost"></div>
-    `;
-  }
-
-  /* =============================
-     Router + Render
-  ============================= */
-  const rootEl = document.body;
-
-  async function render() {
-    const { route, query } = getRouteAndQuery();
-    store.set(s => { s.progress.lastRoute = route; });
-
-    let html = "";
-
-    try {
-      switch (route) {
-        case "home":
-          html = await viewHome();
-          break;
-        case "pack":
-          html = await viewPack(query.id);
-          break;
-        case "path":
-          html = await viewPath(query.pack, query.path);
-          break;
-        case "lesson":
-          html = await viewLesson(query.pack, query.lesson);
-          break;
-        case "library":
-          html = await viewLibrary(query.pack);
-          break;
-        case "library-tag":
-          html = await viewLibraryFiltered(query.pack, query.tag);
-          break;
-        case "article":
-          html = await viewArticle(query.pack, query.art);
-          break;
-        case "trilha":
-          html = await viewTrilha();
-          break;
-        case "missions":
-          html = await viewMissions();
-          break;
-        case "biblioteca":
-          html = await viewBiblioteca();
-          break;
-        case "profile":
-          html = viewProfile();
-          break;
-        case "diary":
-          html = viewDiary();
-          break;
-        case "placement":
-          html = viewPlacementIntro();
-          break;
-        case "placement-q":
-          html = viewPlacementQuestion(Number(query.q || 0));
-          break;
-        case "placement-result": {
-          const r = runPlacementAndBuildResult();
-          html = viewPlacementResult(r.result, r.score, r.plan14);
-          break;
-        }
-        case "admin":
-          html = await viewAdminEditor();
-          break;
-        default:
-          html = await viewHome();
-      }
-    } catch (e) {
-      html = `
-        <div class="panel">
-          <div style="font-weight:950;">Erro ao renderizar</div>
-          <div style="color:rgba(233,236,246,.62);margin-top:8px;line-height:1.45;">
-            ${escapeHtml(String(e?.message || e || "Erro desconhecido"))}
-          </div>
-          <div style="height:12px"></div>
-          <button class="btn" data-action="nav" data-to="home">Voltar</button>
-        </div>
-        ${bottomSpacer()}
-      `;
+  function closeModal() {
+    if (modalEl) {
+      modalEl.remove();
+      modalEl = null;
     }
-
-    rootEl.innerHTML = shell(route, html);
   }
 
-  window.addEventListener("hashchange", () => render());
+  /* =========================================================
+     BOOT
+  ========================================================= */
 
-  /* =============================
-     Actions (cliques)
-  ============================= */
-  document.addEventListener("click", async (ev) => {
-    const btn = ev.target.closest("[data-action]");
-    if (!btn) return;
-    const act = btn.dataset.action;
+  window.addEventListener("hashchange", render);
 
-    try {
-      switch (act) {
-        case "nav":
-          setHash(btn.dataset.to || "home");
-          break;
-
-        case "openPack":
-          setHash("pack", { id: btn.dataset.pack });
-          break;
-
-        case "openPath":
-          setHash("path", { pack: btn.dataset.pack, path: btn.dataset.path });
-          break;
-
-        case "openLesson":
-          setHash("lesson", { pack: btn.dataset.pack, lesson: btn.dataset.lesson, path: btn.dataset.path || "" });
-          break;
-
-        case "openLibrary":
-          setHash("library", { pack: btn.dataset.pack });
-          break;
-
-        case "filterLib":
-          setHash("library-tag", { pack: btn.dataset.pack, tag: btn.dataset.tag });
-          break;
-
-        case "openArticle":
-          setHash("article", { pack: btn.dataset.pack, art: btn.dataset.art });
-          break;
-
-        case "togglePack":
-          togglePackActive(btn.dataset.pack);
-          await render();
-          break;
-
-        case "toggleLessonDone":
-          toggleLessonDone(btn.dataset.pack, btn.dataset.lesson);
-          await render();
-          break;
-
-        case "completeMission":
-          await completeTodayMission();
-          await render();
-          break;
-
-        case "swapMission":
-          await swapTodayMission();
-          break;
-
-        case "goPlacement":
-          setHash("placement");
-          break;
-
-        case "startPlacement":
-          store.set(s => { s.placement.answers = {}; });
-          setHash("placement-q", { q: "0" });
-          break;
-
-        case "answer": {
-          const qIndex = Number(btn.dataset.q || 0);
-          const score = Number(btn.dataset.score || 0);
-          const q = PLACEMENT_QUESTIONS[qIndex];
-          if (!q) return;
-          store.set(s => { s.placement.answers[q.id] = score; });
-
-          if (qIndex + 1 >= PLACEMENT_QUESTIONS.length) {
-            setHash("placement-result");
-          } else {
-            setHash("placement-q", { q: String(qIndex + 1) });
-          }
-          break;
-        }
-
-        case "restartPlacement":
-          store.set(s => { s.placement.answers = {}; s.placement.result = null; s.user.placementDone = false; });
-          setHash("placement");
-          break;
-
-        case "savePlacement": {
-          const r = runPlacementAndBuildResult();
-          store.set(s => {
-            s.placement.score = r.score;
-            s.placement.result = r.result;
-            s.placement.plan14 = r.plan14;
-            s.user.levelReal = r.result;
-            s.user.placementDone = true;
-            ensureBadge(s, "placement_done");
-            const rec = recommendTrack(s.user.goal || "Misto", r.result);
-            s.user.minutesPerDay = rec.minutes;
-            s.user.recommendedPath = rec.pathTitle;
-          });
-          toast("Placement salvo");
-          setHash("home");
-          break;
-        }
-
-        case "goProfile":
-          setHash("profile");
-          break;
-
-        case "saveProfile": {
-          const name = ($("#pfName")?.value || "").trim();
-          const goal = ($("#pfGoal")?.value || "Misto").trim();
-          const min = clamp(parseInt($("#pfMin")?.value || "10", 10) || 10, 5, 60);
-          store.set(s => {
-            s.user.name = name || "";
-            s.user.goal = goal;
-            s.user.minutesPerDay = min;
-          });
-          toast("Perfil salvo");
-          await render();
-          break;
-        }
-
-        case "diary":
-          // apenas marca status no botão; salvar é outra ação
-          store.set(s => { s.diary.lastStatus = btn.dataset.status; });
-          toast(`Status: ${btn.dataset.status}`);
-          break;
-
-        case "saveDiary": {
-          const st = store.get();
-          const status = st.diary.lastStatus || "ok";
-          const note = ($("#diaryNote")?.value || "").trim();
-          addDiaryEntry(status, note);
-          await render();
-          break;
-        }
-
-        case "admin":
-          setHash("admin");
-          break;
-
-        case "adminLogin":
-          adminPrompt();
-          break;
-
-        case "adminLogout":
-          setAdminEnabled(false);
-          toast("Admin desabilitado");
-          setHash("home");
-          break;
-
-        case "adminNewPack": {
-          const base = normalizeManifest({
-            id: "custom_" + uid(),
-            title: "Novo Pack",
-            desc: "Descreva este pack",
-            cover: "",
-            paths: [
-              { id: "fund", title: "Trilha 1", desc: "Descrição", lessons: [{ id: "l1", title: "Lição 1", md: "# Lição 1\n\nConteúdo.\n" }] }
-            ],
-            library: [{ id: "a1", title: "Artigo 1", tag: "Geral", md: "# Artigo 1\n\nConteúdo.\n" }],
-            missions: { templates: [{ id: "m1", title: "Missão 1", minutesMin: 8, minutesMax: 12, xp: 10, kind: "técnica", desc: "Descrição." }] }
-          });
-          adminOpenPackEditor(base);
-          break;
-        }
-
-        case "adminImportPack": {
-          openModal({
-            title: "Importar pack (JSON)",
-            contentHtml: `
-              <div style="color:rgba(233,236,246,.72);line-height:1.45;">
-                Cole aqui o JSON do pack (manifest).
-              </div>
-              <div style="height:10px"></div>
-              <textarea id="admImportJson" class="input" rows="14" style="font-family:ui-monospace,monospace;font-size:12px;line-height:1.35;"></textarea>
-            `,
-            primaryText: "Importar",
-            secondaryText: "Cancelar",
-            onPrimary: () => {
-              const raw = ($("#admImportJson")?.value || "").trim();
-              const parsed = safeJsonParse(raw, null);
-              if (!parsed) { toast("JSON inválido"); return; }
-              const norm = normalizeManifest(parsed);
-
-              const list = getCustomPacks().map(normalizeManifest);
-              const i = list.findIndex(x => x.id === norm.id);
-              if (i >= 0) list[i] = norm;
-              else list.unshift(norm);
-              saveCustomPacks(list);
-              ensureAdminBadge();
-              closeModal();
-              toast("Pack importado (custom)");
-              packCache.index = null;
-              packCache.manifests.delete(norm.id);
-              setHash("admin");
-            }
-          });
-          break;
-        }
-
-        case "adminExportAll": {
-          const list = getCustomPacks().map(normalizeManifest);
-          downloadJson("imv_custom_packs.json", list);
-          toast("Exportado");
-          break;
-        }
-
-        case "adminOpenPack": {
-          const packId = btn.dataset.pack;
-          const customs = getCustomPacks().map(normalizeManifest);
-          const found = customs.find(x => x.id === packId);
-          if (found) adminOpenPackEditor(found);
-          else {
-            // se for pack de arquivo, carrega e salva como custom ao editar
-            const man = await loadManifest(packId);
-            adminOpenPackEditor(man);
-          }
-          break;
-        }
-
-        case "adminDeletePack": {
-          const packId = btn.dataset.pack;
-          openModal({
-            title: "Excluir pack",
-            contentHtml: `
-              <div style="color:rgba(233,236,246,.72);line-height:1.45;">
-                Tem certeza que deseja excluir o pack <b>${escapeHtml(packId)}</b>?
-              </div>
-            `,
-            primaryText: "Excluir",
-            secondaryText: "Cancelar",
-            onPrimary: () => {
-              const list = getCustomPacks().map(normalizeManifest).filter(p => p.id !== packId);
-              saveCustomPacks(list);
-              closeModal();
-              toast("Pack excluído");
-              packCache.index = null;
-              packCache.manifests.delete(packId);
-              setHash("admin");
-            }
-          });
-          break;
-        }
-
-        default:
-          break;
-      }
-    } catch (e) {
-      toast("Erro: " + (e?.message || e));
-    }
+  document.addEventListener("DOMContentLoaded", () => {
+    if (!location.hash) setHash("home");
+    render();
   });
-
-  /* =============================
-     Boot
-  ============================= */
-  if (!location.hash) setHash("home");
-  render();
 
 })();
