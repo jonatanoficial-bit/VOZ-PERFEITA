@@ -1,11 +1,17 @@
 /* =========================================================
-   IMVpedia Voice — app.js (FINAL / FIX TABS)
+   IMVpedia Voice — app.js (FINAL)
    ---------------------------------------------------------
-   Objetivo deste build:
-   - Corrigir navegação por hash (#/home, #/path, #/missions, #/library, #/profile, etc.)
-   - Garantir que TODAS as telas renderizem conteúdo (mesmo que mínimo)
-   - Manter visual existente (styles.css) — sem reestruturar layout
+   Core:
+   - Home / Packs / Pack / Path / Lesson / Missions / Library / Article / Profile / Placement / Admin
+   - Packs (DLC): ./packs/index.json + ./packs/<id>/manifest.json (+ markdown inline ou via arquivo)
+   - Gamification: XP / Level / Streak / Badges
+   - Daily Missions + Weekly + Vocal Diary
+   - Placement test integrado ao perfil
+   Admin:
+   - Gate por senha (default: imvadmin)
+   - Editor/import/export de Packs (manifest JSON) guardado em LocalStorage (custom packs)
 ========================================================= */
+
 (() => {
   "use strict";
 
@@ -14,6 +20,7 @@
   ============================= */
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+
   const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
   const uid = () => Math.random().toString(16).slice(2) + Date.now().toString(16);
 
@@ -63,7 +70,7 @@
     return { route: (path || "home"), query: Object.fromEntries(new URLSearchParams(qs || "")) };
   }
 
-  function bottomSpacer() { return `<div style="height:110px"></div>`; }
+  function bottomSpacer() { return `<div style="height:100px"></div>`; }
 
   /* =============================
      Storage keys
@@ -82,15 +89,15 @@
       createdAt: new Date().toISOString(),
       lastOpenAt: new Date().toISOString(),
       appVersion: "1.0.0",
-      contentVersion: "fix-tabs-v1"
+      contentVersion: "final-merge-v1"
     },
     user: {
       id: uid(),
       name: "",
       avatar: "🎤",
-      goal: "Misto",
+      goal: "Misto",         // Popular | Erudito | Coral | Misto
       levelSelf: "Iniciante",
-      levelReal: null,
+      levelReal: null,       // Placement result
       minutesPerDay: 10,
       placementDone: false,
       recommendedPath: null
@@ -100,7 +107,7 @@
       level: 1,
       streak: 0,
       lastActiveDate: null,
-      badges: []
+      badges: [] // first_mission, streak_3, streak_7, placement_done, pack_creator
     },
     packs: {
       activePackIds: ["base"],
@@ -108,23 +115,23 @@
     },
     progress: {
       lastRoute: "home",
-      completedLessons: {},
-      continue: null,
+      completedLessons: {}, // key pack:lesson -> {at}
+      continue: null,       // {packId, lessonId}
 
-      todayMission: null,
-      completedMissions: {},
-      week: {}
+      todayMission: null,       // {date, packId, templateId, minutesPlanned}
+      completedMissions: {},    // date -> {at, packId, templateId, xp}
+      week: {}                  // weekStart -> {daysCompleted, diaryNotesCount, claimed:{}}
     },
     diary: {
       lastCheckinDate: null,
-      lastStatus: null,
-      entries: []
+      lastStatus: null, // ok|tired|hoarse|pain
+      entries: []       // [{date,status,note}]
     },
     placement: {
       answers: {},
       score: 0,
       result: null,
-      plan14: []
+      plan14: [] // [{day,focus,intensity}]
     },
     settings: {
       reduceMotion: false
@@ -288,7 +295,7 @@
   }
 
   /* =============================
-     Packs Loader (DLC + custom)
+     Packs (DLC) Loader
   ============================= */
   const packCache = {
     index: null,
@@ -367,9 +374,13 @@
     if (packCache.index) return packCache.index;
 
     let idx = { packs: [] };
-    try { idx = await fetchJson("./packs/index.json"); } catch { idx = { packs: [] }; }
-    if (!Array.isArray(idx.packs)) idx.packs = [];
+    try {
+      idx = await fetchJson("./packs/index.json");
+    } catch {
+      idx = { packs: [] };
+    }
 
+    if (!Array.isArray(idx.packs)) idx.packs = [];
     const custom = getCustomPacks().map(normalizeManifest).map(m => ({
       id: m.id,
       title: m.title,
@@ -416,8 +427,8 @@
     if (!arr.length) {
       arr.push(normalizeManifest({
         id: "base",
-        title: "Base — Voz Perfeita",
-        desc: "Fundamentos universais (apoio, SOVT, afinação, ressonância, registros, saúde vocal).",
+        title: "Base",
+        desc: "Fundamentos essenciais",
         cover: "",
         paths: [{
           id: "base_fund",
@@ -433,8 +444,8 @@
         ],
         missions: {
           templates: [
-            { id: "m_sovt_10", title: "SOVT leve", minutesMin: 8, minutesMax: 12, xp: 12, kind: "técnica", desc: "Lip trill/humming/canudo na região confortável, sem apertar." },
-            { id: "m_afina_10", title: "Afinação", minutesMin: 8, minutesMax: 12, xp: 12, kind: "musical", desc: "Notas longas e ataques suaves." }
+            { id: "m_sovt_10", title: "SOVT leve 10 min", minutesMin: 8, minutesMax: 12, xp: 12, kind: "técnica", desc: "Lip trill/humming/canudo com conforto." },
+            { id: "m_afina_10", title: "Afinação 10 min", minutesMin: 8, minutesMax: 12, xp: 12, kind: "musical", desc: "Notas longas e ataques suaves." }
           ]
         }
       }));
@@ -451,407 +462,67 @@
   }
 
   /* =============================
-     Missions
-  ============================= */
-  function pickDailyMission(manifests) {
-    const date = todayISO();
-    const st = store.get();
-
-    if (st.progress.todayMission && st.progress.todayMission.date === date) return st.progress.todayMission;
-
-    // pool templates from active packs
-    const pool = [];
-    for (const m of manifests) {
-      (m.missions?.templates || []).forEach(t => pool.push({ packId: m.id, templateId: t.id, template: t }));
-    }
-
-    if (!pool.length) return null;
-
-    // deterministic-ish: based on date string
-    let seed = 0;
-    for (let i = 0; i < date.length; i++) seed = (seed * 31 + date.charCodeAt(i)) >>> 0;
-    const picked = pool[seed % pool.length];
-
-    const minutesPlanned = clamp(
-      Math.round((picked.template.minutesMin + picked.template.minutesMax) / 2),
-      picked.template.minutesMin,
-      picked.template.minutesMax
-    );
-
-    const mission = { date, packId: picked.packId, templateId: picked.templateId, minutesPlanned };
-
-    store.set(s => { s.progress.todayMission = mission; });
-    return mission;
-  }
-
-  function completeTodayMission(manifests) {
-    const st = store.get();
-    const m = st.progress.todayMission;
-    if (!m) return;
-
-    const date = m.date;
-    if (st.progress.completedMissions[date]) { toast("Missão de hoje já concluída."); return; }
-
-    const man = manifests.find(x => x.id === m.packId);
-    const tpl = (man?.missions?.templates || []).find(t => t.id === m.templateId);
-    const xp = tpl?.xp ?? 10;
-
-    store.set(s => {
-      s.progress.completedMissions[date] = { at: new Date().toISOString(), packId: m.packId, templateId: m.templateId, xp };
-      // week
-      const ws = startOfWeekISO(date);
-      if (!s.progress.week[ws]) s.progress.week[ws] = { daysCompleted: 0, diaryNotesCount: 0, claimed: {} };
-      s.progress.week[ws].daysCompleted = Object.keys(s.progress.completedMissions)
-        .filter(d => startOfWeekISO(d) === ws).length;
-    });
-
-    addXP(xp, "Missão concluída");
-    ensureBadge(store.get(), "first_mission");
-  }
-
-  /* =============================
-     UI bits (mantendo classes do CSS)
-  ============================= */
-  function btn(text, action, data = {}, kind = "btn") {
-    const dataAttrs = Object.entries(data).map(([k, v]) => `data-${k}="${escapeHtml(String(v))}"`).join(" ");
-    return `<button class="${kind}" type="button" data-action="${escapeHtml(action)}" ${dataAttrs}>${escapeHtml(text)}</button>`;
-  }
-
-  function pill(text, icon = "") {
-    return `<span class="pill">${icon ? `${escapeHtml(icon)} ` : ""}${escapeHtml(text)}</span>`;
-  }
-
-  function cardPack(p) {
-    const cover = p.cover ? `<img src="${escapeHtml(p.cover)}" alt="" />` : `<div class="card__fallback">♪</div>`;
-    return `
-      <div class="card card--pack" data-action="openPack" data-pack="${escapeHtml(p.id)}" role="button" tabindex="0">
-        <div class="card__cover">${cover}</div>
-        <div class="card__body">
-          <div class="card__title">${escapeHtml(p.title || p.id)}</div>
-          <div class="card__desc">${escapeHtml(p.desc || "")}</div>
-        </div>
-      </div>
-    `;
-  }
-
-  function rowItem({ icon = "📘", title = "", sub = "", action = "", data = {} }) {
-    const dataAttrs = Object.entries(data).map(([k, v]) => `data-${k}="${escapeHtml(String(v))}"`).join(" ");
-    return `
-      <div class="row" data-action="${escapeHtml(action)}" ${dataAttrs} role="button" tabindex="0">
-        <div class="row__left">${escapeHtml(icon)}</div>
-        <div class="row__body">
-          <div class="row__title">${escapeHtml(title)}</div>
-          <div class="row__sub">${escapeHtml(sub)}</div>
-        </div>
-        <div class="row__right">›</div>
-      </div>
-    `;
-  }
-
-  function sectionTitle(title, right = "") {
-    return `
-      <div class="sectionHead">
-        <div class="sectionTitle">${escapeHtml(title)}</div>
-        <div class="sectionRight">${right}</div>
-      </div>
-    `;
-  }
-
-  /* =============================
-     Renders
-  ============================= */
-  async function renderHome() {
-    const view = $("#view");
-    if (!view) return;
-
-    const st = store.get();
-    const name = (st.user.name || "Aluno").trim() || "Aluno";
-    const level = st.gamification.level || 1;
-    const streak = st.gamification.streak || 0;
-
-    const manifests = await getActiveManifests();
-    const mission = pickDailyMission(manifests);
-
-    const ws = startOfWeekISO(todayISO());
-    const week = st.progress.week[ws] || { daysCompleted: 0, diaryNotesCount: 0 };
-
-    const idx = await loadPackIndex();
-    const activeIds = new Set(st.packs.activePackIds || ["base"]);
-    const packsToShow = (idx.packs || []).filter(p => activeIds.has(p.id));
-
-    // mission card data
-    let missionHtml = `<div class="empty">Sem missão disponível (sem templates no pack).</div>`;
-    if (mission) {
-      const man = manifests.find(x => x.id === mission.packId);
-      const tpl = (man?.missions?.templates || []).find(t => t.id === mission.templateId);
-      const done = !!st.progress.completedMissions[mission.date];
-
-      missionHtml = `
-        <div class="card card--mission">
-          <div class="card__body">
-            <div class="muted">${escapeHtml(mission.date)} • ${escapeHtml(tpl?.kind || "técnica")}</div>
-            <div class="card__title">${escapeHtml(tpl?.title || "Missão do dia")}</div>
-            <div class="card__desc">${escapeHtml(tpl?.desc || "")}</div>
-          </div>
-          <div class="missionMeta">
-            <div class="bubble"><div class="bubble__icon">⏱</div><div class="bubble__text">${escapeHtml(String(mission.minutesPlanned))} min</div></div>
-            <div class="bubble"><div class="bubble__icon">✨</div><div class="bubble__text">+${escapeHtml(String(tpl?.xp ?? 10))} XP</div></div>
-          </div>
-          <div class="card__actions">
-            ${btn("Trocar", "swapMission", {}, "btn btn--ghost")}
-            ${btn(done ? "Concluída" : "Concluir", "completeMission", {}, done ? "btn btn--ghost" : "btn btn--primary")}
-          </div>
-        </div>
-      `;
-    }
-
-    view.innerHTML = `
-      <div class="page">
-        <div class="hero">
-          <div class="hero__top">${escapeHtml(`Olá, ${name} • Nível ${level} • Streak ${streak}`)} <span class="muted">🔥</span></div>
-          <div class="hero__title">IMVpedia Voice</div>
-          <div class="hero__sub">Trilha vocal guiada com técnica, saúde e repertório (popular, erudito e coral).</div>
-          <div class="hero__actions">
-            ${btn("Fazer placement", "goPlacement", {}, "btn btn--primary")}
-            ${btn("Perfil", "goProfile", {}, "btn btn--ghost")}
-          </div>
-        </div>
-
-        ${sectionTitle("Missão do dia")}
-        ${missionHtml}
-
-        ${sectionTitle("Semana", `<span class="muted">${escapeHtml(ws)} →</span>`)}
-        <div class="card card--week">
-          <div class="card__body">
-            <div class="progressRow">
-              <span class="muted">progresso semanal</span>
-            </div>
-            <div class="progressBar"><div class="progressBar__fill" style="width:${clamp((week.daysCompleted / 7) * 100, 0, 100)}%"></div></div>
-            <div class="weekStats">
-              <div class="weekStat">Missões concluídas: <b>${escapeHtml(String(week.daysCompleted))}/7</b></div>
-              <div class="weekStat">Check-ins no diário: <b>${escapeHtml(String(week.diaryNotesCount || 0))}</b></div>
-            </div>
-          </div>
-        </div>
-
-        ${sectionTitle("Packs", btn("Gerenciar packs", "managePacks", {}, "btn btn--ghost"))}
-        <div class="grid">
-          ${packsToShow.length ? packsToShow.map(cardPack).join("") : `<div class="empty">Nenhum pack ativo.</div>`}
-        </div>
-
-        ${bottomSpacer()}
-      </div>
-    `;
-  }
-
-  async function renderPath() {
-    const view = $("#view");
-    if (!view) return;
-
-    const { query } = getRouteAndQuery();
-    const manifests = await getActiveManifests();
-
-    // Se veio packId/pathId, mostra lições daquela trilha
-    if (query.packId && query.pathId) {
-      const man = manifests.find(m => m.id === query.packId);
-      const path = (man?.paths || []).find(p => p.id === query.pathId);
-
-      const lessons = (path?.lessons || []);
-      view.innerHTML = `
-        <div class="page">
-          ${sectionTitle(path?.title || "Trilha", btn("Voltar", "goBack", {}, "btn btn--ghost"))}
-          <div class="muted">${escapeHtml(path?.desc || man?.title || "")}</div>
-          <div class="list">
-            ${lessons.length ? lessons.map(l => rowItem({
-              icon: "🎵",
-              title: l.title || l.id,
-              sub: man?.title || query.packId,
-              action: "openLesson",
-              data: { pack: query.packId, lesson: l.id }
-            })).join("") : `<div class="empty">Sem lições nesta trilha.</div>`}
-          </div>
-          ${bottomSpacer()}
-        </div>
-      `;
-      return;
-    }
-
-    // Caso padrão: lista todas as trilhas dos packs ativos
-    const paths = getAllPathsFromManifests(manifests);
-    view.innerHTML = `
-      <div class="page">
-        ${sectionTitle("Trilha", "")}
-        <div class="list">
-          ${paths.length ? paths.map(p => rowItem({
-            icon: "🧭",
-            title: p.title || p.id,
-            sub: `${p.packTitle || p.packId} • ${(p.lessons || []).length} lições`,
-            action: "openPath",
-            data: { pack: p.packId, path: p.id }
-          })).join("") : `<div class="empty">Nenhuma trilha encontrada nos packs ativos.</div>`}
-        </div>
-        ${bottomSpacer()}
-      </div>
-    `;
-  }
-
-  async function renderMissions() {
-    const view = $("#view");
-    if (!view) return;
-
-    const st = store.get();
-    const manifests = await getActiveManifests();
-    const mission = pickDailyMission(manifests);
-
-    const history = Object.entries(st.progress.completedMissions || {})
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .slice(-14)
-      .reverse();
-
-    let today = `<div class="empty">Sem missão configurada.</div>`;
-    if (mission) {
-      const man = manifests.find(x => x.id === mission.packId);
-      const tpl = (man?.missions?.templates || []).find(t => t.id === mission.templateId);
-      const done = !!st.progress.completedMissions[mission.date];
-
-      today = `
-        <div class="card card--mission">
-          <div class="card__body">
-            <div class="muted">${escapeHtml(mission.date)} • ${escapeHtml(tpl?.kind || "técnica")}</div>
-            <div class="card__title">${escapeHtml(tpl?.title || "Missão do dia")}</div>
-            <div class="card__desc">${escapeHtml(tpl?.desc || "")}</div>
-          </div>
-          <div class="card__actions">
-            ${btn("Trocar", "swapMission", {}, "btn btn--ghost")}
-            ${btn(done ? "Concluída" : "Concluir", "completeMission", {}, done ? "btn btn--ghost" : "btn btn--primary")}
-          </div>
-        </div>
-      `;
-    }
-
-    view.innerHTML = `
-      <div class="page">
-        ${sectionTitle("Missões", "")}
-        ${today}
-
-        <div style="height:14px"></div>
-        ${sectionTitle("Histórico", `<span class="muted">últimos 14</span>`)}
-        <div class="list">
-          ${history.length ? history.map(([date, rec]) => rowItem({
-            icon: "✅",
-            title: `${date} • +${rec.xp} XP`,
-            sub: `${rec.packId} • ${rec.templateId}`,
-            action: "noop",
-            data: {}
-          })).join("") : `<div class="empty">Nenhuma missão concluída ainda.</div>`}
-        </div>
-        ${bottomSpacer()}
-      </div>
-    `;
-  }
-
-  async function renderLibrary() {
-    const view = $("#view");
-    if (!view) return;
-
-    const { query } = getRouteAndQuery();
-    const manifests = await getActiveManifests();
-
-    // Se abrir artigo
-    if (query.packId && query.articleId) {
-      const man = manifests.find(m => m.id === query.packId);
-      const art = (man?.library || []).find(a => a.id === query.articleId);
-      const md = await resolveMd(query.packId, art?.md || "");
-      view.innerHTML = `
-        <div class="page">
-          ${sectionTitle(art?.title || "Artigo", btn("Voltar", "goBack", {}, "btn btn--ghost"))}
-          <div class="markdown">${mdToHtml(md || "# Conteúdo em breve\n")}</div>
-          ${bottomSpacer()}
-        </div>
-      `;
-      return;
-    }
-
-    // lista artigos por tag
-    const all = [];
-    for (const m of manifests) {
-      (m.library || []).forEach(a => all.push({ ...a, packId: m.id, packTitle: m.title }));
-    }
-    all.sort((a, b) => (a.tag || "").localeCompare(b.tag || "") || (a.title || "").localeCompare(b.title || ""));
-
-    view.innerHTML = `
-      <div class="page">
-        ${sectionTitle("Biblioteca", "")}
-        <div class="list">
-          ${all.length ? all.map(a => rowItem({
-            icon: "📚",
-            title: a.title || a.id,
-            sub: `${a.tag || "Geral"} • ${a.packTitle || a.packId}`,
-            action: "openArticle",
-            data: { pack: a.packId, article: a.id }
-          })).join("") : `<div class="empty">Nenhum artigo nos packs ativos.</div>`}
-        </div>
-        ${bottomSpacer()}
-      </div>
-    `;
-  }
-
-  async function renderProfile() {
-    const view = $("#view");
-    if (!view) return;
-
-    const st = store.get();
-    const levelReal = st.user.levelReal || "—";
-    const name = st.user.name || "";
-
-    view.innerHTML = `
-      <div class="page">
-        ${sectionTitle("Perfil", "")}
-
-        <div class="card">
-          <div class="card__body">
-            <div class="rowLine"><span class="muted">Nome</span><b>${escapeHtml(name || "Aluno")}</b></div>
-            <div class="rowLine"><span class="muted">Avatar</span><b>${escapeHtml(st.user.avatar || "🎤")}</b></div>
-            <div class="rowLine"><span class="muted">Meta</span><b>${escapeHtml(st.user.goal || "Misto")}</b></div>
-            <div class="rowLine"><span class="muted">Nível (XP)</span><b>${escapeHtml(String(st.gamification.level || 1))}</b></div>
-            <div class="rowLine"><span class="muted">Placement</span><b>${escapeHtml(levelReal)}</b></div>
-          </div>
-          <div class="card__actions">
-            ${btn("Editar", "editProfile", {}, "btn btn--ghost")}
-            ${btn("Refazer placement", "goPlacement", {}, "btn btn--primary")}
-          </div>
-        </div>
-
-        <div style="height:14px"></div>
-        ${sectionTitle("Badges", "")}
-        <div class="badges">
-          ${(st.gamification.badges || []).length
-            ? (st.gamification.badges || []).map(b => `<span class="badge">${escapeHtml(b)}</span>`).join("")
-            : `<div class="empty">Sem badges ainda.</div>`}
-        </div>
-
-        ${bottomSpacer()}
-      </div>
-    `;
-  }
-
-  /* =============================
-     Placement (mínimo e funcional)
+     Placement Engine
   ============================= */
   const PLACEMENT_QUESTIONS = [
-    { id: "experience", title: "Experiência vocal", q: "Há quanto tempo você canta com alguma regularidade?",
-      options: [{l:"Nunca estudei canto",s:0},{l:"Menos de 1 ano",s:1},{l:"1 a 3 anos",s:2},{l:"Mais de 3 anos",s:3}] },
-    { id: "technique", title: "Consciência técnica", q: "Você já estudou técnica vocal formalmente?",
-      options: [{l:"Nunca",s:0},{l:"Pouco / vídeos soltos",s:1},{l:"Com professor ou método",s:2},{l:"Estudo contínuo e aplicado",s:3}] },
-    { id: "range", title: "Extensão confortável", q: "Sua voz se mantém confortável em notas médias e agudas?",
-      options: [{l:"Não, forço ou evito",s:0},{l:"Às vezes",s:1},{l:"Sim, com controle",s:2},{l:"Sim, com facilidade",s:3}] },
-    { id: "health", title: "Saúde vocal", q: "Com que frequência você sente rouquidão ou cansaço?",
-      options: [{l:"Quase sempre",s:0},{l:"Às vezes",s:1},{l:"Raramente",s:2},{l:"Quase nunca",s:3}] },
-    { id: "reading", title: "Leitura / percepção", q: "Você consegue repetir melodias ou ler cifras/partitura?",
-      options: [{l:"Tenho muita dificuldade",s:0},{l:"Consigo com ajuda",s:1},{l:"Consigo bem",s:2},{l:"Com facilidade",s:3}] }
+    {
+      id: "experience",
+      title: "Experiência vocal",
+      question: "Há quanto tempo você canta com alguma regularidade?",
+      options: [
+        { label: "Nunca estudei canto", score: 0 },
+        { label: "Menos de 1 ano", score: 1 },
+        { label: "1 a 3 anos", score: 2 },
+        { label: "Mais de 3 anos", score: 3 }
+      ]
+    },
+    {
+      id: "technique",
+      title: "Consciência técnica",
+      question: "Você já estudou técnica vocal formalmente?",
+      options: [
+        { label: "Nunca", score: 0 },
+        { label: "Pouco / vídeos soltos", score: 1 },
+        { label: "Com professor ou método", score: 2 },
+        { label: "Estudo contínuo e aplicado", score: 3 }
+      ]
+    },
+    {
+      id: "range",
+      title: "Extensão confortável",
+      question: "Sua voz se mantém confortável em notas médias e agudas?",
+      options: [
+        { label: "Não, forço ou evito", score: 0 },
+        { label: "Às vezes", score: 1 },
+        { label: "Sim, com controle", score: 2 },
+        { label: "Sim, com facilidade", score: 3 }
+      ]
+    },
+    {
+      id: "health",
+      title: "Saúde vocal",
+      question: "Com que frequência você sente rouquidão ou cansaço?",
+      options: [
+        { label: "Quase sempre", score: 0 },
+        { label: "Às vezes", score: 1 },
+        { label: "Raramente", score: 2 },
+        { label: "Quase nunca", score: 3 }
+      ]
+    },
+    {
+      id: "reading",
+      title: "Leitura / percepção",
+      question: "Você consegue repetir melodias ou ler cifras/partitura?",
+      options: [
+        { label: "Tenho muita dificuldade", score: 0 },
+        { label: "Consigo com ajuda", score: 1 },
+        { label: "Consigo bem", score: 2 },
+        { label: "Com facilidade", score: 3 }
+      ]
+    }
   ];
 
-  function calcPlacement(score) {
+  function calculatePlacement(score) {
     if (score <= 4) return "Iniciante";
     if (score <= 9) return "Intermediário";
     return "Avançado";
@@ -871,513 +542,937 @@
     return plan;
   }
 
-  async function renderPlacement() {
-    const view = $("#view");
-    if (!view) return;
+  function recommendTrack(goal, level) {
+    let minutes = 10;
+    let intensity = "moderada";
+    if (level === "Intermediário") minutes = 15;
+    if (level === "Avançado") minutes = 20;
+
+    if (goal === "Coral") minutes = clamp(minutes, 8, 18);
+    if (goal === "Erudito" && level === "Iniciante") minutes = 12;
+    if (goal === "Popular" && level === "Avançado") minutes = 22;
+
+    const pathTitle =
+      goal === "Popular" ? "Popular — Base e Estilo" :
+      goal === "Erudito" ? "Erudito — Técnica e Sustentação" :
+      goal === "Coral" ? "Coral — Blend, Afinação e Ritmo" :
+      "Misto — Fundamentos universais";
+
+    return { pathTitle, minutes, intensity };
+  }
+
+  function runPlacementAndBuildResult() {
     const st = store.get();
     const answers = st.placement.answers || {};
+    const score = Object.values(answers).reduce((acc, v) => acc + (Number(v) || 0), 0);
+    const result = calculatePlacement(score);
+    const plan14 = buildPlan14(result);
+    return { score, result, plan14 };
+  }
 
-    const qCards = PLACEMENT_QUESTIONS.map(q => {
-      const current = answers[q.id];
-      const options = q.options.map(o => {
-        const active = (current === o.s) ? "is-active" : "";
-        return `<button class="chip ${active}" type="button" data-action="setPlacement" data-q="${escapeHtml(q.id)}" data-score="${escapeHtml(String(o.s))}">${escapeHtml(o.l)}</button>`;
-      }).join("");
-      return `
-        <div class="card">
-          <div class="card__body">
-            <div class="card__title">${escapeHtml(q.title)}</div>
-            <div class="card__desc">${escapeHtml(q.q)}</div>
-            <div class="chips">${options}</div>
-          </div>
+  /* =============================
+     UI components
+  ============================= */
+  function cardPack(p) {
+    const cover = p.cover ? `<img src="${escapeHtml(p.cover)}" alt="" />` : "";
+    return `
+      <div class="card" data-action="openPack" data-pack="${escapeHtml(p.id)}">
+        <div class="card__cover">${cover}</div>
+        <div class="card__body">
+          <div class="card__title">${escapeHtml(p.title || p.id)}</div>
+          <div class="card__desc">${escapeHtml(p.desc || "")}</div>
         </div>
-      `;
-    }).join("");
-
-    view.innerHTML = `
-      <div class="page">
-        ${sectionTitle("Placement", btn("Voltar", "goBack", {}, "btn btn--ghost"))}
-        <div class="muted">Responda para recomendarmos sua trilha inicial.</div>
-        <div style="height:10px"></div>
-        ${qCards}
-        <div class="card">
-          <div class="card__actions">
-            ${btn("Calcular resultado", "finishPlacement", {}, "btn btn--primary")}
-          </div>
-        </div>
-        ${bottomSpacer()}
       </div>
     `;
   }
 
-  /* =============================
-     Packs management (mínimo)
-  ============================= */
-  async function renderManagePacks() {
-    const view = $("#view");
-    if (!view) return;
+  function rowItem({ icon = "📘", title = "", sub = "", action = "", data = {} }) {
+    const dataAttrs = Object.entries(data).map(([k, v]) => `data-${k}="${escapeHtml(String(v))}"`).join(" ");
+    return `
+      <div class="row" data-action="${escapeHtml(action)}" ${dataAttrs}>
+        <div class="row__left">${escapeHtml(icon)}</div>
+        <div class="row__body">
+          <div class="row__title">${escapeHtml(title)}</div>
+          <div class="row__sub">${escapeHtml(sub)}</div>
+        </div>
+        <div class="row__right">›</div>
+      </div>
+    `;
+  }
 
+  function pill(text, icon = "") {
+    return `<span class="pill">${icon ? `${escapeHtml(icon)} ` : ""}${escapeHtml(text)}</span>`;
+  }
+
+  /* =============================
+     Missions / Week progress / Diary
+  ============================= */
+  function getWeekState(st, weekStartISO) {
+    if (!st.progress.week[weekStartISO]) {
+      st.progress.week[weekStartISO] = {
+        daysCompleted: 0,
+        diaryNotesCount: 0,
+        claimed: {}
+      };
+    }
+    return st.progress.week[weekStartISO];
+  }
+
+  function markDayCompleted(draft) {
+    const today = todayISO();
+    const ws = startOfWeekISO(today);
+    const w = getWeekState(draft, ws);
+    w.daysCompleted = Math.min(7, (w.daysCompleted || 0) + 1);
+  }
+
+  function addDiaryEntry(status, note) {
+    const date = todayISO();
+    store.set(s => {
+      s.diary.lastCheckinDate = date;
+      s.diary.lastStatus = status;
+      s.diary.entries.unshift({ date, status, note: (note || "").slice(0, 400) });
+
+      const ws = startOfWeekISO(date);
+      const w = getWeekState(s, ws);
+      w.diaryNotesCount = (w.diaryNotesCount || 0) + (note?.trim() ? 1 : 0);
+    });
+    toast("Check-in registrado");
+  }
+/* =============================
+     Mission selection (templates)
+  ============================= */
+  async function getMissionTemplates() {
+    const mans = await getActiveManifests();
+    const out = [];
+    for (const m of mans) {
+      const t = (m.missions && Array.isArray(m.missions.templates)) ? m.missions.templates : [];
+      for (const one of t) out.push({ packId: m.id, packTitle: m.title, ...one });
+    }
+    if (!out.length) {
+      out.push({ packId: "base", id: "m_sovt_10", title: "SOVT leve", minutesMin: 8, minutesMax: 12, xp: 12, kind: "técnica", desc: "Lip trill/humming/canudo com conforto." });
+    }
+    return out;
+  }
+
+  function chooseDailyTemplate(templates) {
+    const date = todayISO();
+    let seed = 0;
+    for (let i = 0; i < date.length; i++) seed += date.charCodeAt(i) * (i + 1);
+    const idx = seed % templates.length;
+    return templates[idx];
+  }
+
+  function ensureTodayMission(draft, template) {
+    const date = todayISO();
+    if (draft.progress.todayMission && draft.progress.todayMission.date === date) return;
+
+    const minutesPlanned = clamp(
+      (draft.user.minutesPerDay || 10),
+      template.minutesMin || 6,
+      template.minutesMax || 15
+    );
+
+    draft.progress.todayMission = {
+      date,
+      packId: template.packId,
+      templateId: template.id,
+      minutesPlanned
+    };
+  }
+
+  function isMissionCompleted(st, dateISO) {
+    return !!st.progress.completedMissions[dateISO];
+  }
+
+  async function completeTodayMission() {
     const st = store.get();
-    const idx = await loadPackIndex();
-    const active = new Set(st.packs.activePackIds || ["base"]);
-
-    const rows = (idx.packs || []).map(p => {
-      const isOn = active.has(p.id);
-      return `
-        <div class="card">
-          <div class="card__body">
-            <div class="card__title">${escapeHtml(p.title || p.id)}</div>
-            <div class="card__desc">${escapeHtml(p.desc || "")}</div>
-            <div class="muted">ID: ${escapeHtml(p.id)} • ${isOn ? "Ativo" : "Inativo"}</div>
-          </div>
-          <div class="card__actions">
-            ${btn("Abrir", "openPack", { pack: p.id }, "btn btn--ghost")}
-            ${btn(isOn ? "Desativar" : "Ativar", "togglePack", { pack: p.id }, isOn ? "btn btn--ghost" : "btn btn--primary")}
-          </div>
-        </div>
-      `;
-    }).join("");
-
-    view.innerHTML = `
-      <div class="page">
-        ${sectionTitle("Gerenciar Packs", "")}
-        <div class="muted">Ative/desative packs. Os packs ativos aparecem na Trilha, Biblioteca e Missões.</div>
-        <div style="height:12px"></div>
-        <div class="card">
-          <div class="card__actions">
-            ${btn("Voltar", "goBack", {}, "btn btn--ghost")}
-            ${btn("Admin", "goAdmin", {}, "btn btn--ghost")}
-          </div>
-        </div>
-        <div style="height:12px"></div>
-        <div class="stack">${rows || `<div class="empty">Nenhum pack encontrado.</div>`}</div>
-        ${bottomSpacer()}
-      </div>
-    `;
-  }
-
-  async function renderPack(packId) {
-    const view = $("#view");
-    if (!view) return;
-
-    const man = await loadManifest(packId).catch(() => null);
-    if (!man) {
-      view.innerHTML = `<div class="page">${sectionTitle("Pack", btn("Voltar", "goBack", {}, "btn btn--ghost"))}<div class="empty">Pack não encontrado.</div>${bottomSpacer()}</div>`;
+    const today = todayISO();
+    if (isMissionCompleted(st, today)) {
+      toast("Missão já concluída hoje");
       return;
     }
+    const templates = await getMissionTemplates();
+    const chosen = chooseDailyTemplate(templates);
 
-    view.innerHTML = `
-      <div class="page">
-        ${sectionTitle(man.title || man.id, btn("Voltar", "goBack", {}, "btn btn--ghost"))}
-        <div class="muted">${escapeHtml(man.desc || "")}</div>
-
-        <div style="height:12px"></div>
-        ${sectionTitle("Trilhas", "")}
-        <div class="list">
-          ${(man.paths || []).length ? (man.paths || []).map(p => rowItem({
-            icon: "🧭",
-            title: p.title || p.id,
-            sub: `${(p.lessons || []).length} lições`,
-            action: "openPath",
-            data: { pack: man.id, path: p.id }
-          })).join("") : `<div class="empty">Sem trilhas neste pack.</div>`}
-        </div>
-
-        <div style="height:12px"></div>
-        ${sectionTitle("Biblioteca", "")}
-        <div class="list">
-          ${(man.library || []).length ? (man.library || []).map(a => rowItem({
-            icon: "📚",
-            title: a.title || a.id,
-            sub: `${a.tag || "Geral"}`,
-            action: "openArticle",
-            data: { pack: man.id, article: a.id }
-          })).join("") : `<div class="empty">Sem artigos neste pack.</div>`}
-        </div>
-
-        ${bottomSpacer()}
-      </div>
-    `;
-  }
-
-  async function renderLesson(packId, lessonId) {
-    const view = $("#view");
-    if (!view) return;
-
-    const man = await loadManifest(packId).catch(() => null);
-    const lesson = (man?.paths || []).flatMap(p => p.lessons || []).find(l => l.id === lessonId);
-
-    if (!man || !lesson) {
-      view.innerHTML = `<div class="page">${sectionTitle("Lição", btn("Voltar", "goBack", {}, "btn btn--ghost"))}<div class="empty">Lição não encontrada.</div>${bottomSpacer()}</div>`;
-      return;
-    }
-
-    const md = await resolveMd(packId, lesson.md || "");
-    view.innerHTML = `
-      <div class="page">
-        ${sectionTitle(lesson.title || "Lição", btn("Voltar", "goBack", {}, "btn btn--ghost"))}
-        <div class="markdown">${mdToHtml(md || "# Conteúdo em breve\n")}</div>
-
-        <div style="height:12px"></div>
-        <div class="card">
-          <div class="card__actions">
-            ${btn("Marcar como concluída", "completeLesson", { pack: packId, lesson: lessonId }, "btn btn--primary")}
-            ${btn("Continuar na trilha", "goPathFromLesson", { pack: packId }, "btn btn--ghost")}
-          </div>
-        </div>
-
-        ${bottomSpacer()}
-      </div>
-    `;
-  }
-
-  /* =============================
-     Admin (gate simples)
-  ============================= */
-  function isAdminEnabled() { return localStorage.getItem(LS.ADMIN) === "1"; }
-
-  function setAdminEnabled(on) {
-    try { localStorage.setItem(LS.ADMIN, on ? "1" : "0"); } catch {}
-  }
-
-  async function renderAdmin() {
-    const view = $("#view");
-    if (!view) return;
-
-    if (!isAdminEnabled()) {
-      view.innerHTML = `
-        <div class="page">
-          ${sectionTitle("Admin", btn("Voltar", "goBack", {}, "btn btn--ghost"))}
-          <div class="card">
-            <div class="card__body">
-              <div class="card__title">Acesso restrito</div>
-              <div class="card__desc">Digite a senha de admin.</div>
-              <input class="input" id="adminPass" type="password" placeholder="Senha" autocomplete="current-password" />
-            </div>
-            <div class="card__actions">
-              ${btn("Entrar", "adminLogin", {}, "btn btn--primary")}
-            </div>
-          </div>
-          ${bottomSpacer()}
-        </div>
-      `;
-      return;
-    }
-
-    const custom = getCustomPacks().map(normalizeManifest);
-
-    view.innerHTML = `
-      <div class="page">
-        ${sectionTitle("Admin", btn("Voltar", "goBack", {}, "btn btn--ghost"))}
-        <div class="card">
-          <div class="card__body">
-            <div class="card__title">Packs custom (${custom.length})</div>
-            <div class="card__desc">Crie, importe e exporte manifests via JSON (LocalStorage).</div>
-          </div>
-          <div class="card__actions">
-            ${btn("Criar pack", "createCustomPack", {}, "btn btn--primary")}
-            ${btn("Importar JSON", "importPack", {}, "btn btn--ghost")}
-            ${btn("Exportar tudo", "exportAllPacks", {}, "btn btn--ghost")}
-            ${btn("Sair", "adminLogout", {}, "btn btn--ghost")}
-          </div>
-        </div>
-
-        <div style="height:12px"></div>
-        <div class="stack">
-          ${custom.length ? custom.map(p => `
-            <div class="card">
-              <div class="card__body">
-                <div class="card__title">${escapeHtml(p.title)}</div>
-                <div class="muted">ID: ${escapeHtml(p.id)}</div>
-              </div>
-              <div class="card__actions">
-                ${btn("Editar JSON", "editPackJson", { pack: p.id }, "btn btn--ghost")}
-                ${btn("Excluir", "deletePack", { pack: p.id }, "btn btn--ghost")}
-              </div>
-            </div>
-          `).join("") : `<div class="empty">Nenhum pack custom ainda.</div>`}
-        </div>
-
-        ${bottomSpacer()}
-      </div>
-    `;
-  }
-
-  /* =============================
-     Router
-  ============================= */
-  async function render() {
-    const view = $("#view");
-    if (!view) return;
-
-    const { route, query } = getRouteAndQuery();
-
-    // destaque na tabbar
-    $$(".tabbar__item,[data-route]").forEach(el => {
-      const r = el.getAttribute("data-route");
-      if (!r) return;
-      if (r === route) el.classList.add("is-active");
-      else el.classList.remove("is-active");
+    store.set(s => {
+      ensureTodayMission(s, chosen);
+      s.progress.completedMissions[today] = {
+        at: new Date().toISOString(),
+        packId: chosen.packId,
+        templateId: chosen.id,
+        xp: chosen.xp || 10
+      };
+      markDayCompleted(s);
+      touchStreak(s);
+      ensureBadge(s, "first_mission");
     });
 
-    // fallback: se rota não existe -> home
-    const safeRoute = route || "home";
+    addXP(chosen.xp || 10, "Missão do dia");
+  }
 
-    try {
-      if (safeRoute === "home") return await renderHome();
-      if (safeRoute === "path") return await renderPath();
-      if (safeRoute === "missions") return await renderMissions();
-      if (safeRoute === "library") return await renderLibrary();
-      if (safeRoute === "profile") return await renderProfile();
-      if (safeRoute === "placement") return await renderPlacement();
-      if (safeRoute === "packs") return await renderManagePacks();
-      if (safeRoute === "pack") return await renderPack(query.packId || "");
-      if (safeRoute === "lesson") return await renderLesson(query.packId || "", query.lessonId || "");
-      if (safeRoute === "admin") return await renderAdmin();
+  async function swapTodayMission() {
+    const templates = await getMissionTemplates();
+    if (!templates.length) return;
 
-      // rota desconhecida
-      view.innerHTML = `<div class="page">${sectionTitle("404", btn("Ir para Início", "goHome", {}, "btn btn--primary"))}<div class="empty">Página não encontrada.</div>${bottomSpacer()}</div>`;
-    } catch (err) {
-      console.error(err);
-      view.innerHTML = `<div class="page">${sectionTitle("Erro", btn("Ir para Início", "goHome", {}, "btn btn--primary"))}<div class="empty">Ocorreu um erro ao renderizar esta tela.</div>${bottomSpacer()}</div>`;
-    }
+    store.set(s => {
+      const current = s.progress.todayMission;
+      let chosen = chooseDailyTemplate(templates);
+      if (current && chosen.id === current.templateId) {
+        chosen = templates[(templates.findIndex(t => t.id === chosen.id) + 1) % templates.length];
+      }
+      ensureTodayMission(s, chosen);
+      toast("Missão trocada");
+    });
+    await render();
   }
 
   /* =============================
-     Events (NAVEGAÇÃO DEFINITIVA)
-     - Delegação para data-route (tabbar) e data-action (cards/botões)
+     Views — Home / Packs / Pack / Path / Lesson / Library / Article
   ============================= */
-  function onClick(e) {
-    const a = e.target.closest("[data-route]");
-    if (a) {
-      e.preventDefault();
-      const r = a.getAttribute("data-route");
-      if (r) setHash(r);
-      return;
-    }
+  async function viewHome() {
+    const idx = await loadPackIndex();
 
-    const el = e.target.closest("[data-action]");
-    if (!el) return;
+    const templates = await getMissionTemplates();
+    const chosen = chooseDailyTemplate(templates);
+    store.set(s => ensureTodayMission(s, chosen));
+    const st2 = store.get();
+    const tm = st2.progress.todayMission;
 
-    const action = el.getAttribute("data-action") || "";
-    const pack = el.getAttribute("data-pack") || el.getAttribute("data-packId") || el.getAttribute("data-packid") || el.getAttribute("data-pack");
-    const path = el.getAttribute("data-path") || el.getAttribute("data-pathId") || el.getAttribute("data-pathid");
-    const lesson = el.getAttribute("data-lesson") || el.getAttribute("data-lessonId") || el.getAttribute("data-lessonid");
-    const article = el.getAttribute("data-article") || el.getAttribute("data-articleId") || el.getAttribute("data-articleid");
-    const qid = el.getAttribute("data-q");
-    const score = el.getAttribute("data-score");
+    const done = isMissionCompleted(st2, todayISO());
+    const ws = startOfWeekISO(todayISO());
+    const week = st2.progress.week[ws] || { daysCompleted: 0, diaryNotesCount: 0 };
 
-    if (action === "goHome") return setHash("home");
-    if (action === "goProfile") return setHash("profile");
-    if (action === "goPlacement") return setHash("placement");
-    if (action === "managePacks") return setHash("packs");
-    if (action === "goAdmin") return setHash("admin");
-    if (action === "goBack") return history.back();
+    return `
+      <div class="hero">
+        <div class="hero__kicker">
+          Olá, ${escapeHtml(st2.user.name || "Aluno")} • Nível ${st2.gamification.level} • Streak ${st2.gamification.streak} 🔥
+        </div>
+        <div class="hero__title">IMVpedia Voice</div>
+        <p class="hero__desc">
+          Trilha vocal guiada com técnica, saúde e repertório (popular, erudito e coral).
+        </p>
+        <div class="hero__actions">
+          <button class="btn btnPrimary" data-action="goPlacement">
+            ${st2.user.placementDone ? "Ver placement" : "Fazer placement"}
+          </button>
+          <button class="btn" data-action="goProfile">Perfil</button>
+        </div>
+      </div>
 
-    if (action === "openPack") return setHash("pack", { packId: pack || "" });
-    if (action === "openPath") return setHash("path", { packId: pack || "", pathId: path || "" });
-    if (action === "openLesson") return setHash("lesson", { packId: pack || "", lessonId: lesson || "" });
-    if (action === "openArticle") return setHash("library", { packId: pack || "", articleId: article || "" });
+      <div class="section">
+        <div class="section__title">Missão do dia</div>
+        <div class="panel">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+            <div>
+              <div style="color:rgba(233,236,246,.55);font-size:12px;">
+                ${escapeHtml(tm?.date || todayISO())} • ${escapeHtml(chosen.kind || "técnica")}
+              </div>
+              <div style="font-weight:950;font-size:18px;margin-top:2px;">
+                ${escapeHtml(chosen.title || "Missão")}
+              </div>
+              <div style="color:rgba(233,236,246,.72);line-height:1.45;margin-top:6px;">
+                ${escapeHtml(chosen.desc || "")}
+              </div>
+            </div>
 
-    if (action === "completeMission") {
-      getActiveManifests().then(manifests => { completeTodayMission(manifests); render(); });
-      return;
-    }
+            <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;">
+              ${pill(`${tm?.minutesPlanned || 10} min`, "⏱️")}
+              ${pill(`+${chosen.xp || 10} XP`, "✨")}
+            </div>
+          </div>
 
-    if (action === "swapMission") {
-      // força nova missão: limpa cache do dia e re-render
-      store.set(s => { s.progress.todayMission = null; });
-      toast("Missão trocada.");
-      render();
-      return;
-    }
+          <div style="height:12px"></div>
 
-    if (action === "togglePack") {
-      if (!pack) return;
-      store.set(s => {
-        const ids = new Set(s.packs.activePackIds || []);
-        if (ids.has(pack)) ids.delete(pack);
-        else ids.add(pack);
-        s.packs.activePackIds = Array.from(ids);
-      });
-      toast("Packs atualizados.");
-      // invalida caches de manifests index, pra refletir custom/active
-      packCache.index = null;
-      render();
-      return;
-    }
+          <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">
+            <button class="btn" data-action="swapMission">Trocar</button>
+            <button class="btn btnPrimary" data-action="completeMission" ${done ? "disabled" : ""}>
+              ${done ? "Concluída" : "Concluir"}
+            </button>
+          </div>
+        </div>
+      </div>
 
-    if (action === "completeLesson") {
-      if (!pack || !lesson) return;
-      store.set(s => { s.progress.completedLessons[`${pack}:${lesson}`] = { at: new Date().toISOString() }; });
-      addXP(15, "Lição concluída");
-      toast("Lição marcada como concluída.");
-      render();
-      return;
-    }
+      <div class="section">
+        <div class="section__title">Semana</div>
+        <div class="panel">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+            <div style="font-weight:900;">${escapeHtml(ws)} →</div>
+            <div style="color:rgba(233,236,246,.52);font-size:12px;">progresso semanal</div>
+          </div>
+          <div style="height:10px"></div>
+          <div class="bar"><div class="bar__fill" style="width:${clamp(((week.daysCompleted || 0) / 7) * 100, 0, 100)}%"></div></div>
+          <div style="height:10px"></div>
+          <div style="color:rgba(233,236,246,.72);line-height:1.45;">
+            Missões concluídas: <b>${week.daysCompleted || 0}/7</b><br/>
+            Check-ins no diário: <b>${week.diaryNotesCount || 0}</b>
+          </div>
+        </div>
+      </div>
 
-    if (action === "goPathFromLesson") {
-      if (!pack) return;
-      // tenta achar a trilha que contém a lição (melhor esforço)
-      getActiveManifests().then(manifests => {
-        const man = manifests.find(m => m.id === pack);
-        const found = (man?.paths || []).find(p => (p.lessons || []).some(l => l.id === lesson));
-        if (found) setHash("path", { packId: pack, pathId: found.id });
-        else setHash("path");
-      });
-      return;
-    }
+      <div class="section">
+        <div class="section__title">Packs</div>
 
-    if (action === "editProfile") {
-      const current = store.get();
-      const newName = prompt("Nome:", current.user.name || "") ?? current.user.name;
-      const newGoal = prompt("Meta (Popular/Erudito/Coral/Misto):", current.user.goal || "Misto") ?? current.user.goal;
-      store.set(s => {
-        s.user.name = String(newName || "").slice(0, 40);
-        s.user.goal = ["Popular","Erudito","Coral","Misto"].includes(String(newGoal)) ? String(newGoal) : (s.user.goal || "Misto");
-      });
-      toast("Perfil atualizado.");
-      render();
-      return;
-    }
+        <div style="display:flex;justify-content:flex-end;margin:6px 2px 10px;">
+          <button class="btn btn--chip" data-action="nav" data-to="packs">
+            Gerenciar packs
+          </button>
+        </div>
 
-    if (action === "setPlacement") {
-      if (!qid) return;
-      const val = Number(score);
-      store.set(s => { s.placement.answers[qid] = Number.isFinite(val) ? val : 0; });
-      renderPlacement(); // re-render local
-      return;
-    }
+        <div class="cards">
+          ${idx.packs.map(cardPack).join("")}
+        </div>
+      </div>
 
-    if (action === "finishPlacement") {
-      const st = store.get();
-      const answers = st.placement.answers || {};
-      const total = Object.values(answers).reduce((acc, v) => acc + (Number(v) || 0), 0);
-      const result = calcPlacement(total);
-      const plan14 = buildPlan14(result);
-      store.set(s => {
-        s.placement.score = total;
-        s.placement.result = result;
-        s.placement.plan14 = plan14;
-        s.user.levelReal = result;
-        s.user.placementDone = true;
-      });
-      addXP(20, "Placement");
-      toast(`Placement: ${result}`);
-      setHash("profile");
-      return;
-    }
-
-    // Admin actions
-    if (action === "adminLogin") {
-      const pass = ($("#adminPass")?.value || "").trim();
-      if (pass === "imvadmin") {
-        setAdminEnabled(true);
-        toast("Admin liberado.");
-        setHash("admin");
-      } else toast("Senha incorreta.");
-      return;
-    }
-    if (action === "adminLogout") {
-      setAdminEnabled(false);
-      toast("Admin desativado.");
-      setHash("home");
-      return;
-    }
-    if (action === "createCustomPack") {
-      const title = prompt("Título do pack:", "Meu pack") || "Meu pack";
-      const man = normalizeManifest({ title, desc: "Pack custom", cover: "", paths: [], library: [], missions: { templates: [] } });
-      const all = getCustomPacks();
-      all.push(man);
-      saveCustomPacks(all);
-      packCache.index = null;
-      toast("Pack criado.");
-      render();
-      return;
-    }
-    if (action === "deletePack") {
-      const pid = el.getAttribute("data-pack") || "";
-      if (!pid) return;
-      const all = getCustomPacks().filter(p => p.id !== pid);
-      saveCustomPacks(all);
-      // remove from active if needed
-      store.set(s => { s.packs.activePackIds = (s.packs.activePackIds || []).filter(x => x !== pid); });
-      packCache.index = null;
-      toast("Pack removido.");
-      render();
-      return;
-    }
-    if (action === "exportAllPacks") {
-      const all = getCustomPacks().map(normalizeManifest);
-      navigator.clipboard?.writeText(JSON.stringify(all, null, 2)).then(() => toast("JSON copiado para a área de transferência.")).catch(() => toast("Não foi possível copiar. Use o console."));
-      console.log("CUSTOM PACKS JSON:", all);
-      return;
-    }
-    if (action === "importPack") {
-      const raw = prompt("Cole o JSON do pack (manifest completo) ou array de packs:");
-      if (!raw) return;
-      const parsed = safeJsonParse(raw, null);
-      if (!parsed) { toast("JSON inválido."); return; }
-      const arr = Array.isArray(parsed) ? parsed : [parsed];
-      const existing = getCustomPacks();
-      arr.forEach(p => existing.push(normalizeManifest(p)));
-      saveCustomPacks(existing);
-      packCache.index = null;
-      toast("Importado.");
-      render();
-      return;
-    }
-    if (action === "editPackJson") {
-      const pid = el.getAttribute("data-pack") || "";
-      if (!pid) return;
-      const all = getCustomPacks().map(normalizeManifest);
-      const packObj = all.find(p => p.id === pid);
-      if (!packObj) return toast("Pack não encontrado.");
-      const edited = prompt("Edite o JSON do pack:", JSON.stringify(packObj, null, 2));
-      if (!edited) return;
-      const parsed = safeJsonParse(edited, null);
-      if (!parsed) return toast("JSON inválido.");
-      const norm = normalizeManifest(parsed);
-      const next = all.map(p => (p.id === pid ? norm : p));
-      saveCustomPacks(next);
-      packCache.index = null;
-      toast("Pack atualizado.");
-      render();
-      return;
-    }
-
-    // noop
+      ${bottomSpacer()}
+    `;
   }
 
-  function onKeyActivate(e) {
-    if (e.key !== "Enter" && e.key !== " ") return;
-    const el = e.target.closest("[data-action],[data-route]");
-    if (!el) return;
-    e.preventDefault();
-    el.click();
+  async function viewPacksManager() {
+    const idx = await loadPackIndex();
+    const st = store.get();
+
+    const rows = idx.packs.map(p => {
+      const active = (st.packs.activePackIds || []).includes(p.id);
+
+      return `
+        <div class="panel" style="background:rgba(255,255,255,.03);">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+            <div style="min-width:0;">
+              <div style="font-weight:950;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                ${escapeHtml(p.title || p.id)}
+              </div>
+              <div style="color:rgba(233,236,246,.55);font-size:12px;margin-top:4px;line-height:1.35;">
+                ${escapeHtml(p.desc || "")}
+              </div>
+              <div style="margin-top:8px;color:rgba(233,236,246,.45);font-size:12px;">
+                ID: <b>${escapeHtml(p.id)}</b> • ${active ? "Ativo" : "Inativo"}
+              </div>
+            </div>
+
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
+              <button class="btn" data-action="openPack" data-pack="${escapeHtml(p.id)}">Abrir</button>
+              <button
+                class="btn ${active ? "" : "btnPrimary"}"
+                data-action="togglePack"
+                data-pack="${escapeHtml(p.id)}">
+                ${active ? "Desativar" : "Ativar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    return `
+      <div class="section">
+        <div class="section__title">Gerenciar Packs</div>
+        <p class="section__sub">
+          Ative/desative packs. Os packs ativos aparecem na Trilha, Biblioteca e Missões.
+        </p>
+
+        <div class="panel">
+          <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+            <button class="btn" data-action="nav" data-to="home">← Voltar</button>
+            <button class="btn" data-action="admin">Admin</button>
+          </div>
+        </div>
+
+        <div style="height:12px"></div>
+
+        <div class="list">
+          ${rows || `<div class="panel" style="color:rgba(233,236,246,.55);">Nenhum pack encontrado.</div>`}
+        </div>
+      </div>
+
+      ${bottomSpacer()}
+    `;
   }
+
+  async function viewPack(packId) {
+    const man = await loadManifest(packId);
+    const st = store.get();
+    const active = (st.packs.activePackIds || []).includes(packId);
+
+    const paths = (man.paths || []).map(p => rowItem({
+      icon: "🎯",
+      title: p.title,
+      sub: p.desc || "",
+      action: "openPath",
+      data: { pack: packId, path: p.id }
+    })).join("");
+
+    return `
+      <div class="section">
+        <div class="section__title">${escapeHtml(man.title)}</div>
+        <p class="section__sub">${escapeHtml(man.desc || "")}</p>
+
+        <div class="panel" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+          <div>
+            <div style="font-weight:900;">Status</div>
+            <div style="color:rgba(233,236,246,.62);font-size:13px;margin-top:4px;">
+              ${active ? "Ativo (conteúdo aparece na Trilha/Biblioteca/Missões)" : "Inativo (não aparece no app)"}
+            </div>
+          </div>
+          <button class="btn ${active ? "" : "btnPrimary"}" data-action="togglePack" data-pack="${escapeHtml(packId)}">
+            ${active ? "Desativar" : "Ativar"}
+          </button>
+        </div>
+
+        <div style="height:12px"></div>
+
+        <div class="panel">
+          <div style="font-weight:950;margin-bottom:8px;">Trilhas</div>
+          <div class="list">
+            ${paths || `<div style="color:rgba(233,236,246,.55);">Sem trilhas neste pack.</div>`}
+          </div>
+        </div>
+
+        <div style="height:12px"></div>
+
+        <div class="panel">
+          <div style="font-weight:950;margin-bottom:8px;">Biblioteca</div>
+          <button class="btn" data-action="openLibrary" data-pack="${escapeHtml(packId)}">Ver artigos</button>
+        </div>
+      </div>
+
+      ${bottomSpacer()}
+    `;
+  }
+
+  async function viewPath(packId, pathId) {
+    const man = await loadManifest(packId);
+    const path = (man.paths || []).find(p => p.id === pathId);
+    if (!path) return `<div class="panel">Trilha não encontrada.</div>${bottomSpacer()}`;
+
+    const lessons = (path.lessons || []).map((l, idx) => rowItem({
+      icon: "📗",
+      title: l.title,
+      sub: `Lição ${idx + 1}`,
+      action: "openLesson",
+      data: { pack: packId, lesson: l.id, path: pathId }
+    })).join("");
+
+    return `
+      <div class="section">
+        <div class="section__title">${escapeHtml(path.title)}</div>
+        <p class="section__sub">${escapeHtml(path.desc || "")}</p>
+
+        <div class="panel">
+          <div style="font-weight:950;margin-bottom:8px;">Lições</div>
+          <div class="list">${lessons}</div>
+        </div>
+      </div>
+
+      ${bottomSpacer()}
+    `;
+  }
+
+  async function viewLesson(packId, lessonId) {
+    const st = store.get();
+    const man = await loadManifest(packId);
+
+    let found = null;
+    let pathRef = null;
+
+    for (const p of (man.paths || [])) {
+      const l = (p.lessons || []).find(x => x.id === lessonId);
+      if (l) { found = l; pathRef = p; break; }
+    }
+    if (!found) return `<div class="panel">Lição não encontrada.</div>${bottomSpacer()}`;
+
+    const md = await resolveMd(packId, found.md);
+    const key = `${packId}:${lessonId}`;
+    const done = !!st.progress.completedLessons[key];
+
+    return `
+      <div class="section">
+        <div class="section__title">${escapeHtml(found.title)}</div>
+        <p class="section__sub">${escapeHtml(man.title)} • ${escapeHtml(pathRef?.title || "")}</p>
+
+        <div class="panel md">
+          ${mdToHtml(md)}
+        </div>
+
+        <div style="height:12px"></div>
+
+        <div class="panel">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+            <div>
+              <div style="font-weight:900;">Progresso</div>
+              <div style="color:rgba(233,236,246,.62);font-size:13px;margin-top:4px;">
+                ${done ? "Lição concluída ✅" : "Ainda não concluída"}
+              </div>
+            </div>
+            <button class="btn ${done ? "" : "btnPrimary"}" data-action="toggleLessonDone" data-pack="${escapeHtml(packId)}" data-lesson="${escapeHtml(lessonId)}">
+              ${done ? "Marcar como não concluída" : "Concluir lição"}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      ${bottomSpacer()}
+    `;
+  }
+
+  async function viewLibrary(packId) {
+    const man = await loadManifest(packId);
+
+    const tags = Array.from(new Set((man.library || []).map(a => a.tag || "Geral")));
+    const chips = tags.map(t => `<button class="btn btn--chip" data-action="filterLib" data-pack="${escapeHtml(packId)}" data-tag="${escapeHtml(t)}">${escapeHtml(t)}</button>`).join("");
+
+    const rows = (man.library || []).map(a => rowItem({
+      icon: "📚",
+      title: a.title,
+      sub: a.tag || "Geral",
+      action: "openArticle",
+      data: { pack: packId, art: a.id }
+    })).join("");
+
+    return `
+      <div class="section">
+        <div class="section__title">Biblioteca</div>
+        <p class="section__sub">${escapeHtml(man.title)}</p>
+
+        <div class="panel">
+          <div style="font-weight:950;margin-bottom:8px;">Categorias</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">${chips || ""}</div>
+        </div>
+
+        <div style="height:12px"></div>
+
+        <div class="panel">
+          <div style="font-weight:950;margin-bottom:8px;">Artigos</div>
+          <div class="list">${rows || `<div style="color:rgba(233,236,246,.55);">Sem artigos.</div>`}</div>
+        </div>
+      </div>
+
+      ${bottomSpacer()}
+    `;
+  }
+
+  async function viewLibraryFiltered(packId, tag) {
+    const man = await loadManifest(packId);
+    const rows = (man.library || [])
+      .filter(a => (a.tag || "Geral") === tag)
+      .map(a => rowItem({
+        icon: "📚",
+        title: a.title,
+        sub: a.tag || "Geral",
+        action: "openArticle",
+        data: { pack: packId, art: a.id }
+      })).join("");
+
+    return `
+      <div class="section">
+        <div class="section__title">Biblioteca</div>
+        <p class="section__sub">${escapeHtml(man.title)} • ${escapeHtml(tag)}</p>
+
+        <div class="panel">
+          <button class="btn" data-action="openLibrary" data-pack="${escapeHtml(packId)}">← Voltar</button>
+        </div>
+
+        <div style="height:12px"></div>
+
+        <div class="panel">
+          <div class="list">${rows || `<div style="color:rgba(233,236,246,.55);">Sem artigos nesta categoria.</div>`}</div>
+        </div>
+      </div>
+
+      ${bottomSpacer()}
+    `;
+  }
+
+  async function viewArticle(packId, artId) {
+    const man = await loadManifest(packId);
+    const art = (man.library || []).find(a => a.id === artId);
+    if (!art) return `<div class="panel">Artigo não encontrado.</div>${bottomSpacer()}`;
+
+    const md = await resolveMd(packId, art.md);
+
+    return `
+      <div class="section">
+        <div class="section__title">${escapeHtml(art.title)}</div>
+        <p class="section__sub">${escapeHtml(man.title)} • ${escapeHtml(art.tag || "Geral")}</p>
+
+        <div class="panel md">
+          ${mdToHtml(md)}
+        </div>
+
+        ${bottomSpacer()}
+      </div>
+    `;
+  }
+/* =========================================================
+     ACTIONS / EVENT BINDING
+  ========================================================= */
+
+  function bindActions() {
+    document.querySelectorAll("[data-action]").forEach(el => {
+      el.onclick = async () => {
+        const action = el.dataset.action;
+
+        /* -------- Navegação -------- */
+        if (action === "nav") {
+          const to = el.dataset.to;
+          if (to) setHash(to);
+        }
+
+        /* -------- Placement -------- */
+        if (action === "goPlacement") {
+          setHash("placement");
+        }
+
+        if (action === "startPlacement") {
+          store.set(s => {
+            s.placement.answers = {};
+            s.placement.score = 0;
+            s.placement.result = null;
+          });
+          setHash("placement-q", { q: 0 });
+        }
+
+        if (action === "answer") {
+          const q = Number(el.dataset.q);
+          const score = Number(el.dataset.score);
+
+          store.set(s => {
+            s.placement.answers[q] = score;
+          });
+
+          if (q + 1 < PLACEMENT_QUESTIONS.length) {
+            setHash("placement-q", { q: q + 1 });
+          } else {
+            const res = runPlacementAndBuildResult();
+            store.set(s => {
+              s.placement.score = res.score;
+              s.placement.result = res.result;
+              s.placement.plan14 = res.plan14;
+              s.user.levelReal = res.result;
+              s.user.placementDone = true;
+            });
+            setHash("placement-result");
+          }
+        }
+
+        if (action === "finishPlacement") {
+          setHash("home");
+        }
+
+        /* -------- Packs Manager -------- */
+        if (action === "togglePack") {
+          const id = el.dataset.pack;
+          if (!id) return;
+
+          store.set(s => {
+            const arr = s.packs.activePackIds || [];
+            if (arr.includes(id)) {
+              s.packs.activePackIds = arr.filter(x => x !== id);
+            } else {
+              s.packs.activePackIds = [...arr, id];
+            }
+          });
+
+          render();
+        }
+
+        /* -------- Lessons -------- */
+        if (action === "openLesson") {
+          const packId = el.dataset.pack;
+          const lessonId = el.dataset.lesson;
+          if (packId && lessonId) {
+            setHash("lesson", { pack: packId, lesson: lessonId });
+          }
+        }
+
+        /* -------- Profile -------- */
+        if (action === "editProfile") {
+          openProfileEditor();
+        }
+      };
+    });
+  }
+
+  /* =========================================================
+     TABBAR ACTIVE STATE
+  ========================================================= */
+
+  function updateTabbarActive(route) {
+    document.querySelectorAll(".tabbar__item").forEach(item => {
+      const to = item.dataset.to;
+      if (!to) return;
+      if (route.startsWith(to)) item.classList.add("is-active");
+      else item.classList.remove("is-active");
+    });
+  }
+
+  /* =========================================================
+     ROUTER / RENDER
+  ========================================================= */
+
+  const app = document.getElementById("app");
 
   /* =============================
-     Init
+     VIEW: MISSÕES
+     - Tela dedicada para missão do dia + histórico + semana
   ============================= */
-  function init() {
-    document.addEventListener("click", onClick, true);
-    document.addEventListener("keydown", onKeyActivate, true);
+  async function viewMissions() {
+    const st = store.get();
 
-    // admin button
-    const adminBtn = $("#adminBtn");
-    if (adminBtn) adminBtn.addEventListener("click", () => setHash("admin"));
+    // Garante missão do dia
+    await ensureTodayMission();
 
-    // Primeira rota
-    if (!location.hash || location.hash === "#") setHash("home");
+    const st2 = store.get();
+    const tm = st2.progress.todayMission;
+    const done = st2.progress.completedMissions?.[todayISO()];
+    const weekStart = startOfWeekISO(todayISO());
+    const week = st2.progress.week?.[weekStart] || { daysCompleted: 0, diaryNotesCount: 0, claimed: {} };
 
-    // render on hash
-    window.addEventListener("hashchange", () => render());
+    // Resolve template da missão
+    const manifests = await getActiveManifests();
+    const allTemplates = [];
+    manifests.forEach(m => (m.missions?.templates || []).forEach(t => allTemplates.push({ packId: m.id, packTitle: m.title, ...t })));
+    const tpl = allTemplates.find(t => t.packId === tm?.packId && t.id === tm?.templateId) || null;
 
-    // render now
+    const title = tpl?.title || "Missão do dia";
+    const kind = tpl?.kind || "técnica";
+    const desc = tpl?.desc || "Complete a missão com conforto vocal.";
+    const min = tm?.minutesPlanned || 10;
+    const xp = tpl?.xp || 10;
+
+    // Últimos 7 dias de histórico
+    const hist = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const iso = d.toISOString().slice(0, 10);
+      const c = st2.progress.completedMissions?.[iso];
+      hist.push({
+        date: iso,
+        done: !!c,
+        xp: c?.xp || 0
+      });
+    }
+
+    return `
+      <div class="hero">
+        <div class="hero__kicker">Missões • Hábito diário</div>
+        <div class="hero__title">Sua Missão do Dia</div>
+        <p class="hero__desc">Complete para ganhar XP e aumentar sua sequência.</p>
+        <div class="hero__actions">
+          <button class="btn btnPrimary" data-action="${done ? "noop" : "completeTodayMission"}">${done ? "Concluída" : "Concluir"}</button>
+          <button class="btn" data-action="swapTodayMission">Trocar</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+          <div>
+            <div style="font-size:12px;color:rgba(233,236,246,.52);">${todayISO()} • ${escapeHtml(kind)}</div>
+            <div style="font-weight:950;font-size:20px;margin-top:4px;">${escapeHtml(title)}</div>
+            <div style="color:rgba(233,236,246,.78);margin-top:6px;line-height:1.45;">${escapeHtml(desc)}</div>
+          </div>
+          <div style="display:grid;gap:8px;justify-items:end;">
+            <div class="pill">${escapeHtml(String(min))} min</div>
+            <div class="pill">+${escapeHtml(String(xp))} XP</div>
+          </div>
+        </div>
+
+        <div style="height:12px"></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn" data-action="openDiaryCheckin">Check-in vocal</button>
+          <button class="btn" data-action="goPlacement">Placement</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+          <div style="font-weight:900;">Semana</div>
+          <div style="color:rgba(233,236,246,.52);font-size:12px;">${escapeHtml(weekStart)} →</div>
+        </div>
+        <div style="height:10px"></div>
+        <div style="color:rgba(233,236,246,.78);line-height:1.6;">
+          Missões concluídas: <b>${escapeHtml(String(week.daysCompleted || 0))}/7</b><br/>
+          Check-ins no diário: <b>${escapeHtml(String(week.diaryNotesCount || 0))}</b>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div style="font-weight:900;">Últimos 7 dias</div>
+        <div style="height:10px"></div>
+        <div style="display:grid;gap:8px;">
+          ${hist.map(h => `
+            <div style="border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);padding:10px 12px;border-radius:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+              <div>
+                <div style="font-weight:850;">${escapeHtml(h.date)}</div>
+                <div style="color:rgba(233,236,246,.52);font-size:12px;">${h.done ? "Concluída" : "Não concluída"}</div>
+              </div>
+              <div style="color:rgba(233,236,246,.78);font-weight:850;">${h.done ? `+${h.xp} XP` : "—"}</div>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+
+      ${bottomSpacer()}
+    `;
+  }
+
+
+  async function render() {
+    const { route, query } = getRouteAndQuery();
+    let html = "";
+
+    switch (route) {
+      case "home":
+        html = await viewHome();
+        break;
+
+      
+      case "missions":
+        html = await viewMissions();
+        break;
+case "packs":
+        html = await viewPacksManager();
+        break;
+
+      case "path":
+        html = await viewPaths();
+        break;
+
+      
+      case "pack":
+        html = await viewPack(query.id);
+        break;
+case "lesson":
+        html = await viewLesson(query.pack, query.lesson);
+        break;
+
+      case "library":
+        html = await viewLibrary();
+        break;
+
+      case "article":
+        html = await viewArticle(query.pack, query.article);
+        break;
+
+      case "profile":
+        html = await viewProfile();
+        break;
+
+      case "placement":
+        html = viewPlacementIntro();
+        break;
+
+      case "placement-q":
+        html = viewPlacementQuestion(Number(query.q || 0));
+        break;
+
+      case "placement-result":
+        html = viewPlacementResult(
+          store.get().placement.result,
+          store.get().placement.score,
+          store.get().placement.plan14
+        );
+        break;
+
+      default:
+        html = await viewHome();
+    }
+
+    app.innerHTML = html;
+    updateTabbarActive(route);
+    bindActions();
+    updateTabbarActive(route);
+  }
+
+  /* =========================================================
+     PROFILE EDITOR (MODAL SIMPLES)
+  ========================================================= */
+
+  let modalEl = null;
+
+  function openProfileEditor() {
+    const st = store.get();
+    const u = st.user;
+
+    openModal({
+      title: "Editar perfil",
+      contentHtml: `
+        <label class="lab">Nome</label>
+        <input id="pfName" class="input" value="${escapeHtml(u.name || "")}" />
+
+        <div style="height:10px"></div>
+
+        <label class="lab">Objetivo</label>
+        <select id="pfGoal" class="input">
+          ${["Popular","Erudito","Coral","Misto"].map(g =>
+            `<option ${g===u.goal?"selected":""}>${g}</option>`
+          ).join("")}
+        </select>
+      `,
+      primaryText: "Salvar",
+      secondaryText: "Cancelar",
+      onPrimary: () => {
+        const name = document.getElementById("pfName").value.trim();
+        const goal = document.getElementById("pfGoal").value;
+
+        store.set(s => {
+          s.user.name = name || "Aluno";
+          s.user.goal = goal;
+        });
+
+        closeModal();
+        render();
+      }
+    });
+  }
+
+  function openModal({ title, contentHtml, primaryText, secondaryText, onPrimary }) {
+    closeModal();
+
+    modalEl = document.createElement("div");
+    modalEl.style.position = "fixed";
+    modalEl.style.inset = "0";
+    modalEl.style.zIndex = "300";
+    modalEl.style.background = "rgba(0,0,0,.55)";
+    modalEl.style.backdropFilter = "blur(10px)";
+
+    modalEl.innerHTML = `
+      <div style="max-width:520px;margin:12vh auto;padding:0 14px;">
+        <div style="background:#0e1220;border-radius:18px;border:1px solid rgba(255,255,255,.1);padding:14px;">
+          <div style="font-weight:900;margin-bottom:10px;">${escapeHtml(title)}</div>
+          ${contentHtml}
+          <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px;">
+            ${secondaryText ? `<button class="btn btn--ghost" id="mCancel">${secondaryText}</button>` : ""}
+            <button class="btn btnPrimary" id="mOk">${primaryText}</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modalEl);
+
+    document.getElementById("mOk").onclick = onPrimary;
+    if (secondaryText) {
+      document.getElementById("mCancel").onclick = closeModal;
+    }
+  }
+
+  function closeModal() {
+    if (modalEl) {
+      modalEl.remove();
+      modalEl = null;
+    }
+  }
+
+  /* =========================================================
+     BOOT
+  ========================================================= */
+
+  window.addEventListener("hashchange", render);
+
+  document.addEventListener("DOMContentLoaded", () => {
+    if (!location.hash) setHash("home");
     render();
-  }
+  });
 
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
-  else init();
 })();
