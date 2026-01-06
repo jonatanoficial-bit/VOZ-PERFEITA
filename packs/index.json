@@ -2,9 +2,8 @@
   "packs": [
     {
       "id": "base",
-      "title": "Base — Voz Perfeita",
-      "cover": "./packs/base/cover.jpg",
-      "desc": "Fundamentos universais (apoio, SOVT, afinação, ressonância, registros, saúde vocal).",
+      "title": "Base",
+      "desc": "Fundamentos vocais (pack incluído no app)",
       "enabledDefault": true
     }
   ]
