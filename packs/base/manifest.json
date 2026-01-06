@@ -1,238 +1,44 @@
 {
   "id": "base",
-  "title": "Base — Voz Perfeita",
-  "desc": "Trilhas completas do básico ao avançado para canto popular, erudito e coral. Conteúdo seguro, progressivo e com foco em eficiência vocal.",
-  "cover": "cover.jpg",
+  "title": "Base",
+  "desc": "Fundamentos vocais: apoio, SOVT, afinação, ressonância.",
   "paths": [
     {
-      "id": "fundamentos",
-      "title": "Fundamentos (obrigatória)",
-      "desc": "Postura, respiração funcional, apoio, SOVT, coordenação ar-voz e rotina segura.",
+      "id": "fund",
+      "title": "Fundamentos",
+      "desc": "Base para qualquer estilo (popular/erudito/coral).",
       "lessons": [
         {
-          "id": "fund_01_mitos_e_seguranca",
-          "title": "Segurança Vocal + mitos comuns",
-          "md": "# Segurança vocal + mitos\n\n**Objetivo:** treinar sem machucar.\n\n## Regras de ouro\n- Se houver **dor**: pare e reduza carga.\n- Rouquidão persistente (24–48h) = **descanso** e ajuste.\n- Volume alto não é sinônimo de técnica.\n\n## Mitos\n- **“Apoio é empurrar barriga”** → apoio é coordenação (costelas/abdômen) sem rigidez.\n- **“Cantar forte abre a voz”** → excesso de pressão fecha e cansa.\n- **“Aquecimento é opcional”** → aquecer reduz atrito e melhora coordenação.\n\n## Sinais de alerta\n- Dor, queimação, perda de agudos, falhas repentinas, pigarro constante.\n\n## Mini-rotina (3 min)\n- 30s respiração nasal calma\n- 60s humming leve (mmm)\n- 60s sopro em \"S\" controlado (8–12s)\n- 30s fala suave (frases curtas)\n\n> Se você tem refluxo, alergias fortes ou uso intenso de voz (professor, call center), ajuste carga e priorize higiene vocal.\n"
+          "id": "apoio",
+          "title": "Apoio vocal",
+          "md": "# Apoio vocal\n\n- O que é\n- Sensações\n- Erros comuns\n\n## Exercício\n\n- Inspire baixo (costelas) e solte o ar em **sss** por 8–12s sem tensão.\n"
         },
         {
-          "id": "fund_02_postura_e_alinhamento",
-          "title": "Postura, alinhamento e tensão",
-          "md": "# Postura e tensão\n\n**Objetivo:** alinhar o corpo para a voz sair com menos esforço.\n\n## Check rápido (30s)\n- Pés firmes, joelhos soltos\n- Pelve neutra (sem \"empinar\" ou \"encaixar\" demais)\n- Costelas livres (não travar)\n- Ombros baixos\n- Pescoço longo (queixo neutro)\n\n## Tensão que atrapalha\n- Mandíbula dura\n- Língua presa no assoalho\n- Pescoço “puxando” para frente\n\n## Exercício\n- Bocejo leve (sem exagero) + “ng” (como em **\"sing\"**) em volume baixo.\n- Massageie masseter (bochecha) por 20s antes de vocalizar.\n"
-        },
-        {
-          "id": "fund_03_respiracao_funcional",
-          "title": "Respiração funcional (sem exageros)",
-          "md": "# Respiração funcional\n\n**Objetivo:** ar suficiente com baixo esforço.\n\n## O que buscar\n- Entrada de ar **silenciosa**\n- Costelas abrindo suavemente\n- Abdômen responde (sem empurrar)\n\n## Exercícios\n1) **Inspira 4 / solta 6** (2 min)\n- Inspire pelo nariz em 4\n- Solte em \"sss\" em 6\n\n2) **S controlado** (2 min)\n- \"ssss\" por 8–12s, 6 repetições\n- Sem travar pescoço\n\n## Erros comuns\n- Encher o peito e prender\n- Levantar ombros\n- Fazer força para \"segurar\" o ar\n"
-        },
-        {
-          "id": "fund_04_apoio_coord",
-          "title": "Apoio vocal (coordenação ar-voz)",
-          "md": "# Apoio vocal\n\n**Apoio** = coordenação do fluxo de ar com a resistência das pregas vocais.\n\n## Sensação correta\n- Estabilidade no tronco\n- Garganta livre\n- Ar “economizado” (não vaza demais)\n\n## Exercícios (5–8 min)\n- \"vvv\" suave em 5 notas (confortável)\n- \"zzz\" com pouca pressão\n- Fala cantada: \"eu gosto de cantar\" em 3 alturas (grave/médio/agudo leve)\n\n## Dica\nSe a voz fica “soprada” → falta fechamento/coord.\nSe aperta → excesso de pressão subglótica/laringe alta.\n"
-        },
-        {
-          "id": "fund_05_sovt",
-          "title": "SOVT (lip trill / humming / canudo)",
-          "md": "# SOVT\n\n**SOVT** = semi-oclusão do trato vocal. Ajuda a equilibrar pressão e reduzir esforço.\n\n## Opções\n- **Lip trill** (vibração de lábios)\n- **Humming (mmm)**\n- **Canudo** (ideal: canudo fino, 2–3 min)\n\n## Rotina segura (6–10 min)\n1) 2 min humming em notas confortáveis\n2) 2 min lip trill em 5 notas\n3) 2–4 min canudo (glissando leve)\n\n## Regras\n- Sem volume alto\n- Se falhar, reduza altura e pressione menos\n"
-        },
-        {
-          "id": "fund_06_afinação_base",
-          "title": "Afinação básica (controle de nota)",
-          "md": "# Afinação básica\n\n**Objetivo:** estabilidade e ataques limpos.\n\n## Exercícios\n1) **Notas longas** (3 min)\n- \"mmm\" ou \"ng\" por 4–6s\n- Repita 6x\n\n2) **Ataque limpo** (3 min)\n- \"mi-mi-mi\" suave (sem sopro excessivo)\n\n3) **Eco melódico** (3 min)\n- Ouça 3 notas e repita (pode ser com teclado/app)\n\n## Erros\n- Começar alto e cair\n- Apertar no início da nota\n"
-        },
-        {
-          "id": "fund_07_registros_intro",
-          "title": "Registros (peito/cabeça/misto) — introdução",
-          "md": "# Registros — introdução\n\n**Objetivo:** entender transições sem “quebrar”.\n\n## Conceitos\n- Peito: mais massa/energia, comum no médio-grave\n- Cabeça: mais leve, comum no médio-agudo\n- Misto: ponte eficiente\n\n## Exercício seguro\n- Sirene leve em \"ng\" (como em \"sing\")\n- Depois sirene em \"oo\" (bem suave)\n\n> Se quebra demais, volte ao SOVT.\n"
-        },
-        {
-          "id": "fund_08_rotina_ideal",
-          "title": "Rotina diária ideal (10–20 min)",
-          "md": "# Rotina ideal\n\n## 10 min (iniciante)\n- 2 min respiração + S\n- 4 min SOVT\n- 4 min afinação (notas longas)\n\n## 15 min (intermediário)\n- 3 min respiração\n- 5 min SOVT\n- 4 min registros leves\n- 3 min aplicação em frase musical\n\n## 20 min (avançado)\n- 4 min SOVT\n- 6 min coordenação (vvv/zzz + frases)\n- 6 min agilidade/dinâmica\n- 4 min aplicação em repertório\n\n**Regra:** termine com sensação melhor do que começou.\n"
-        }
-      ]
-    },
-
-    {
-      "id": "popular",
-      "title": "Canto Popular (técnica + estilo)",
-      "desc": "Projeção sem gritar, mix funcional, dinâmica, riffs/runs e interpretação.",
-      "lessons": [
-        {
-          "id": "pop_01_projecao_sem_gritar",
-          "title": "Projeção sem gritar",
-          "md": "# Projeção sem gritar\n\n**Objetivo:** aumentar presença sem apertar.\n\n## Estratégias\n- Use **ressonância** (vocal mais “na máscara” sem nasalizar)\n- Aumente clareza da consoante, não o volume do ar\n- Sustente com apoio coordenado\n\n## Exercício\n- \"nae nae nae\" (leve, brilhante) em 5 notas\n- Depois, frase musical em 3 intensidades: **suave → médio → suave**\n"
-        },
-        {
-          "id": "pop_02_mix_basico",
-          "title": "Misto básico (ponte de registros)",
-          "md": "# Misto básico\n\n**Meta:** passar do médio para o agudo sem quebra.\n\n## Ferramentas\n- SOVT antes\n- \"gee\" leve\n- \"nay\" moderado (sem forçar)\n\n## Exercício\n- 1–3–5–3–1 em \"gee\"\n- Se apertar: desça 1 tom e reduza volume\n"
-        },
-        {
-          "id": "pop_03_dinamica",
-          "title": "Dinâmica (controle de intensidade)",
-          "md": "# Dinâmica\n\n**Objetivo:** controlar suave/médio/forte sem distorcer.\n\n## Exercício\n- 1 nota longa em \"vvv\" (crescendo e decrescendo)\n- Depois em vogal \"ah\" bem leve\n\n> Se fica áspero, volte ao SOVT.\n"
-        },
-        {
-          "id": "pop_04_riffs_runs_intro",
-          "title": "Riffs/Runs (introdução segura)",
-          "md": "# Riffs/Runs — introdução\n\n**Objetivo:** agilidade sem tensão.\n\n## Preparação\n- Afinação + ataque limpo\n\n## Exercício\n- Padrões simples: 1–2–3–2–1 em \"da\"\n- Depois 1–3–5–3–1\n\n**Regra:** velocidade só depois de clareza.\n"
-        },
-        {
-          "id": "pop_05_interpretacao",
-          "title": "Interpretação e intenção",
-          "md": "# Interpretação\n\n## Três perguntas\n1) O que eu estou dizendo?\n2) Para quem?\n3) Com que emoção?\n\n## Exercício\n- Cante o mesmo trecho com 3 intenções: calmo / confiante / vulnerável.\n"
-        },
-        {
-          "id": "pop_06_microfone",
-          "title": "Uso de microfone (ao vivo / estúdio)",
-          "md": "# Microfone\n\n## Regras rápidas\n- Mais perto = menos esforço\n- Evite “estourar” consoantes (P/B) → ângulo lateral\n- Volume muda com distância\n\n## Exercício\n- Faça o mesmo trecho em 3 distâncias (perto / médio / longe)\n"
-        }
-      ]
-    },
-
-    {
-      "id": "erudito",
-      "title": "Canto Erudito (base técnica)",
-      "desc": "Resistência, legato, apoio refinado, vogais, articulação e consistência.",
-      "lessons": [
-        {
-          "id": "eru_01_legato",
-          "title": "Legato (linha contínua)",
-          "md": "# Legato\n\n**Objetivo:** conectar notas sem “degraus”.\n\n## Chave\n- Fluxo constante\n- Vogais estáveis\n\n## Exercício\n- 5 notas em \"oo\" mantendo mesma cor\n- Depois em \"ah\" suave\n"
-        },
-        {
-          "id": "eru_02_vogais",
-          "title": "Vogais (uniformidade e ajuste)",
-          "md": "# Vogais\n\n**Objetivo:** manter vogais consistentes e inteligíveis.\n\n## Exercício\n- \"i-e-a-o-u\" em nota confortável\n- Ajuste sem mudar a garganta (sem apertar)\n"
-        },
-        {
-          "id": "eru_03_sustentacao",
-          "title": "Sustentação (resistência sem apertar)",
-          "md": "# Sustentação\n\n## Exercício\n- Notas longas em \"ng\" → \"ah\"\n- 6 repetições de 4–6s\n\n**Regra:** sensação de eficiência, não de força.\n"
-        },
-        {
-          "id": "eru_04_articulacao",
-          "title": "Articulação clara sem rigidez",
-          "md": "# Articulação\n\n- Consoantes claras com mandíbula solta\n- Língua ágil, não travada\n\n## Exercício\n- \"ta-da-la\" em 3 notas\n"
-        }
-      ]
-    },
-
-    {
-      "id": "coral",
-      "title": "Coral/Grupos Vocais (blend e precisão)",
-      "desc": "Afinação coletiva, ritmo, blend, vogais unificadas, dinâmica e entradas limpas.",
-      "lessons": [
-        {
-          "id": "cor_01_blend",
-          "title": "Blend (mistura de vozes)",
-          "md": "# Blend\n\n**Objetivo:** encaixar sua voz no conjunto.\n\n## Dicas\n- Menos vibrato (se necessário)\n- Mesmo \"tamanho\" de vogal do grupo\n- Volume controlado\n\n## Exercício\n- Sustente \"oo\" e ajuste para combinar com referência (piano/guia)\n"
-        },
-        {
-          "id": "cor_02_ritmo",
-          "title": "Ritmo e subdivisão",
-          "md": "# Ritmo\n\n**Objetivo:** cantar junto com precisão.\n\n## Exercício\n- Palmas: 1–2–3–4\n- Subdivisão: 1 e 2 e 3 e 4 e\n- Cante sílabas curtas (ta ta ta) no clique\n"
-        },
-        {
-          "id": "cor_03_entradas",
-          "title": "Entradas limpas (ataque coletivo)",
-          "md": "# Entradas limpas\n\n## Exercício\n- Ataque suave em \"mi\" (sem sopro)\n- Repita com respiração silenciosa antes\n"
+          "id": "sovt",
+          "title": "SOVT (Semi-oclusão)",
+          "md": "# SOVT\n\nSOVT melhora eficiência e reduz esforço.\n\n- Lip trill\n- Humming\n- Canudo\n\n## Rotina leve\n\n- 1–2 min humming\n- 2 min lip trill\n- 2 min canudo (se tiver)\n"
         }
       ]
     }
   ],
-
   "library": [
     {
-      "id": "saude_01_higiene_vocal",
-      "title": "Higiene Vocal (o que realmente importa)",
+      "id": "fisiologia",
+      "title": "Fisiologia vocal",
       "tag": "Saúde",
-      "md": "# Higiene vocal\n\n## Prioridades\n- Sono e hidratação\n- Pausas de voz\n- Aquecimento e desaquecimento\n\n## Evite\n- Pigarrar o tempo todo (troque por engolir água ou \"humming\")\n- Treinar gritando\n\n> Se rouquidão dura mais de 2 semanas, procure um especialista (fono/otorrino).\n"
-    },
-    {
-      "id": "saude_02_refluxo",
-      "title": "Refluxo e voz (guia rápido)",
-      "tag": "Saúde",
-      "md": "# Refluxo e voz\n\nSinais comuns:\n- Pigarro, ardência, voz pior de manhã\n\nAjuda muito:\n- Evitar comer e deitar logo em seguida\n- Reduzir alimentos gatilho\n- Rotina leve (SOVT)\n"
-    },
-    {
-      "id": "tec_01_fisiologia",
-      "title": "Fisiologia vocal (resumo prático)",
-      "tag": "Fisiologia",
-      "md": "# Fisiologia vocal\n\n- Pregas vocais vibram com o ar\n- Trato vocal (boca/faringe) molda o timbre\n- Melhor técnica = **eficiência** (menos atrito, mais resultado)\n"
-    },
-    {
-      "id": "tec_02_ressonancia",
-      "title": "Ressonância (clareza sem pressão)",
-      "tag": "Técnica",
-      "md": "# Ressonância\n\n**Objetivo:** timbre presente com menos esforço.\n\n## Exercícios\n- \"ng\" → \"ee\" (leve)\n- \"nae\" (brilhante) sem gritar\n"
-    },
-    {
-      "id": "tec_03_vibrato",
-      "title": "Vibrato (o que é e como não forçar)",
-      "tag": "Técnica",
-      "md": "# Vibrato\n\nVibrato saudável tende a aparecer quando:\n- fluxo e fechamento estão equilibrados\n- não há rigidez\n\nEvite \"fabricar\" vibrato com tremor de mandíbula.\n"
-    },
-    {
-      "id": "rep_01_escolha_repertorio",
-      "title": "Como escolher repertório por nível",
-      "tag": "Repertório",
-      "md": "# Escolha de repertório\n\n## Iniciante\n- Tessitura confortável\n- Frases curtas\n\n## Intermediário\n- Explorar transições\n- Variedade de dinâmica\n\n## Avançado\n- Estilo + resistência\n- Ajustes finos de interpretação\n"
-    },
-    {
-      "id": "mus_01_historia_canto",
-      "title": "História do canto (visão geral)",
-      "tag": "História",
-      "md": "# História do canto (resumo)\n\n- Tradição coral e sacra\n- Bel canto e evolução técnica\n- Amplificação e canto popular moderno\n- Estéticas contemporâneas (mix, belting, efeitos)\n"
+      "md": "# Fisiologia vocal\n\n- Pregas vocais\n- Trato vocal\n- Ressonância\n\n> Este artigo é base e será expandido com packs.\n"
     }
   ],
-
   "missions": {
     "templates": [
       {
         "id": "m_sovt_10",
-        "title": "SOVT leve",
+        "title": "SOVT leve 10 min",
         "minutesMin": 8,
         "minutesMax": 12,
         "xp": 12,
         "kind": "técnica",
-        "desc": "Lip trill/humming/canudo na região confortável, sem apertar."
-      },
-      {
-        "id": "m_respiracao_10",
-        "title": "Respiração funcional",
-        "minutesMin": 8,
-        "minutesMax": 12,
-        "xp": 12,
-        "kind": "saúde",
-        "desc": "Inspira 4 / solta 6 + S controlado (sem tensão no pescoço)."
-      },
-      {
-        "id": "m_afina_10",
-        "title": "Afinação básica",
-        "minutesMin": 8,
-        "minutesMax": 12,
-        "xp": 12,
-        "kind": "musical",
-        "desc": "Notas longas + ataques limpos, volume baixo/médio."
-      },
-      {
-        "id": "m_registros_12",
-        "title": "Registros (sirene leve)",
-        "minutesMin": 10,
-        "minutesMax": 14,
-        "xp": 14,
-        "kind": "técnica",
-        "desc": "Sirene em NG/OO + descanso curto, sem apertar."
-      },
-      {
-        "id": "m_frase_12",
-        "title": "Aplicação em música",
-        "minutesMin": 10,
-        "minutesMax": 14,
-        "xp": 14,
-        "kind": "repertório",
-        "desc": "Cante 2 frases curtas com intenção e dinâmica controlada."
+        "desc": "Lip trill/humming/canudo com conforto."
       }
     ]
   }
