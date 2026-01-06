@@ -1,32 +1,19 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#070A12" />
   <title>IMVpedia Voice</title>
-  <link rel="stylesheet" href="styles.css" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
-  <header class="topbar">
-    <div class="topbar__left">
-      <span class="dot"></span>
-      <span class="brand">IMVpedia Voice</span>
-    </div>
-    <button class="btn btn--ghost" id="adminBtn" type="button">Admin</button>
-  </header>
-
-  <main id="view" class="app" role="main" aria-live="polite"></main>
-
-  <nav class="tabbar" role="navigation" aria-label="Navegação">
-    <button class="tabbar__item" data-route="home" type="button">Início</button>
-    <button class="tabbar__item" data-route="path" type="button">Trilha</button>
-    <button class="tabbar__item" data-route="missions" type="button">Missões</button>
-    <button class="tabbar__item" data-route="library" type="button">Biblioteca</button>
-    <button class="tabbar__item" data-route="profile" type="button">Perfil</button>
-  </nav>
-
-  <div id="toastHost" aria-live="polite" aria-atomic="true"></div>
-
-  <script src="app.js"></script>
+  <div id="app"></div>
+  <script src="./app.js"></script>
 </body>
 </html>
