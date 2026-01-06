@@ -2,18 +2,70 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#070A12" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0f1a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>IMVpedia Voice</title>
+
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Crect width='64' height='64' rx='16' fill='%230b0f1a'/%3E%3Ccircle cx='22' cy='28' r='8' fill='%235b7cff'/%3E%3Cpath d='M34 18c0 10-8 10-8 20' stroke='%23a78bfa' stroke-width='4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- Fonte “premium” -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="styles.css" />
+
+  <!-- Dados (packs base / listas) -->
+  <script defer src="tracks.js"></script>
+  <script defer src="lessons.js"></script>
+  <script defer src="library.js"></script>
+  <script defer src="missions.js"></script>
+
+  <!-- App -->
+  <script defer src="app.js"></script>
 </head>
+
 <body>
-  <div id="app"></div>
-  <script src="./app.js"></script>
+  <div class="app">
+    <header class="topbar">
+      <div class="topbar__left">
+        <div class="brandDot"></div>
+        <div class="brandText">
+          <div class="brandTitle">IMVpedia Voice</div>
+          <div class="brandSub">Voz Perfeita</div>
+        </div>
+      </div>
+      <div class="topbar__right">
+        <button class="pill" id="adminBtn" type="button">Admin</button>
+      </div>
+    </header>
+
+    <main id="view" class="view"></main>
+
+    <nav class="bottomnav" aria-label="Navegação">
+      <button class="navbtn" data-nav="#/home" id="navHome" type="button">
+        <span class="navicon">⌂</span><span class="navlabel">Início</span>
+      </button>
+      <button class="navbtn" data-nav="#/path" id="navPath" type="button">
+        <span class="navicon">🧭</span><span class="navlabel">Trilha</span>
+      </button>
+      <button class="navbtn" data-nav="#/missions" id="navMissions" type="button">
+        <span class="navicon">✅</span><span class="navlabel">Missões</span>
+      </button>
+      <button class="navbtn" data-nav="#/library" id="navLibrary" type="button">
+        <span class="navicon">📚</span><span class="navlabel">Biblioteca</span>
+      </button>
+      <button class="navbtn" data-nav="#/profile" id="navProfile" type="button">
+        <span class="navicon">👤</span><span class="navlabel">Perfil</span>
+      </button>
+    </nav>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  </div>
+
+  <noscript>Ative o JavaScript para usar o app.</noscript>
 </body>
 </html>
