@@ -1,0 +1,2429 @@
+[
+  {
+    "id": "track_mod1_fundamentos_voz_0001",
+    "type": "track",
+    "title": "Módulo 1 — Fundamentos da Voz",
+    "subtitle": "Respiração • Apoio • SOVT • Aquecimento • Saúde Vocal (Básico → Intermediário leve)",
+    "cover": "🌑",
+    "level": "Básico",
+    "lessonIds": [
+      "les_mod1_mapa_0001",
+      "les_mod1_postura_0002",
+      "les_mod1_respiracao_funcional_0003",
+      "les_mod1_costelas_0004",
+      "les_mod1_sopro_controlado_0005",
+      "les_mod1_apoio_def_0006",
+      "les_mod1_pressao_subglotica_0007",
+      "les_mod1_onset_equilibrado_0008",
+      "les_mod1_sovt_guia_0009",
+      "les_mod1_canudo_0010",
+      "les_mod1_lip_trill_0011",
+      "les_mod1_humming_0012",
+      "les_mod1_aquecimento_0013",
+      "les_mod1_desaq_0014",
+      "les_mod1_rotina_10min_0015",
+      "les_mod1_rotina_15min_0016",
+      "les_mod1_sinais_alerta_0017",
+      "les_mod1_aplicacao_repertorio_0018"
+    ],
+    "text": ""
+  },
+  {
+    "id": "les_mod1_mapa_0001",
+    "type": "lesson",
+    "title": "Mapa do Módulo 1 (como estudar sem se perder)",
+    "level": "Básico",
+    "tags": [
+      "organização",
+      "rotina",
+      "base"
+    ],
+    "text": "# Mapa do Módulo 1\n\n## Objetivo\nConstruir uma base vocal **segura e eficiente**, com foco em respiração, apoio e SOVT.\n\n## Como usar o módulo\n- **Primeira semana:** respiração + SOVT + afinação leve (sem pressa)\n- **Segunda semana:** apoio + onset + aplicação em repertório\n\n## Ordem sugerida\n1) Postura → Respiração funcional → Costelas\n2) Controle do sopro → Apoio\n3) Onset → SOVT (canudo/lip trill/humming)\n4) Aquecimento / desaquecimento\n5) Rotinas de 10 e 15 min\n\n## Regra de ouro\nSe aparecer **dor**, **piora de rouquidão** ou sensação de “arranhar” → **pare, reduza e volte para SOVT leve**.\n\n## Meta final\nTerminar o módulo com:\n- aquecimento seguro automático\n- controle de ar sem tensão\n- voz mais estável e menos cansada\n"
+  },
+  {
+    "id": "les_mod1_postura_0002",
+    "type": "lesson",
+    "title": "Postura vocal (alinhamento sem rigidez)",
+    "level": "Básico",
+    "tags": [
+      "postura",
+      "tensão",
+      "saúde"
+    ],
+    "text": "# Postura vocal (alinhamento sem rigidez)\n\n## O que você busca\nUm corpo que **não atrapalha** a voz.\n\n## Ajuste rápido (30 segundos)\n- Pés firmes (paralelos)\n- Joelhos soltos\n- Pelve neutra\n- Peito confortável (sem estufar)\n- Pescoço livre\n- Queixo neutro\n\n## Sinais de tensão\n- ombro subindo na respiração\n- queixo puxado para frente\n- peito travado\n\n## Exercício (2 min)\n1) Bocejo leve (sem exagero)\n2) Respire e solte ar em **\"sss\"**\n3) Faça **\"mmm\"** suave mantendo o pescoço solto\n\n## Nota\nPostura boa é **estável**, não “dura”.\n"
+  },
+  {
+    "id": "les_mod1_respiracao_funcional_0003",
+    "type": "lesson",
+    "title": "Respiração funcional (3 entra / 6 sai)",
+    "level": "Básico",
+    "tags": [
+      "respiração",
+      "controle",
+      "base"
+    ],
+    "text": "# Respiração funcional (3 entra / 6 sai)\n\n## Ideia\nNo canto, você precisa de **controle do ar**, não apenas “mais ar”.\n\n## Como respirar sem travar\n- inspire pelo nariz ou boca de forma silenciosa\n- evite levantar ombros\n- procure expansão baixa + lateral\n\n## Exercício principal (5 min)\n- Inspire 3 segundos\n- Pausa 1 segundo\n- Solte 6 segundos em **\"sss\"** constante\n\n## Como saber se está certo\n- o som do \"sss\" fica estável\n- você não trava garganta\n- você termina sem “desabar” o corpo\n\n## Ajuste\nSe ficar difícil: 2 entra / 4 sai.\n"
+  },
+  {
+    "id": "les_mod1_costelas_0004",
+    "type": "lesson",
+    "title": "Costelas laterais (a parte que muda tudo)",
+    "level": "Básico",
+    "tags": [
+      "respiração",
+      "apoio",
+      "costelas"
+    ],
+    "text": "# Costelas laterais (a parte que muda tudo)\n\n## Por quê?\nMuita gente respira só \"pra frente\" (barriga) e perde estabilidade.\nAs costelas laterais ajudam a manter **coluna de ar constante**.\n\n## Como sentir\n- mãos nas laterais (costelas)\n- inspire tentando empurrar levemente as mãos\n- solte o ar sem colapsar de uma vez\n\n## Exercício (4 min)\n1) Inspire expandindo levemente as laterais\n2) Solte em **\"fff\"** por 6–10s\n3) Repita 8 vezes\n\n## Meta\nAr saindo **igual** do começo ao fim.\n"
+  },
+  {
+    "id": "les_mod1_sopro_controlado_0005",
+    "type": "lesson",
+    "title": "Controle do sopro (ar demais cansa)",
+    "level": "Básico",
+    "tags": [
+      "sopro",
+      "fadiga",
+      "controle"
+    ],
+    "text": "# Controle do sopro (ar demais cansa)\n\n## Verdade importante\nExcesso de ar pode:\n- deixar a voz soprosa\n- cansar mais rápido\n- prejudicar agudos\n\n## Teste rápido\nDiga \"ah\" bem leve.\nSe vier muito ar antes do som, você está soprando.\n\n## Exercício (5 min)\n- Faça \"vvv\" bem leve por 6–8s\n- Descanso 6s\n- Repita 10 vezes\n\n## Sinal de acerto\nSom firme e pequeno, sem esforço.\n"
+  },
+  {
+    "id": "les_mod1_apoio_def_0006",
+    "type": "lesson",
+    "title": "Apoio vocal (definição prática: controle do fluxo)",
+    "level": "Básico",
+    "tags": [
+      "apoio",
+      "fluxo",
+      "técnica"
+    ],
+    "text": "# Apoio vocal (controle do fluxo)\n\n## Apoio NÃO é\n- empurrar barriga\n- travar peito\n- apertar garganta\n\n## Apoio É\nManter a pressão de ar **estável**, para a laringe trabalhar com eficiência.\n\n## Exercício (6 min)\n1) Inspire confortável\n2) Faça \"sss\" 6s\n3) Sem pausa, faça \"zzz\" 6s\n4) Repita 6 vezes\n\n## Meta\nTransição de \"sss\" para \"zzz\" sem mudar tensão.\n"
+  },
+  {
+    "id": "les_mod1_pressao_subglotica_0007",
+    "type": "lesson",
+    "title": "Pressão subglótica (o que você controla sem perceber)",
+    "level": "Intermediário",
+    "tags": [
+      "apoio",
+      "pressão",
+      "eficiência"
+    ],
+    "text": "# Pressão subglótica (controle de base)\n\n## O que é\nÉ a pressão do ar **abaixo das pregas vocais** que sustenta a vibração.\n\n## Se a pressão é baixa demais\n- som fraco\n- instável\n- soproso\n\n## Se a pressão é alta demais\n- aperto\n- fadiga\n- risco de rouquidão\n\n## Exercício (6 min)\n- Sustente \"vu\" (bem leve) por 6s\n- Repita 8x\n\n## Dica\nBusque a sensação de \"controle\" e não de \"força\".\n"
+  },
+  {
+    "id": "les_mod1_onset_equilibrado_0008",
+    "type": "lesson",
+    "title": "Onset equilibrado (ataque sem sopro e sem batida)",
+    "level": "Intermediário",
+    "tags": [
+      "onset",
+      "coordenação",
+      "clareza"
+    ],
+    "text": "# Onset equilibrado\n\n## Por que isso importa\nO início do som define:\n- estabilidade\n- afinação\n- esforço\n\n## Tipos (resumo)\n- Soproso: ar antes do som\n- Glotal: \"batida\" forte\n- Equilibrado: início limpo e gentil\n\n## Exercício (6–8 min)\n1) Fale \"mi\" leve\n2) Cante \"mi-mi-mi\" em 1 nota\n3) Depois 3 notas subindo\n\n## Regra\nSe virar \"batida\", reduza volume.\n"
+  },
+  {
+    "id": "les_mod1_sovt_guia_0009",
+    "type": "lesson",
+    "title": "SOVT (guia definitivo do módulo)",
+    "level": "Básico",
+    "tags": [
+      "SOVT",
+      "aquecimento",
+      "saúde"
+    ],
+    "text": "# SOVT (guia definitivo)\n\n## O que é\nSOVT = semi-oclusão do trato vocal.\nVocê cria uma resistência saudável na saída do som.\n\n## Por que funciona\nAjuda a equilibrar:\n- ar\n- adução\n- ressonância\ncom menos esforço.\n\n## Opções\n- Canudo\n- Lip trill\n- Humming\n\n## Regra\nSOVT deve ser **confortável**.\nSe doer ou cansar, você está fazendo forte demais.\n"
+  },
+  {
+    "id": "les_mod1_canudo_0010",
+    "type": "lesson",
+    "title": "Canudo (straw phonation) — passo a passo",
+    "level": "Básico",
+    "tags": [
+      "canudo",
+      "SOVT",
+      "rotina"
+    ],
+    "text": "# Canudo (straw phonation)\n\n## Como fazer\n- use um canudo comum\n- faça som contínuo (volume baixo)\n- mantenha o pescoço solto\n\n## Rotina (6 min)\n1) 2 min notas confortáveis\n2) 2 min glissando (subindo/descendo)\n3) 2 min 5 notas (escala leve)\n\n## Sinal de acerto\nSente a voz “encaixar” com menos esforço.\n"
+  },
+  {
+    "id": "les_mod1_lip_trill_0011",
+    "type": "lesson",
+    "title": "Lip trill (vibração labial) — como não travar",
+    "level": "Básico",
+    "tags": [
+      "lip trill",
+      "SOVT",
+      "aquecimento"
+    ],
+    "text": "# Lip trill (vibração labial)\n\n## Objetivo\nEquilibrar ar e voz com mínimo esforço.\n\n## Como fazer\n- lábios relaxados\n- ar constante (nem fraco nem forte)\n- som bem leve\n\n## Exercício (6 min)\n1) 2 min em nota confortável\n2) 2 min glissandos leves\n3) 2 min em 5 notas (subindo e descendo)\n\n## Erro comum\nFazer forte demais para “sair”. Ajuste o ar e relaxe.\n"
+  },
+  {
+    "id": "les_mod1_humming_0012",
+    "type": "lesson",
+    "title": "Humming (mmm/ng) — foco e ressonância sem esforço",
+    "level": "Básico",
+    "tags": [
+      "humming",
+      "ressonância",
+      "SOVT"
+    ],
+    "text": "# Humming (mmm/ng)\n\n## Por que é ótimo\nAjuda a:\n- aquecer\n- focar ressonância\n- reduzir tensão\n\n## Como fazer\n- boca fechada suave\n- sensação vibrando no rosto\n- volume baixo\n\n## Exercício (6 min)\n1) 2 min \"mmm\" em notas confortáveis\n2) 2 min \"ng\" (final de \"song\")\n3) 2 min alternando mmm → vogal \"me\"\n"
+  },
+  {
+    "id": "les_mod1_aquecimento_0013",
+    "type": "lesson",
+    "title": "Aquecimento vocal (modelo seguro de 8–12 min)",
+    "level": "Básico",
+    "tags": [
+      "aquecimento",
+      "rotina",
+      "saúde"
+    ],
+    "text": "# Aquecimento vocal (8–12 min)\n\n## Estrutura ideal\n1) Respiração leve (1–2 min)\n2) SOVT (3–5 min)\n3) Notas longas (2 min)\n4) Escalas leves (2–3 min)\n\n## Regra\nAquecimento não é “treino pesado”.\nÉ preparar coordenação.\n\n## Sinal de acerto\nVocê termina aquecido, não cansado.\n"
+  },
+  {
+    "id": "les_mod1_desaq_0014",
+    "type": "lesson",
+    "title": "Desaquecimento (fechar o treino sem irritar a voz)",
+    "level": "Básico",
+    "tags": [
+      "desaquecimento",
+      "saúde",
+      "rotina"
+    ],
+    "text": "# Desaquecimento\n\n## Quando usar\nApós treino forte, ensaio, show ou coral.\n\n## Rotina (2–4 min)\n- humming leve em notas mais graves\n- canudo com glissandos suaves\n- bocejo-suspiro (bem leve)\n\n## Objetivo\nVoltar ao “neutro” para reduzir risco de fadiga.\n"
+  },
+  {
+    "id": "les_mod1_rotina_10min_0015",
+    "type": "lesson",
+    "title": "Rotina de 10 minutos (iniciante seguro)",
+    "level": "Básico",
+    "tags": [
+      "rotina",
+      "iniciante",
+      "segurança"
+    ],
+    "text": "# Rotina de 10 minutos\n\n## 1) Respiração (2 min)\n3 entra / 6 sai em \"sss\".\n\n## 2) SOVT (5 min)\n- 2 min humming\n- 3 min canudo ou lip trill\n\n## 3) Notas longas (2 min)\n\"vu\" ou \"nu\" bem leve.\n\n## 4) Desaquecimento (1 min)\nHumming grave e leve.\n\n## Meta\nConsistência > intensidade.\n"
+  },
+  {
+    "id": "les_mod1_rotina_15min_0016",
+    "type": "lesson",
+    "title": "Rotina de 15 minutos (base + coordenação)",
+    "level": "Intermediário",
+    "tags": [
+      "rotina",
+      "coordenação",
+      "eficiência"
+    ],
+    "text": "# Rotina de 15 minutos\n\n## 1) Respiração + costelas (3 min)\n\"fff\" mantendo laterais.\n\n## 2) SOVT (6 min)\n- 2 min canudo\n- 2 min lip trill\n- 2 min humming → \"me\"\n\n## 3) Onset (3 min)\n\"mi-mi-mi\" leve.\n\n## 4) Aplicação musical (2 min)\nCante 1 trecho curto bem leve.\n\n## 5) Desaquecimento (1 min)\nHumming grave.\n"
+  },
+  {
+    "id": "les_mod1_sinais_alerta_0017",
+    "type": "lesson",
+    "title": "Sinais de alerta (quando parar e ajustar)",
+    "level": "Básico",
+    "tags": [
+      "saúde",
+      "segurança",
+      "prevenção"
+    ],
+    "text": "# Sinais de alerta\n\n## Pare e ajuste se houver\n- dor ao cantar\n- rouquidão piorando\n- sensação de arranhar\n- perda repentina de agudos\n- garganta “travando”\n\n## O que fazer\n1) pare o treino\n2) volte para SOVT leve\n3) hidratação e descanso\n\n## Procure ajuda\nSe persistir por dias, procure fono/otorrino.\n"
+  },
+  {
+    "id": "les_mod1_aplicacao_repertorio_0018",
+    "type": "lesson",
+    "title": "Aplicando em repertório (sem destruir a técnica)",
+    "level": "Intermediário",
+    "tags": [
+      "repertório",
+      "aplicação",
+      "controle"
+    ],
+    "text": "# Aplicando em repertório\n\n## Método seguro\n- use trechos curtos (10–20s)\n- faça 1–2 repetições\n- descanse\n\n## Checklist\n- respiração silenciosa\n- apoio estável\n- sem volume excessivo\n\n## Técnica prática\nAntes do trecho:\n- 10s de canudo ou humming\nDepois:\n- 10s humming grave\n\n## Meta\nCantar melhor com menos esforço.\n"
+  },
+  {
+    "id": "library_mod1_higiene_0101",
+    "type": "library",
+    "title": "Higiene vocal (lista prática do dia a dia)",
+    "category": "Saúde",
+    "level": "Básico",
+    "text": "# Higiene vocal\n\n## Faça\n- Hidrate-se ao longo do dia\n- Durma bem\n- Aquecer e desaquecimento\n- Pausas vocais\n\n## Evite\n- pigarrear (prefira engolir + água)\n- gritar\n- cantar doente forçando\n\n## Dica\nAmbiente seco = use hidratação e descanso maior.\n"
+  },
+  {
+    "id": "library_mod1_pigarro_0102",
+    "type": "library",
+    "title": "Pigarro (por que faz mal e o que fazer no lugar)",
+    "category": "Saúde",
+    "level": "Básico",
+    "text": "# Pigarro\n\n## Por que prejudica\nÉ como \"raspar\" as pregas vocais repetidamente.\n\n## Alternativas\n- engolir saliva\n- beber água\n- humming leve\n- tosse suave (se necessário)\n\n## Meta\nReduzir o hábito ao longo das semanas.\n"
+  },
+  {
+    "id": "library_mod1_fadiga_0103",
+    "type": "library",
+    "title": "Fadiga vocal (sinais, causas e solução rápida)",
+    "category": "Saúde",
+    "level": "Intermediário",
+    "text": "# Fadiga vocal\n\n## Sinais\n- rouquidão após cantar\n- perda de alcance\n- sensação de areia\n\n## Causas comuns\n- ar demais\n- apoio instável\n- volume alto\n- descanso insuficiente\n\n## Solução rápida\nVoltar para SOVT leve + reduzir intensidade.\n"
+  },
+  {
+    "id": "library_mod1_aquecimento_0104",
+    "type": "library",
+    "title": "Aquecimento: o que é mito e o que é verdade",
+    "category": "Técnica / Saúde",
+    "level": "Básico",
+    "text": "# Aquecimento: mito x verdade\n\n## Mito\n\"Aquecimento bom é o que cansa\".\n\n## Verdade\nAquecimento bom deixa você **melhor**, não exausto.\n\n## Mito\n\"Preciso aquecer alto\".\n\n## Verdade\nAquecimento é leve, progressivo e confortável.\n"
+  },
+  {
+    "id": "library_mod1_sovt_0105",
+    "type": "library",
+    "title": "SOVT: quando usar e quando não usar",
+    "category": "Técnica / Saúde",
+    "level": "Básico",
+    "text": "# SOVT: quando usar\n\n## Use\n- aquecer\n- recuperar de tensão\n- voz cansada\n- antes/depois de repertório\n\n## Não use como\n- substituto total de técnica\n- treino pesado em volume alto\n\n## Regra\nSOVT funciona melhor em volume baixo e conforto.\n"
+  },
+  {
+    "id": "library_mod1_resp_0106",
+    "type": "library",
+    "title": "Respiração no canto (por que “encher o peito” atrapalha)",
+    "category": "Técnica",
+    "level": "Básico",
+    "text": "# Respiração no canto\n\n## Problema de \"encher o peito\"\n- trava ombros\n- aumenta tensão\n- dificulta apoio\n\n## Melhor caminho\n- expansão baixa e lateral\n- entrada silenciosa\n- saída controlada\n\n## Resultado\nMais estabilidade e menos esforço.\n"
+  },
+  {
+    "id": "library_mod1_apoio_0107",
+    "type": "library",
+    "title": "Apoio vocal (explicação completa, sem mito)",
+    "category": "Técnica",
+    "level": "Intermediário",
+    "text": "# Apoio vocal\n\n## Resumo\nApoio é manter uma pressão de ar eficiente para a vibração acontecer fácil.\n\n## O que melhora apoio\n- costelas laterais\n- controle de sopro\n- postura neutra\n\n## O que piora\n- empurrar barriga\n- abrir peito demais\n- cantar alto para “compensar”\n"
+  },
+  {
+    "id": "library_mod1_refluxo_0108",
+    "type": "library",
+    "title": "Refluxo e voz (alerta para cantores)",
+    "category": "Saúde",
+    "level": "Intermediário",
+    "text": "# Refluxo e voz\n\n## Pode causar\n- rouquidão ao acordar\n- pigarro constante\n- sensação de bolo\n\n## Hábitos úteis\n- evitar deitar após comer\n- observar alimentos gatilho\n- hidratar\n\nProcure orientação profissional se persistir.\n"
+  },
+  {
+    "id": "mission_mod1_resp_0201",
+    "type": "mission",
+    "title": "Respiração 3/6 (5 min)",
+    "desc": "Inspire 3s e solte 6s em 'sss' constante. Sem ombros.",
+    "minutes": 5,
+    "xp": 10,
+    "tag": "técnica",
+    "text": ""
+  },
+  {
+    "id": "mission_mod1_costelas_0202",
+    "type": "mission",
+    "title": "Costelas laterais (6 min)",
+    "desc": "Mãos nas laterais. 'fff' controlado. Sem colapsar de uma vez.",
+    "minutes": 6,
+    "xp": 12,
+    "tag": "técnica",
+    "text": ""
+  },
+  {
+    "id": "mission_mod1_sovt_0203",
+    "type": "mission",
+    "title": "SOVT leve (8 min)",
+    "desc": "Canudo/lip trill/humming em região confortável. Volume baixo.",
+    "minutes": 8,
+    "xp": 14,
+    "tag": "saúde",
+    "text": ""
+  },
+  {
+    "id": "mission_mod1_onset_0204",
+    "type": "mission",
+    "title": "Onset limpo (6 min)",
+    "desc": "Faça 'mi-mi-mi' suave buscando ataque equilibrado (sem sopro e sem batida).",
+    "minutes": 6,
+    "xp": 12,
+    "tag": "coordenação",
+    "text": ""
+  },
+  {
+    "id": "mission_mod1_aquec_0205",
+    "type": "mission",
+    "title": "Aquecimento completo (10 min)",
+    "desc": "Respiração + SOVT + notas longas + escala leve. Conforto total.",
+    "minutes": 10,
+    "xp": 18,
+    "tag": "rotina",
+    "text": ""
+  },
+  {
+    "id": "mission_mod1_desaq_0206",
+    "type": "mission",
+    "title": "Desaquecimento (4 min)",
+    "desc": "Humming grave + canudo leve para voltar ao neutro.",
+    "minutes": 4,
+    "xp": 8,
+    "tag": "saúde",
+    "text": ""
+  },
+  {
+    "id": "mission_mod1_repert_0207",
+    "type": "mission",
+    "title": "Repertório em trechos (10 min)",
+    "desc": "Cante 2 trechos curtos com pausas. Antes e depois: 10s SOVT.",
+    "minutes": 10,
+    "xp": 16,
+    "tag": "performance",
+    "text": ""
+  },
+  {
+    "id": "mission_mod1_higiene_0208",
+    "type": "mission",
+    "title": "Higiene vocal (checklist)",
+    "desc": "Escolha 2 hábitos do dia: hidratar + evitar pigarro + pausa vocal.",
+    "minutes": 3,
+    "xp": 8,
+    "tag": "saúde",
+    "text": ""
+  },
+  {
+    "id": "les_mod2_nasalidade_0011",
+    "type": "lesson",
+    "title": "Nasalidade (uso e controle)",
+    "level": "Intermediário",
+    "tags": [
+      "nasalidade",
+      "ressonância",
+      "controle"
+    ],
+    "text": "# Nasalidade\n\n## Não é vilã\nQuando controlada, ajuda foco e projeção.\n\n## Problema\nExcesso gera som abafado.\n\n## Exercício (5 min)\n- \"ng → me\" alternando\n"
+  },
+  {
+    "id": "les_mod2_agudos_seg_0012",
+    "type": "lesson",
+    "title": "Agudos seguros (sem gritar)",
+    "level": "Intermediário",
+    "tags": [
+      "agudos",
+      "segurança",
+      "mix"
+    ],
+    "text": "# Agudos seguros\n\n## Regras\n- menos ar\n- vogal ajustada\n- apoio estável\n\n## Exercício\nGlissandos ascendentes com SOVT.\n"
+  },
+  {
+    "id": "les_mod2_exercicios_base_0013",
+    "type": "lesson",
+    "title": "Exercícios base do módulo",
+    "level": "Intermediário",
+    "tags": [
+      "exercícios",
+      "rotina",
+      "mix"
+    ],
+    "text": "# Exercícios base\n\n- Lip trill\n- Gee\n- Nu\n- Ng\n\nUse sempre em volume confortável.\n"
+  },
+  {
+    "id": "les_mod2_rotina_15min_0014",
+    "type": "lesson",
+    "title": "Rotina de 15 minutos (mix leve)",
+    "level": "Intermediário",
+    "tags": [
+      "rotina",
+      "mix",
+      "organização"
+    ],
+    "text": "# Rotina 15 min\n\n1) SOVT (5 min)\n2) Mix leve (6 min)\n3) Desaquecimento (4 min)\n"
+  },
+  {
+    "id": "les_mod2_rotina_20min_0015",
+    "type": "lesson",
+    "title": "Rotina de 20 minutos (mix + aplicação)",
+    "level": "Intermediário",
+    "tags": [
+      "rotina",
+      "aplicação",
+      "mix"
+    ],
+    "text": "# Rotina 20 min\n\n1) Aquecimento (6 min)\n2) Mix progressivo (10 min)\n3) Aplicação curta (4 min)\n"
+  },
+  {
+    "id": "les_mod2_sinais_alerta_0016",
+    "type": "lesson",
+    "title": "Sinais de alerta no mix",
+    "level": "Intermediário",
+    "tags": [
+      "saúde",
+      "alerta",
+      "prevenção"
+    ],
+    "text": "# Sinais de alerta\n\n- aperto crescente\n- perda de controle\n- cansaço rápido\n\nVolte para SOVT e reduza intensidade.\n"
+  },
+  {
+    "id": "library_mod2_mix_0101",
+    "type": "library",
+    "title": "Mix vocal: o que a ciência diz",
+    "category": "Técnica",
+    "level": "Intermediário",
+    "text": "# Mix vocal e ciência\n\nO mix envolve ajustes de massa, pressão e trato vocal.\nNão é um registro novo, mas uma coordenação.\n"
+  },
+  {
+    "id": "library_mod2_passaggio_0102",
+    "type": "library",
+    "title": "Passaggio masculino e feminino",
+    "category": "Técnica",
+    "level": "Intermediário",
+    "text": "# Passaggio\n\nA região varia por voz, mas a lógica é a mesma:\nreduzir peso e ajustar vogais.\n"
+  },
+  {
+    "id": "library_mod2_vogais_0103",
+    "type": "library",
+    "title": "Vogais e agudos",
+    "category": "Técnica",
+    "level": "Intermediário",
+    "text": "# Vogais e agudos\n\nVogais ajustadas facilitam coordenação e projeção.\n"
+  },
+  {
+    "id": "mission_mod2_mix_0201",
+    "type": "mission",
+    "title": "Mix leve (8 min)",
+    "desc": "Gee/nu em volume moderado, sem apertar.",
+    "minutes": 8,
+    "xp": 16,
+    "tag": "mix",
+    "text": ""
+  },
+  {
+    "id": "mission_mod2_passaggio_0202",
+    "type": "mission",
+    "title": "Passaggio com SOVT (8 min)",
+    "desc": "Glissandos suaves atravessando a zona de transição.",
+    "minutes": 8,
+    "xp": 16,
+    "tag": "coordenação",
+    "text": ""
+  },
+  {
+    "id": "mission_mod2_ress_0203",
+    "type": "mission",
+    "title": "Ressonância focada (6 min)",
+    "desc": "Me/ne buscando vibração facial.",
+    "minutes": 6,
+    "xp": 14,
+    "tag": "ressonância",
+    "text": ""
+  },
+  {
+    "id": "track_mod3_agudos_estilo_0001",
+    "type": "track",
+    "title": "Módulo 3 — Agudos, Potência e Estilo",
+    "subtitle": "Controle • Dinâmica • Projeção • Identidade vocal (Avançado)",
+    "cover": "🌑",
+    "level": "Avançado",
+    "lessonIds": [
+      "les_mod3_visao_0001",
+      "les_mod3_agudos_base_0002",
+      "les_mod3_potencia_def_0003",
+      "les_mod3_dinamica_0004",
+      "les_mod3_belt_vs_mix_0005",
+      "les_mod3_mix_avancado_0006",
+      "les_mod3_pressao_controle_0007",
+      "les_mod3_vogais_extremas_0008",
+      "les_mod3_estilo_intro_0009",
+      "les_mod3_pop_0010",
+      "les_mod3_erudito_0011",
+      "les_mod3_coral_0012",
+      "les_mod3_resistencia_0013",
+      "les_mod3_rotina_20min_0014",
+      "les_mod3_rotina_30min_0015",
+      "les_mod3_sinais_alerta_0016"
+    ],
+    "text": ""
+  },
+  {
+    "id": "les_mod3_visao_0001",
+    "type": "lesson",
+    "title": "Visão geral do Módulo 3",
+    "level": "Avançado",
+    "tags": [
+      "agudos",
+      "potência",
+      "estilo"
+    ],
+    "text": "# Visão geral do Módulo 3\n\n## Objetivo\nDesenvolver **agudos fortes e controlados**, com identidade vocal e resistência.\n\n## Pré-requisito obrigatório\n- Módulo 1 sólido\n- Módulo 2 sem quebra nem esforço\n\n## Regra máxima\nAgudo bom é **controlado**, não gritado.\n"
+  },
+  {
+    "id": "les_mod3_agudos_base_0002",
+    "type": "lesson",
+    "title": "Agudos: base técnica antes da força",
+    "level": "Avançado",
+    "tags": [
+      "agudos",
+      "base",
+      "segurança"
+    ],
+    "text": "# Agudos: base antes da força\n\n## O erro clássico\nAumentar volume para alcançar nota.\n\n## O caminho correto\n- menos ar\n- vogal ajustada\n- apoio estável\n\n## Exercício (6–8 min)\nGlissandos ascendentes com SOVT.\n"
+  },
+  {
+    "id": "les_mod3_potencia_def_0003",
+    "type": "lesson",
+    "title": "Potência vocal (o que realmente aumenta o volume)",
+    "level": "Avançado",
+    "tags": [
+      "potência",
+      "projeção",
+      "controle"
+    ],
+    "text": "# Potência vocal\n\n## Potência NÃO é\n- gritar\n- empurrar ar\n\n## Potência É\n- ressonância eficiente\n- pressão equilibrada\n\n## Exercício (6 min)\n\"nae\" ou \"me\" com foco frontal, volume médio.\n"
+  },
+  {
+    "id": "les_mod3_dinamica_0004",
+    "type": "lesson",
+    "title": "Dinâmica (do pianíssimo ao forte)",
+    "level": "Avançado",
+    "tags": [
+      "dinâmica",
+      "controle",
+      "musicalidade"
+    ],
+    "text": "# Dinâmica vocal\n\n## Por que importa\nDá expressividade e evita monotonia.\n\n## Exercício (6 min)\n- Sustente nota\n- Cresça e diminua sem mudar timbre\n\n## Meta\nVolume muda, coordenação permanece.\n"
+  },
+  {
+    "id": "les_mod3_belt_vs_mix_0005",
+    "type": "lesson",
+    "title": "Belt x Mix (diferença real)",
+    "level": "Avançado",
+    "tags": [
+      "belt",
+      "mix",
+      "estilo"
+    ],
+    "text": "# Belt x Mix\n\n## Belt\n- mais fala\n- mais intensidade\n- risco maior se mal feito\n\n## Mix\n- mais equilíbrio\n- mais versátil\n\n## Regra\nBelt exige técnica sólida.\n"
+  },
+  {
+    "id": "les_mod3_mix_avancado_0006",
+    "type": "lesson",
+    "title": "Mix avançado (estabilidade em regiões altas)",
+    "level": "Avançado",
+    "tags": [
+      "mix",
+      "agudos",
+      "controle"
+    ],
+    "text": "# Mix avançado\n\n## Objetivo\nManter clareza e potência sem peso excessivo.\n\n## Exercício (6–8 min)\nEscalas com \"gee\" ajustando vogal.\n"
+  },
+  {
+    "id": "les_mod3_pressao_controle_0007",
+    "type": "lesson",
+    "title": "Pressão e resistência vocal",
+    "level": "Avançado",
+    "tags": [
+      "pressão",
+      "resistência",
+      "controle"
+    ],
+    "text": "# Pressão e resistência\n\n## Risco\nPressão alta demais gera fadiga.\n\n## Exercício (6 min)\nAlternar notas fortes e leves conscientemente.\n"
+  },
+  {
+    "id": "les_mod3_vogais_extremas_0008",
+    "type": "lesson",
+    "title": "Vogais extremas em agudos",
+    "level": "Avançado",
+    "tags": [
+      "vogais",
+      "agudos",
+      "ajuste"
+    ],
+    "text": "# Vogais extremas\n\n## Ajuste comum\n\"a\" → \"â/ô\"\n\n## Meta\nManter clareza sem abrir demais.\n"
+  },
+  {
+    "id": "les_mod3_estilo_intro_0009",
+    "type": "lesson",
+    "title": "Estilo vocal (começando a identidade)",
+    "level": "Avançado",
+    "tags": [
+      "estilo",
+      "interpretação"
+    ],
+    "text": "# Estilo vocal\n\n## Estilo nasce de\n- técnica sólida\n- escolhas conscientes\n\n## Atenção\nNão copie vícios de outros cantores.\n"
+  },
+  {
+    "id": "les_mod3_pop_0010",
+    "type": "lesson",
+    "title": "Estilo Popular (potência e emoção)",
+    "level": "Avançado",
+    "tags": [
+      "popular",
+      "estilo",
+      "interpretação"
+    ],
+    "text": "# Estilo Popular\n\n## Características\n- mix predominante\n- variação dinâmica\n- emoção direta\n\n## Cuidado\nEvite cantar sempre no limite.\n"
+  },
+  {
+    "id": "les_mod3_erudito_0011",
+    "type": "lesson",
+    "title": "Estilo Erudito (sustentação e controle)",
+    "level": "Avançado",
+    "tags": [
+      "erudito",
+      "clássico",
+      "controle"
+    ],
+    "text": "# Estilo Erudito\n\n## Foco\n- estabilidade\n- ressonância ampla\n- controle dinâmico\n\n## Atenção\nSem pressão excessiva.\n"
+  },
+  {
+    "id": "les_mod3_coral_0012",
+    "type": "lesson",
+    "title": "Estilo Coral (blend e afinação)",
+    "level": "Avançado",
+    "tags": [
+      "coral",
+      "blend",
+      "afinação"
+    ],
+    "text": "# Estilo Coral\n\n## Prioridade\n- afinação coletiva\n- homogeneidade\n\n## Exercício\nCantar reduzindo vibrato e volume.\n"
+  },
+  {
+    "id": "les_mod3_resistencia_0013",
+    "type": "lesson",
+    "title": "Resistência vocal (cantar mais sem cansar)",
+    "level": "Avançado",
+    "tags": [
+      "resistência",
+      "saúde",
+      "performance"
+    ],
+    "text": "# Resistência vocal\n\n## Estratégia\n- alternar intensidade\n- pausas estratégicas\n\n## Erro comum\nCantar tudo forte do começo ao fim.\n"
+  },
+  {
+    "id": "les_mod3_rotina_20min_0014",
+    "type": "lesson",
+    "title": "Rotina de 20 minutos (agudos controlados)",
+    "level": "Avançado",
+    "tags": [
+      "rotina",
+      "agudos"
+    ],
+    "text": "# Rotina 20 min\n\n1) Aquecimento (6 min)\n2) Mix e agudos (10 min)\n3) Desaquecimento (4 min)\n"
+  },
+  {
+    "id": "les_mod3_rotina_30min_0015",
+    "type": "lesson",
+    "title": "Rotina de 30 minutos (performance)",
+    "level": "Avançado",
+    "tags": [
+      "rotina",
+      "performance"
+    ],
+    "text": "# Rotina 30 min\n\n1) Aquecimento (8 min)\n2) Técnica avançada (14 min)\n3) Aplicação musical (5 min)\n4) Desaquecimento (3 min)\n"
+  },
+  {
+    "id": "les_mod3_sinais_alerta_0016",
+    "type": "lesson",
+    "title": "Sinais de alerta em nível avançado",
+    "level": "Avançado",
+    "tags": [
+      "alerta",
+      "saúde"
+    ],
+    "text": "# Sinais de alerta\n\n- perda de controle súbita\n- dor persistente\n- queda de rendimento\n\nInterrompa e retorne ao básico.\n"
+  },
+  {
+    "id": "library_mod3_agudos_0101",
+    "type": "library",
+    "title": "Agudos: potência x longevidade",
+    "category": "Técnica",
+    "level": "Avançado",
+    "text": "# Agudos e longevidade\n\nAgudos eficientes preservam a voz ao longo dos anos.\nForça excessiva cobra seu preço.\n"
+  },
+  {
+    "id": "library_mod3_estilo_0102",
+    "type": "library",
+    "title": "Estilo vocal e identidade artística",
+    "category": "Interpretação",
+    "level": "Avançado",
+    "text": "# Identidade vocal\n\nTécnica sólida permite liberdade artística.\n"
+  },
+  {
+    "id": "mission_mod3_agudos_0201",
+    "type": "mission",
+    "title": "Agudos controlados (10 min)",
+    "desc": "Mix avançado em região alta sem aumentar volume.",
+    "minutes": 10,
+    "xp": 22,
+    "tag": "agudos",
+    "text": ""
+  },
+  {
+    "id": "mission_mod3_dinamica_0202",
+    "type": "mission",
+    "title": "Dinâmica consciente (8 min)",
+    "desc": "Crescer e diminuir volume mantendo timbre.",
+    "minutes": 8,
+    "xp": 18,
+    "tag": "dinâmica",
+    "text": ""
+  },
+  {
+    "id": "mission_mod3_estilo_0203",
+    "type": "mission",
+    "title": "Aplicação de estilo (10 min)",
+    "desc": "Aplicar técnica em um trecho do repertório.",
+    "minutes": 10,
+    "xp": 20,
+    "tag": "estilo",
+    "text": ""
+  },
+  {
+    "id": "track_mod4_interpretacao_palco_0001",
+    "type": "track",
+    "title": "Módulo 4 — Interpretação, Palco e Performance",
+    "subtitle": "Expressão • Emoção • Presença • Profissionalização",
+    "cover": "🎭",
+    "level": "Avançado",
+    "lessonIds": [
+      "les_mod4_visao_0001",
+      "les_mod4_interpretacao_base_0002",
+      "les_mod4_texto_musical_0003",
+      "les_mod4_emocao_controle_0004",
+      "les_mod4_dinamica_expressiva_0005",
+      "les_mod4_fraselado_0006",
+      "les_mod4_palco_postura_0007",
+      "les_mod4_movimento_0008",
+      "les_mod4_microfone_0009",
+      "les_mod4_publico_0010",
+      "les_mod4_ansiedade_0011",
+      "les_mod4_repertorio_0012",
+      "les_mod4_ensaio_0013",
+      "les_mod4_rotina_20min_0014",
+      "les_mod4_rotina_30min_0015",
+      "les_mod4_sinais_alerta_0016"
+    ],
+    "text": ""
+  },
+  {
+    "id": "les_mod4_visao_0001",
+    "type": "lesson",
+    "title": "Visão geral do Módulo 4",
+    "level": "Avançado",
+    "tags": [
+      "interpretação",
+      "palco",
+      "performance"
+    ],
+    "text": "# Visão geral do Módulo 4\n\n## Objetivo\nTransformar técnica em **performance comunicativa**, segura e profissional.\n\n## O foco agora\n- emoção com controle\n- presença de palco\n- escolhas interpretativas\n\n## Regra central\nTécnica sustenta a emoção — nunca o contrário.\n"
+  },
+  {
+    "id": "les_mod4_interpretacao_base_0002",
+    "type": "lesson",
+    "title": "Interpretação vocal (fundamentos)",
+    "level": "Avançado",
+    "tags": [
+      "interpretação",
+      "expressão"
+    ],
+    "text": "# Interpretação vocal\n\n## Interpretar é decidir\n- intenção\n- intensidade\n- cor vocal\n\n## Erro comum\nConfundir emoção com excesso vocal.\n\n## Meta\nComunicar com clareza e controle.\n"
+  },
+  {
+    "id": "les_mod4_texto_musical_0003",
+    "type": "lesson",
+    "title": "Texto, letra e narrativa musical",
+    "level": "Avançado",
+    "tags": [
+      "letra",
+      "narrativa",
+      "expressão"
+    ],
+    "text": "# Texto musical\n\n## Perguntas-chave\n- Quem fala?\n- Para quem?\n- Por quê?\n\n## Exercício\nFalar a letra antes de cantar.\n"
+  },
+  {
+    "id": "les_mod4_emocao_controle_0004",
+    "type": "lesson",
+    "title": "Emoção com controle técnico",
+    "level": "Avançado",
+    "tags": [
+      "emoção",
+      "controle"
+    ],
+    "text": "# Emoção com controle\n\n## Risco\nEmoção sem controle gera tensão.\n\n## Estratégia\nPlanejar pontos de maior intensidade.\n"
+  },
+  {
+    "id": "les_mod4_dinamica_expressiva_0005",
+    "type": "lesson",
+    "title": "Dinâmica expressiva",
+    "level": "Avançado",
+    "tags": [
+      "dinâmica",
+      "expressão"
+    ],
+    "text": "# Dinâmica expressiva\n\n## Uso artístico\n- contraste\n- expectativa\n\n## Exercício\nCantar o mesmo trecho em 3 intensidades.\n"
+  },
+  {
+    "id": "les_mod4_fraselado_0006",
+    "type": "lesson",
+    "title": "Fraseado vocal (respiração e intenção)",
+    "level": "Avançado",
+    "tags": [
+      "fraseado",
+      "respiração"
+    ],
+    "text": "# Fraseado\n\n## Frase musical ≠ frase falada\n\n## Objetivo\nRespirar a favor da intenção musical.\n"
+  },
+  {
+    "id": "les_mod4_palco_postura_0007",
+    "type": "lesson",
+    "title": "Postura e presença de palco",
+    "level": "Avançado",
+    "tags": [
+      "palco",
+      "postura"
+    ],
+    "text": "# Presença de palco\n\n## Postura comunica\nAntes mesmo de cantar.\n\n## Atenção\nPostura rígida bloqueia expressão.\n"
+  },
+  {
+    "id": "les_mod4_movimento_0008",
+    "type": "lesson",
+    "title": "Movimento corporal funcional",
+    "level": "Avançado",
+    "tags": [
+      "movimento",
+      "corpo"
+    ],
+    "text": "# Movimento corporal\n\n## Movimento bom\n- ajuda a respiração\n- reforça intenção\n\n## Movimento ruim\n- distrai\n- gera tensão\n"
+  },
+  {
+    "id": "les_mod4_microfone_0009",
+    "type": "lesson",
+    "title": "Uso de microfone",
+    "level": "Avançado",
+    "tags": [
+      "microfone",
+      "palco"
+    ],
+    "text": "# Uso de microfone\n\n## Distância importa\nMais perto = mais grave e intimidade.\n\n## Regra\nAjuste o microfone, não a garganta.\n"
+  },
+  {
+    "id": "les_mod4_publico_0010",
+    "type": "lesson",
+    "title": "Comunicação com o público",
+    "level": "Avançado",
+    "tags": [
+      "público",
+      "comunicação"
+    ],
+    "text": "# Comunicação com o público\n\n## Cantar PARA alguém\nNão para o chão.\n\n## Exercício\nEscolha um ponto e direcione a mensagem.\n"
+  },
+  {
+    "id": "les_mod4_ansiedade_0011",
+    "type": "lesson",
+    "title": "Ansiedade e nervosismo no palco",
+    "level": "Avançado",
+    "tags": [
+      "ansiedade",
+      "palco",
+      "controle"
+    ],
+    "text": "# Ansiedade no palco\n\n## Normal\nAnsiedade é energia.\n\n## Estratégia\nRespiração + foco externo.\n"
+  },
+  {
+    "id": "les_mod4_repertorio_0012",
+    "type": "lesson",
+    "title": "Escolha de repertório estratégica",
+    "level": "Avançado",
+    "tags": [
+      "repertório",
+      "estratégia"
+    ],
+    "text": "# Repertório\n\n## Escolha inteligente\nValoriza pontos fortes.\n\n## Evite\nPeças fora do momento técnico.\n"
+  },
+  {
+    "id": "les_mod4_ensaio_0013",
+    "type": "lesson",
+    "title": "Ensaio eficiente",
+    "level": "Avançado",
+    "tags": [
+      "ensaio",
+      "organização"
+    ],
+    "text": "# Ensaio eficiente\n\n## Não é repetir sem pensar\nÉ corrigir com intenção.\n"
+  },
+  {
+    "id": "les_mod4_rotina_20min_0014",
+    "type": "lesson",
+    "title": "Rotina de 20 minutos (performance)",
+    "level": "Avançado",
+    "tags": [
+      "rotina",
+      "performance"
+    ],
+    "text": "# Rotina 20 min\n\n1) Aquecimento (6 min)\n2) Técnica aplicada (8 min)\n3) Performance (6 min)\n"
+  },
+  {
+    "id": "les_mod4_rotina_30min_0015",
+    "type": "lesson",
+    "title": "Rotina de 30 minutos (palco)",
+    "level": "Avançado",
+    "tags": [
+      "rotina",
+      "palco"
+    ],
+    "text": "# Rotina 30 min\n\n1) Aquecimento (8 min)\n2) Técnica (10 min)\n3) Performance completa (8 min)\n4) Desaquecimento (4 min)\n"
+  },
+  {
+    "id": "les_mod4_sinais_alerta_0016",
+    "type": "lesson",
+    "title": "Sinais de alerta em performance",
+    "level": "Avançado",
+    "tags": [
+      "alerta",
+      "saúde"
+    ],
+    "text": "# Sinais de alerta\n\n- perda de controle em palco\n- tensão emocional excessiva\n\nRetorne à técnica básica.\n"
+  },
+  {
+    "id": "library_mod4_palco_0101",
+    "type": "library",
+    "title": "Psicologia da performance",
+    "category": "Performance",
+    "level": "Avançado",
+    "text": "# Psicologia da performance\n\nPerformance é treino mental + técnico.\n"
+  },
+  {
+    "id": "library_mod4_profissional_0102",
+    "type": "library",
+    "title": "Postura profissional do cantor",
+    "category": "Carreira",
+    "level": "Avançado",
+    "text": "# Postura profissional\n\nPontualidade, preparo e respeito constroem carreira.\n"
+  },
+  {
+    "id": "mission_mod4_palco_0201",
+    "type": "mission",
+    "title": "Performance consciente (10 min)",
+    "desc": "Cantar um trecho focando comunicação, não técnica.",
+    "minutes": 10,
+    "xp": 24,
+    "tag": "performance",
+    "text": ""
+  },
+  {
+    "id": "mission_mod4_publico_0202",
+    "type": "mission",
+    "title": "Comunicação visual (6 min)",
+    "desc": "Cantar mantendo contato visual com pontos imaginários.",
+    "minutes": 6,
+    "xp": 18,
+    "tag": "palco",
+    "text": ""
+  },
+  {
+    "id": "mission_mod4_ensaio_0203",
+    "type": "mission",
+    "title": "Ensaio estratégico (12 min)",
+    "desc": "Planejar e executar ensaio com foco específico.",
+    "minutes": 12,
+    "xp": 26,
+    "tag": "ensaio",
+    "text": ""
+  },
+  {
+    "id": "track_mod5_estilos_0001",
+    "type": "track",
+    "title": "Módulo 5 — Estilos Vocais",
+    "subtitle": "Pop • Rock • Gospel • Sertanejo • MPB",
+    "cover": "🎶",
+    "level": "Avançado",
+    "lessonIds": [
+      "les_mod5_visao_0001",
+      "les_mod5_estilo_conceito_0002",
+      "les_mod5_pop_0003",
+      "les_mod5_rock_0004",
+      "les_mod5_gospel_0005",
+      "les_mod5_sertanejo_0006",
+      "les_mod5_mpb_0007",
+      "les_mod5_adaptacao_0008",
+      "les_mod5_saude_estilo_0009",
+      "les_mod5_identidade_0010",
+      "les_mod5_rotina_20min_0011",
+      "les_mod5_rotina_30min_0012"
+    ],
+    "text": ""
+  },
+  {
+    "id": "les_mod5_visao_0001",
+    "type": "lesson",
+    "title": "Visão geral dos estilos vocais",
+    "level": "Avançado",
+    "tags": [
+      "estilos",
+      "identidade"
+    ],
+    "text": "# Visão geral\n\n## Objetivo\nAprender a **adaptar a técnica** a diferentes estilos sem comprometer a saúde vocal.\n\n## Regra de ouro\nEstilo é escolha artística, não sacrifício técnico.\n"
+  },
+  {
+    "id": "les_mod5_estilo_conceito_0002",
+    "type": "lesson",
+    "title": "O que é estilo vocal?",
+    "level": "Avançado",
+    "tags": [
+      "estilo",
+      "interpretação"
+    ],
+    "text": "# Estilo vocal\n\n## Estilo não é voz falsa\nÉ ajuste consciente de:\n- articulação\n- dinâmica\n- timbre\n\nSempre com base técnica.\n"
+  },
+  {
+    "id": "les_mod5_pop_0003",
+    "type": "lesson",
+    "title": "Estilo Pop",
+    "level": "Avançado",
+    "tags": [
+      "pop",
+      "estilo"
+    ],
+    "text": "# Pop\n\n## Características\n- clareza\n- proximidade\n- emoção controlada\n\n## Atenção\nEvite soprosidade excessiva.\n"
+  },
+  {
+    "id": "les_mod5_rock_0004",
+    "type": "lesson",
+    "title": "Estilo Rock",
+    "level": "Avançado",
+    "tags": [
+      "rock",
+      "drive"
+    ],
+    "text": "# Rock\n\n## Características\n- energia\n- ataque\n- intensidade\n\n## Regra\nDrive SEM apertar garganta.\n"
+  },
+  {
+    "id": "les_mod5_gospel_0005",
+    "type": "lesson",
+    "title": "Estilo Gospel",
+    "level": "Avançado",
+    "tags": [
+      "gospel",
+      "dinâmica"
+    ],
+    "text": "# Gospel\n\n## Características\n- dinâmica ampla\n- emoção\n- potência controlada\n\n## Risco\nExagerar volume constante.\n"
+  },
+  {
+    "id": "les_mod5_sertanejo_0006",
+    "type": "lesson",
+    "title": "Estilo Sertanejo",
+    "level": "Avançado",
+    "tags": [
+      "sertanejo",
+      "nasalidade"
+    ],
+    "text": "# Sertanejo\n\n## Características\n- timbre falado\n- leve nasalidade\n- clareza textual\n\n## Atenção\nNasalidade controlada ≠ som preso.\n"
+  },
+  {
+    "id": "les_mod5_mpb_0007",
+    "type": "lesson",
+    "title": "Estilo MPB",
+    "level": "Avançado",
+    "tags": [
+      "mpb",
+      "interpretação"
+    ],
+    "text": "# MPB\n\n## Características\n- fraseado refinado\n- dinâmica sutil\n- intenção textual\n\n## Foco\nExpressão antes de potência.\n"
+  },
+  {
+    "id": "les_mod5_adaptacao_0008",
+    "type": "lesson",
+    "title": "Adaptação técnica entre estilos",
+    "level": "Avançado",
+    "tags": [
+      "adaptação",
+      "técnica"
+    ],
+    "text": "# Adaptação\n\n## Técnica é base\nVocê adapta o estilo, não reconstrói a voz.\n\n## Exercício\nCantar o mesmo trecho em 3 estilos diferentes.\n"
+  },
+  {
+    "id": "les_mod5_saude_estilo_0009",
+    "type": "lesson",
+    "title": "Saúde vocal em diferentes estilos",
+    "level": "Avançado",
+    "tags": [
+      "saúde",
+      "estilo"
+    ],
+    "text": "# Saúde vocal\n\n## Perigo\nEstilo sem pausa gera sobrecarga.\n\n## Solução\nAlternar intensidade e repertório.\n"
+  },
+  {
+    "id": "les_mod5_identidade_0010",
+    "type": "lesson",
+    "title": "Construção de identidade vocal",
+    "level": "Avançado",
+    "tags": [
+      "identidade",
+      "carreira"
+    ],
+    "text": "# Identidade vocal\n\n## Identidade não se força\nEla emerge da consistência.\n\n## Meta\nSer reconhecido sem se machucar.\n"
+  },
+  {
+    "id": "les_mod5_rotina_20min_0011",
+    "type": "lesson",
+    "title": "Rotina de 20 minutos (estilos)",
+    "level": "Avançado",
+    "tags": [
+      "rotina",
+      "estilos"
+    ],
+    "text": "# Rotina 20 min\n\n1) Aquecimento neutro (6 min)\n2) Estilo foco (8 min)\n3) Aplicação musical (6 min)\n"
+  },
+  {
+    "id": "les_mod5_rotina_30min_0012",
+    "type": "lesson",
+    "title": "Rotina de 30 minutos (estilos)",
+    "level": "Avançado",
+    "tags": [
+      "rotina",
+      "performance"
+    ],
+    "text": "# Rotina 30 min\n\n1) Aquecimento (8 min)\n2) Técnica aplicada (10 min)\n3) Estilo escolhido (8 min)\n4) Desaquecimento (4 min)\n"
+  },
+  {
+    "id": "library_mod5_estilos_0101",
+    "type": "library",
+    "title": "Comparação entre estilos vocais",
+    "category": "Estilos",
+    "level": "Avançado",
+    "text": "# Comparação de estilos\n\nCada estilo ajusta:\n- articulação\n- dinâmica\n- timbre\n\nA técnica base permanece.\n"
+  },
+  {
+    "id": "library_mod5_identidade_0102",
+    "type": "library",
+    "title": "Identidade artística e mercado",
+    "category": "Carreira",
+    "level": "Avançado",
+    "text": "# Identidade artística\n\nO mercado reconhece consistência, não excesso.\n"
+  },
+  {
+    "id": "mission_mod5_pop_0201",
+    "type": "mission",
+    "title": "Aplicação Pop (10 min)",
+    "desc": "Cantar trecho pop com clareza e controle.",
+    "minutes": 10,
+    "xp": 24,
+    "tag": "pop",
+    "text": ""
+  },
+  {
+    "id": "mission_mod5_rock_0202",
+    "type": "mission",
+    "title": "Energia Rock (8 min)",
+    "desc": "Aplicar energia sem apertar a garganta.",
+    "minutes": 8,
+    "xp": 22,
+    "tag": "rock",
+    "text": ""
+  },
+  {
+    "id": "mission_mod5_identidade_0203",
+    "type": "mission",
+    "title": "Identidade vocal (12 min)",
+    "desc": "Cantar trecho autoral ou adaptado ao seu estilo.",
+    "minutes": 12,
+    "xp": 26,
+    "tag": "identidade",
+    "text": ""
+  },
+  {
+    "id": "track_mod6_drive_0001",
+    "type": "track",
+    "title": "Módulo 6 — Drive, Distortion e Efeitos Vocais",
+    "subtitle": "Efeitos • Segurança • Coordenação • Controle",
+    "cover": "🔥",
+    "level": "Avançado",
+    "lessonIds": [
+      "les_mod6_visao_0001",
+      "les_mod6_pre_requisitos_0002",
+      "les_mod6_fisiologia_0003",
+      "les_mod6_drive_conceito_0004",
+      "les_mod6_fry_0005",
+      "les_mod6_distortion_0006",
+      "les_mod6_controle_volume_0007",
+      "les_mod6_mix_drive_0008",
+      "les_mod6_erros_0009",
+      "les_mod6_saude_0010",
+      "les_mod6_rotina_20min_0011",
+      "les_mod6_rotina_30min_0012"
+    ],
+    "text": ""
+  },
+  {
+    "id": "les_mod6_visao_0001",
+    "type": "lesson",
+    "title": "Visão geral do Módulo 6",
+    "level": "Avançado",
+    "tags": [
+      "drive",
+      "efeitos",
+      "segurança"
+    ],
+    "text": "# Visão geral\n\n## Objetivo\nAprender efeitos vocais **sem machucar a voz**.\n\n## Verdade central\nDrive NÃO é força.\nÉ coordenação.\n"
+  },
+  {
+    "id": "les_mod6_pre_requisitos_0002",
+    "type": "lesson",
+    "title": "Pré-requisitos obrigatórios",
+    "level": "Avançado",
+    "tags": [
+      "pré-requisitos",
+      "técnica"
+    ],
+    "text": "# Pré-requisitos\n\nAntes de tentar drive:\n- controle respiratório\n- mix equilibrado\n- SOVT consistente\n\nSem isso: NÃO avance.\n"
+  },
+  {
+    "id": "les_mod6_fisiologia_0003",
+    "type": "lesson",
+    "title": "Fisiologia dos efeitos vocais",
+    "level": "Avançado",
+    "tags": [
+      "fisiologia",
+      "segurança"
+    ],
+    "text": "# Fisiologia\n\n## Importante\nO som distorcido NÃO vem das pregas vocais principais.\n\nEle envolve estruturas supraglóticas.\n"
+  },
+  {
+    "id": "les_mod6_drive_conceito_0004",
+    "type": "lesson",
+    "title": "O que é drive vocal?",
+    "level": "Avançado",
+    "tags": [
+      "drive",
+      "conceito"
+    ],
+    "text": "# Drive vocal\n\n## Drive é:\n- ruído controlado\n- sensação de vibração\n\n## Drive NÃO é:\n- dor\n- aperto\n- grito\n"
+  },
+  {
+    "id": "les_mod6_fry_0005",
+    "type": "lesson",
+    "title": "Vocal Fry (uso consciente)",
+    "level": "Avançado",
+    "tags": [
+      "fry",
+      "coordenação"
+    ],
+    "text": "# Vocal Fry\n\n## Uso correto\nFry é ferramenta de coordenação, não efeito final.\n\n## Tempo\nUso curto e consciente.\n"
+  },
+  {
+    "id": "les_mod6_distortion_0006",
+    "type": "lesson",
+    "title": "Distortion segura",
+    "level": "Avançado",
+    "tags": [
+      "distortion",
+      "drive"
+    ],
+    "text": "# Distortion\n\n## Origem\nCoordenação + fluxo de ar.\n\n## Atenção\nSem empurrar ar.\n"
+  },
+  {
+    "id": "les_mod6_controle_volume_0007",
+    "type": "lesson",
+    "title": "Controle de volume e pressão",
+    "level": "Avançado",
+    "tags": [
+      "volume",
+      "controle"
+    ],
+    "text": "# Controle de volume\n\nDrive não precisa ser alto.\n\nMais controle = menos desgaste.\n"
+  },
+  {
+    "id": "les_mod6_mix_drive_0008",
+    "type": "lesson",
+    "title": "Drive aplicado ao mix",
+    "level": "Avançado",
+    "tags": [
+      "mix",
+      "drive"
+    ],
+    "text": "# Drive no mix\n\n## Objetivo\nManter equilíbrio entre clareza e efeito.\n\n## Exercício\nAplicar drive em frases curtas.\n"
+  },
+  {
+    "id": "les_mod6_erros_0009",
+    "type": "lesson",
+    "title": "Erros comuns e riscos",
+    "level": "Avançado",
+    "tags": [
+      "erros",
+      "segurança"
+    ],
+    "text": "# Erros comuns\n\n- tentar alto demais\n- usar dor como referência\n\nSe doer: pare.\n"
+  },
+  {
+    "id": "les_mod6_saude_0010",
+    "type": "lesson",
+    "title": "Saúde vocal e recuperação",
+    "level": "Avançado",
+    "tags": [
+      "saúde",
+      "recuperação"
+    ],
+    "text": "# Saúde vocal\n\nApós efeitos:\n- SOVT\n- hidratação\n- descanso\n"
+  },
+  {
+    "id": "les_mod6_rotina_20min_0011",
+    "type": "lesson",
+    "title": "Rotina de 20 minutos (efeitos)",
+    "level": "Avançado",
+    "tags": [
+      "rotina",
+      "drive"
+    ],
+    "text": "# Rotina 20 min\n\n1) Aquecimento neutro (6 min)\n2) Coordenação leve (8 min)\n3) Aplicação curta (6 min)\n"
+  },
+  {
+    "id": "les_mod6_rotina_30min_0012",
+    "type": "lesson",
+    "title": "Rotina de 30 minutos (efeitos)",
+    "level": "Avançado",
+    "tags": [
+      "rotina",
+      "segurança"
+    ],
+    "text": "# Rotina 30 min\n\n1) Aquecimento (8 min)\n2) Técnica base (10 min)\n3) Efeitos controlados (8 min)\n4) Desaquecimento (4 min)\n"
+  },
+  {
+    "id": "library_mod6_drive_0101",
+    "type": "library",
+    "title": "Drive vocal: mito vs realidade",
+    "category": "Efeitos",
+    "level": "Avançado",
+    "text": "# Mitos sobre drive\n\nDrive não destrói a voz quando feito corretamente.\n"
+  },
+  {
+    "id": "library_mod6_segurança_0102",
+    "type": "library",
+    "title": "Segurança vocal em efeitos",
+    "category": "Saúde",
+    "level": "Avançado",
+    "text": "# Segurança\n\nSe algo dói, está errado.\n"
+  },
+  {
+    "id": "mission_mod6_drive_0201",
+    "type": "mission",
+    "title": "Drive leve consciente (6 min)",
+    "desc": "Aplicar efeito leve em frases curtas.",
+    "minutes": 6,
+    "xp": 20,
+    "tag": "drive",
+    "text": ""
+  },
+  {
+    "id": "mission_mod6_distortion_0202",
+    "type": "mission",
+    "title": "Distortion controlada (8 min)",
+    "desc": "Explorar distorção sem aumento de volume.",
+    "minutes": 8,
+    "xp": 24,
+    "tag": "distortion",
+    "text": ""
+  },
+  {
+    "id": "mission_mod6_recuperacao_0203",
+    "type": "mission",
+    "title": "Recuperação vocal (5 min)",
+    "desc": "Aplicar SOVT após treino de efeitos.",
+    "minutes": 5,
+    "xp": 18,
+    "tag": "saúde",
+    "text": ""
+  },
+  {
+    "id": "track_mod7_erudito_0001",
+    "type": "track",
+    "title": "Módulo 7 — Canto Erudito e Bel Canto",
+    "subtitle": "Base clássica • Sustentação • Homogeneidade • Projeção",
+    "cover": "🎼",
+    "level": "Avançado",
+    "lessonIds": [
+      "les_mod7_visao_0001",
+      "les_mod7_historia_0002",
+      "les_mod7_postura_0003",
+      "les_mod7_respiracao_0004",
+      "les_mod7_appoggio_0005",
+      "les_mod7_vogal_0006",
+      "les_mod7_legato_0007",
+      "les_mod7_projecao_0008",
+      "les_mod7_registros_0009",
+      "les_mod7_dinamica_0010",
+      "les_mod7_agudos_0011",
+      "les_mod7_rotina_20min_0012",
+      "les_mod7_rotina_30min_0013"
+    ],
+    "text": ""
+  },
+  {
+    "id": "les_mod7_visao_0001",
+    "type": "lesson",
+    "title": "Visão geral do canto erudito",
+    "level": "Avançado",
+    "tags": [
+      "erudito",
+      "bel canto"
+    ],
+    "text": "# Visão geral\n\n## Objetivo\nConstruir uma voz **homogênea, livre e projetada**, baseada em princípios clássicos.\n\n## Princípio central\nBeleza vocal nasce da eficiência.\n"
+  },
+  {
+    "id": "les_mod7_historia_0002",
+    "type": "lesson",
+    "title": "História do Bel Canto",
+    "level": "Avançado",
+    "tags": [
+      "história",
+      "bel canto"
+    ],
+    "text": "# História do Bel Canto\n\nBel Canto significa **\"cantar bonito\"**, com foco em:\n- legato\n- homogeneidade\n- controle respiratório\n"
+  },
+  {
+    "id": "les_mod7_postura_0003",
+    "type": "lesson",
+    "title": "Postura no canto erudito",
+    "level": "Avançado",
+    "tags": [
+      "postura",
+      "corpo"
+    ],
+    "text": "# Postura\n\n## Postura clássica\n- alinhamento vertical\n- relaxamento ativo\n\nPostura sustenta a voz.\n"
+  },
+  {
+    "id": "les_mod7_respiracao_0004",
+    "type": "lesson",
+    "title": "Respiração no canto clássico",
+    "level": "Avançado",
+    "tags": [
+      "respiração",
+      "erudito"
+    ],
+    "text": "# Respiração\n\nRespiração silenciosa, ampla e controlada.\n\nSem ruído, sem tensão.\n"
+  },
+  {
+    "id": "les_mod7_appoggio_0005",
+    "type": "lesson",
+    "title": "Appoggio (apoio clássico)",
+    "level": "Avançado",
+    "tags": [
+      "appoggio",
+      "apoio"
+    ],
+    "text": "# Appoggio\n\n## Conceito\nEquilíbrio entre pressão do ar e resistência vocal.\n\nBase do Bel Canto.\n"
+  },
+  {
+    "id": "les_mod7_vogal_0006",
+    "type": "lesson",
+    "title": "Vogais no canto erudito",
+    "level": "Avançado",
+    "tags": [
+      "vogais",
+      "ressonância"
+    ],
+    "text": "# Vogais\n\n## Objetivo\nUnificar timbre entre vogais.\n\nEvitar vogais abertas demais.\n"
+  },
+  {
+    "id": "les_mod7_legato_0007",
+    "type": "lesson",
+    "title": "Legato clássico",
+    "level": "Avançado",
+    "tags": [
+      "legato",
+      "fraseado"
+    ],
+    "text": "# Legato\n\n## Legato verdadeiro\nFluxo contínuo de ar e som.\n\nSem degraus vocais.\n"
+  },
+  {
+    "id": "les_mod7_projecao_0008",
+    "type": "lesson",
+    "title": "Projeção vocal sem esforço",
+    "level": "Avançado",
+    "tags": [
+      "projeção",
+      "ressonância"
+    ],
+    "text": "# Projeção\n\nProjeção não é volume.\n\nÉ ressonância eficiente.\n"
+  },
+  {
+    "id": "les_mod7_registros_0009",
+    "type": "lesson",
+    "title": "Registros no canto erudito",
+    "level": "Avançado",
+    "tags": [
+      "registros",
+      "homogeneidade"
+    ],
+    "text": "# Registros\n\nObjetivo: transições invisíveis.\n\nNada de quebras perceptíveis.\n"
+  },
+  {
+    "id": "les_mod7_dinamica_0010",
+    "type": "lesson",
+    "title": "Dinâmica e controle clássico",
+    "level": "Avançado",
+    "tags": [
+      "dinâmica",
+      "controle"
+    ],
+    "text": "# Dinâmica\n\nPiano e forte com o mesmo controle.\n\nSem perder qualidade.\n"
+  },
+  {
+    "id": "les_mod7_agudos_0011",
+    "type": "lesson",
+    "title": "Agudos no canto erudito",
+    "level": "Avançado",
+    "tags": [
+      "agudos",
+      "erudito"
+    ],
+    "text": "# Agudos\n\nAgudo nasce do equilíbrio, não da força.\n\nMais espaço, menos pressão.\n"
+  },
+  {
+    "id": "les_mod7_rotina_20min_0012",
+    "type": "lesson",
+    "title": "Rotina clássica de 20 minutos",
+    "level": "Avançado",
+    "tags": [
+      "rotina",
+      "erudito"
+    ],
+    "text": "# Rotina 20 min\n\n1) Aquecimento vocal (6 min)\n2) Legato e vogais (8 min)\n3) Repertório leve (6 min)\n"
+  },
+  {
+    "id": "les_mod7_rotina_30min_0013",
+    "type": "lesson",
+    "title": "Rotina clássica de 30 minutos",
+    "level": "Avançado",
+    "tags": [
+      "rotina",
+      "bel canto"
+    ],
+    "text": "# Rotina 30 min\n\n1) Aquecimento (8 min)\n2) Técnica clássica (10 min)\n3) Repertório (8 min)\n4) Desaquecimento (4 min)\n"
+  },
+  {
+    "id": "library_mod7_erudito_0101",
+    "type": "library",
+    "title": "Bel Canto: princípios essenciais",
+    "category": "Erudito",
+    "level": "Avançado",
+    "text": "# Princípios do Bel Canto\n\nHomogeneidade, legato e liberdade vocal.\n"
+  },
+  {
+    "id": "library_mod7_classico_0102",
+    "type": "library",
+    "title": "Diferença entre canto erudito e popular",
+    "category": "Técnica",
+    "level": "Avançado",
+    "text": "# Diferenças\n\nErudito prioriza projeção natural e acústica.\n"
+  },
+  {
+    "id": "mission_mod7_legato_0201",
+    "type": "mission",
+    "title": "Legato contínuo (8 min)",
+    "desc": "Executar frases longas com fluxo contínuo.",
+    "minutes": 8,
+    "xp": 22,
+    "tag": "legato",
+    "text": ""
+  },
+  {
+    "id": "mission_mod7_appoggio_0202",
+    "type": "mission",
+    "title": "Appoggio consciente (10 min)",
+    "desc": "Manter apoio estável em vocalizes lentos.",
+    "minutes": 10,
+    "xp": 26,
+    "tag": "appoggio",
+    "text": ""
+  },
+  {
+    "id": "mission_mod7_erudito_0203",
+    "type": "mission",
+    "title": "Repertório erudito leve (12 min)",
+    "desc": "Aplicar técnica clássica em trecho simples.",
+    "minutes": 12,
+    "xp": 30,
+    "tag": "erudito",
+    "text": ""
+  },
+  {
+    "id": "les_mod8_respiracao_coletiva_0008",
+    "type": "lesson",
+    "title": "Respiração coletiva",
+    "level": "Intermediário",
+    "tags": [
+      "respiração",
+      "coral"
+    ],
+    "text": "# Respiração coletiva\n\nRespirar junto cria:\n- entradas precisas\n- unidade sonora\n"
+  },
+  {
+    "id": "les_mod8_dinamica_0009",
+    "type": "lesson",
+    "title": "Dinâmica no canto coral",
+    "level": "Intermediário",
+    "tags": [
+      "dinâmica",
+      "coral"
+    ],
+    "text": "# Dinâmica coral\n\nDinâmica é construída em grupo.\n\nEvite sobressair individualmente.\n"
+  },
+  {
+    "id": "les_mod8_diccao_0010",
+    "type": "lesson",
+    "title": "Dicção e texto no coral",
+    "level": "Intermediário",
+    "tags": [
+      "dicção",
+      "texto"
+    ],
+    "text": "# Dicção coral\n\nConsoantes juntas.\n\nVogais unificadas.\n"
+  },
+  {
+    "id": "les_mod8_rotina_20min_0011",
+    "type": "lesson",
+    "title": "Rotina coral de 20 minutos",
+    "level": "Intermediário",
+    "tags": [
+      "rotina",
+      "coral"
+    ],
+    "text": "# Rotina 20 min\n\n1) Aquecimento conjunto (6 min)\n2) Afinação e blend (8 min)\n3) Trecho coral (6 min)\n"
+  },
+  {
+    "id": "les_mod8_rotina_30min_0012",
+    "type": "lesson",
+    "title": "Rotina coral de 30 minutos",
+    "level": "Intermediário",
+    "tags": [
+      "rotina",
+      "harmonia"
+    ],
+    "text": "# Rotina 30 min\n\n1) Aquecimento (8 min)\n2) Técnica coral (10 min)\n3) Repertório (8 min)\n4) Desaquecimento (4 min)\n"
+  },
+  {
+    "id": "library_mod8_coral_0101",
+    "type": "library",
+    "title": "Função do coral na música",
+    "category": "Coral",
+    "level": "Intermediário",
+    "text": "# Função do coral\n\nO coral desenvolve escuta, disciplina e musicalidade.\n"
+  },
+  {
+    "id": "library_mod8_harmonia_0102",
+    "type": "library",
+    "title": "Harmonia vocal básica",
+    "category": "Harmonia",
+    "level": "Intermediário",
+    "text": "# Harmonia vocal\n\nHarmonia é o encaixe de vozes diferentes criando unidade.\n"
+  },
+  {
+    "id": "mission_mod8_blend_0201",
+    "type": "mission",
+    "title": "Blend consciente (8 min)",
+    "desc": "Cantar priorizando volume e timbre do grupo.",
+    "minutes": 8,
+    "xp": 20,
+    "tag": "blend",
+    "text": ""
+  },
+  {
+    "id": "mission_mod8_afinacao_0202",
+    "type": "mission",
+    "title": "Afinação coletiva (10 min)",
+    "desc": "Cantar mantendo referência do grupo.",
+    "minutes": 10,
+    "xp": 24,
+    "tag": "afinação",
+    "text": ""
+  },
+  {
+    "id": "mission_mod8_escuta_0203",
+    "type": "mission",
+    "title": "Escuta ativa (6 min)",
+    "desc": "Cantar focando mais na escuta do que na emissão.",
+    "minutes": 6,
+    "xp": 18,
+    "tag": "escuta",
+    "text": ""
+  },
+  {
+    "id": "track_mod9_estudio_0001",
+    "type": "track",
+    "title": "Módulo 9 — Estúdio, Microfone e Gravação",
+    "subtitle": "Captação • Técnica de estúdio • Performance gravada",
+    "cover": "🎧",
+    "level": "Intermediário",
+    "lessonIds": [
+      "les_mod9_visao_0001",
+      "les_mod9_diferenca_palco_estudio_0002",
+      "les_mod9_tipos_microfone_0003",
+      "les_mod9_posicionamento_microfone_0004",
+      "les_mod9_proximidade_0005",
+      "les_mod9_plosivas_sibilancia_0006",
+      "les_mod9_fone_referencia_0007",
+      "les_mod9_interpretacao_estudio_0008",
+      "les_mod9_repeticoes_take_0009",
+      "les_mod9_preparacao_gravacao_0010",
+      "les_mod9_rotina_20min_0011",
+      "les_mod9_rotina_30min_0012"
+    ],
+    "text": ""
+  },
+  {
+    "id": "les_mod9_visao_0001",
+    "type": "lesson",
+    "title": "Visão geral do canto em estúdio",
+    "level": "Intermediário",
+    "tags": [
+      "estúdio",
+      "gravação"
+    ],
+    "text": "# Visão geral\n\n## Objetivo\nAprender a cantar **para o microfone**, não para o público.\n\nEstúdio exige controle fino e precisão.\n"
+  },
+  {
+    "id": "les_mod9_diferenca_palco_estudio_0002",
+    "type": "lesson",
+    "title": "Diferença entre palco e estúdio",
+    "level": "Intermediário",
+    "tags": [
+      "palco",
+      "estúdio"
+    ],
+    "text": "# Palco x Estúdio\n\n## Palco\n- projeção\n- energia\n\n## Estúdio\n- detalhe\n- controle\n"
+  },
+  {
+    "id": "les_mod9_tipos_microfone_0003",
+    "type": "lesson",
+    "title": "Tipos de microfone (condensador e dinâmico)",
+    "level": "Intermediário",
+    "tags": [
+      "microfone",
+      "captação"
+    ],
+    "text": "# Tipos de microfone\n\n## Condensador\nMais sensível e detalhado.\n\n## Dinâmico\nMais resistente, menos detalhe.\n"
+  },
+  {
+    "id": "les_mod9_posicionamento_microfone_0004",
+    "type": "lesson",
+    "title": "Posicionamento do microfone",
+    "level": "Intermediário",
+    "tags": [
+      "microfone",
+      "posicionamento"
+    ],
+    "text": "# Posicionamento\n\nAltura e ângulo influenciam o timbre.\n\nEvite cantar direto no eixo.\n"
+  },
+  {
+    "id": "les_mod9_proximidade_0005",
+    "type": "lesson",
+    "title": "Efeito de proximidade",
+    "level": "Intermediário",
+    "tags": [
+      "proximidade",
+      "grave"
+    ],
+    "text": "# Efeito de proximidade\n\nMais perto = mais grave.\n\nUse a distância como ferramenta.\n"
+  },
+  {
+    "id": "les_mod9_plosivas_sibilancia_0006",
+    "type": "lesson",
+    "title": "Plosivas e sibilância",
+    "level": "Intermediário",
+    "tags": [
+      "plosivas",
+      "sibilância"
+    ],
+    "text": "# Plosivas e sibilância\n\nP, B e S podem estourar a gravação.\n\nÂngulo e articulação resolvem.\n"
+  },
+  {
+    "id": "les_mod9_fone_referencia_0007",
+    "type": "lesson",
+    "title": "Uso de fone de ouvido",
+    "level": "Intermediário",
+    "tags": [
+      "fone",
+      "monitoramento"
+    ],
+    "text": "# Fone de ouvido\n\nVolume confortável.\n\nOuvir demais atrapalha a afinação.\n"
+  },
+  {
+    "id": "les_mod9_interpretacao_estudio_0008",
+    "type": "lesson",
+    "title": "Interpretação para gravação",
+    "level": "Intermediário",
+    "tags": [
+      "interpretação",
+      "estúdio"
+    ],
+    "text": "# Interpretação em estúdio\n\nMenos gesto, mais intenção sonora.\n\nMicrofone capta tudo.\n"
+  },
+  {
+    "id": "les_mod9_repeticoes_take_0009",
+    "type": "lesson",
+    "title": "Repetições e takes",
+    "level": "Intermediário",
+    "tags": [
+      "takes",
+      "gravação"
+    ],
+    "text": "# Takes\n\nGravar várias vezes é normal.\n\nBusque consistência, não perfeição.\n"
+  },
+  {
+    "id": "les_mod9_preparacao_gravacao_0010",
+    "type": "lesson",
+    "title": "Preparação vocal para gravação",
+    "level": "Intermediário",
+    "tags": [
+      "preparação",
+      "saúde"
+    ],
+    "text": "# Preparação\n\n- aquecer bem\n- hidratar\n- descansar a voz antes\n"
+  },
+  {
+    "id": "les_mod9_rotina_20min_0011",
+    "type": "lesson",
+    "title": "Rotina de 20 minutos (estúdio)",
+    "level": "Intermediário",
+    "tags": [
+      "rotina",
+      "estúdio"
+    ],
+    "text": "# Rotina 20 min\n\n1) Aquecimento leve (6 min)\n2) Técnica aplicada (8 min)\n3) Trecho gravado (6 min)\n"
+  },
+  {
+    "id": "les_mod9_rotina_30min_0012",
+    "type": "lesson",
+    "title": "Rotina de 30 minutos (estúdio)",
+    "level": "Intermediário",
+    "tags": [
+      "rotina",
+      "gravação"
+    ],
+    "text": "# Rotina 30 min\n\n1) Aquecimento (8 min)\n2) Técnica (10 min)\n3) Gravação (8 min)\n4) Desaquecimento (4 min)\n"
+  },
+  {
+    "id": "library_mod9_estudio_0101",
+    "type": "library",
+    "title": "Etiqueta em estúdio de gravação",
+    "category": "Estúdio",
+    "level": "Intermediário",
+    "text": "# Etiqueta em estúdio\n\nPontualidade, silêncio e foco.\n"
+  },
+  {
+    "id": "library_mod9_microfone_0102",
+    "type": "library",
+    "title": "Microfone como instrumento",
+    "category": "Técnica",
+    "level": "Intermediário",
+    "text": "# Microfone\n\nTrate o microfone como parte da técnica vocal.\n"
+  },
+  {
+    "id": "mission_mod9_gravacao_0201",
+    "type": "mission",
+    "title": "Gravação controlada (8 min)",
+    "desc": "Gravar trecho focando controle e clareza.",
+    "minutes": 8,
+    "xp": 22,
+    "tag": "gravação",
+    "text": ""
+  },
+  {
+    "id": "mission_mod9_microfone_0202",
+    "type": "mission",
+    "title": "Controle de proximidade (6 min)",
+    "desc": "Explorar distância do microfone conscientemente.",
+    "minutes": 6,
+    "xp": 18,
+    "tag": "microfone",
+    "text": ""
+  },
+  {
+    "id": "mission_mod9_estudio_0203",
+    "type": "mission",
+    "title": "Simulação de estúdio (12 min)",
+    "desc": "Cantar como se estivesse gravando profissionalmente.",
+    "minutes": 12,
+    "xp": 26,
+    "tag": "estúdio",
+    "text": ""
+  },
+  {
+    "id": "track_mod10_carreira_0001",
+    "type": "track",
+    "title": "Módulo 10 — Carreira, Mercado e Profissionalização",
+    "subtitle": "Planejamento • Mercado • Consistência • Longo prazo",
+    "cover": "🚀",
+    "level": "Avançado",
+    "lessonIds": [
+      "les_mod10_visao_0001",
+      "les_mod10_mentalidade_0002",
+      "les_mod10_rotina_profissional_0003",
+      "les_mod10_planejamento_0004",
+      "les_mod10_repertorio_0005",
+      "les_mod10_marca_pessoal_0006",
+      "les_mod10_redes_0007",
+      "les_mod10_palco_mercado_0008",
+      "les_mod10_estudio_mercado_0009",
+      "les_mod10_saude_longo_prazo_0010",
+      "les_mod10_rotina_20min_0011",
+      "les_mod10_rotina_30min_0012"
+    ],
+    "text": ""
+  },
+  {
+    "id": "les_mod10_visao_0001",
+    "type": "lesson",
+    "title": "Visão geral da carreira vocal",
+    "level": "Avançado",
+    "tags": [
+      "carreira",
+      "planejamento"
+    ],
+    "text": "# Visão geral\n\n## Objetivo\nTransformar estudo vocal em **atividade sustentável de longo prazo**.\n\nCarreira é consistência, não explosão.\n"
+  },
+  {
+    "id": "les_mod10_mentalidade_0002",
+    "type": "lesson",
+    "title": "Mentalidade profissional do cantor",
+    "level": "Avançado",
+    "tags": [
+      "mentalidade",
+      "profissional"
+    ],
+    "text": "# Mentalidade profissional\n\n## Pilares\n- disciplina\n- paciência\n- responsabilidade vocal\n\nTalento sem constância não sustenta carreira.\n"
+  },
+  {
+    "id": "les_mod10_rotina_profissional_0003",
+    "type": "lesson",
+    "title": "Rotina profissional realista",
+    "level": "Avançado",
+    "tags": [
+      "rotina",
+      "organização"
+    ],
+    "text": "# Rotina profissional\n\nTreinar menos dias bem feitos > treinar todo dia mal feito.\n\nPlaneje descanso.\n"
+  },
+  {
+    "id": "les_mod10_planejamento_0004",
+    "type": "lesson",
+    "title": "Planejamento de curto, médio e longo prazo",
+    "level": "Avançado",
+    "tags": [
+      "planejamento",
+      "metas"
+    ],
+    "text": "# Planejamento\n\n## Curto prazo\nTécnica e consistência.\n\n## Médio prazo\nRepertório e performance.\n\n## Longo prazo\nIdentidade e mercado.\n"
+  },
+  {
+    "id": "les_mod10_repertorio_0005",
+    "type": "lesson",
+    "title": "Construção de repertório estratégico",
+    "level": "Avançado",
+    "tags": [
+      "repertório",
+      "estratégia"
+    ],
+    "text": "# Repertório\n\nRepertório deve:\n- valorizar sua voz\n- respeitar seu momento técnico\n\nEvite repertório por ego.\n"
+  },
+  {
+    "id": "les_mod10_marca_pessoal_0006",
+    "type": "lesson",
+    "title": "Marca pessoal e identidade artística",
+    "level": "Avançado",
+    "tags": [
+      "marca",
+      "identidade"
+    ],
+    "text": "# Marca pessoal\n\nMarca não é personagem.\n\nÉ coerência entre som, imagem e atitude.\n"
+  },
+  {
+    "id": "les_mod10_redes_0007",
+    "type": "lesson",
+    "title": "Uso inteligente das redes sociais",
+    "level": "Avançado",
+    "tags": [
+      "redes sociais",
+      "marketing"
+    ],
+    "text": "# Redes sociais\n\nPostar bem é melhor que postar sempre.\n\nQualidade > quantidade.\n"
+  },
+  {
+    "id": "les_mod10_palco_mercado_0008",
+    "type": "lesson",
+    "title": "Mercado de palco e shows",
+    "level": "Avançado",
+    "tags": [
+      "palco",
+      "mercado"
+    ],
+    "text": "# Mercado de palco\n\nPontualidade, preparo e respeito geram convites.\n\nO palco começa fora dele.\n"
+  },
+  {
+    "id": "les_mod10_estudio_mercado_0009",
+    "type": "lesson",
+    "title": "Mercado de estúdio e gravação",
+    "level": "Avançado",
+    "tags": [
+      "estúdio",
+      "mercado"
+    ],
+    "text": "# Mercado de estúdio\n\nAfinação, leitura e rapidez são diferenciais.\n"
+  },
+  {
+    "id": "les_mod10_saude_longo_prazo_0010",
+    "type": "lesson",
+    "title": "Saúde vocal a longo prazo",
+    "level": "Avançado",
+    "tags": [
+      "saúde",
+      "longevidade"
+    ],
+    "text": "# Saúde vocal\n\nCarreira longa depende de:\n- descanso\n- hidratação\n- limites\n"
+  },
+  {
+    "id": "les_mod10_rotina_20min_0011",
+    "type": "lesson",
+    "title": "Rotina de 20 minutos (profissional)",
+    "level": "Avançado",
+    "tags": [
+      "rotina",
+      "carreira"
+    ],
+    "text": "# Rotina 20 min\n\n1) Aquecimento (6 min)\n2) Técnica aplicada (8 min)\n3) Repertório estratégico (6 min)\n"
+  },
+  {
+    "id": "les_mod10_rotina_30min_0012",
+    "type": "lesson",
+    "title": "Rotina de 30 minutos (profissional)",
+    "level": "Avançado",
+    "tags": [
+      "rotina",
+      "planejamento"
+    ],
+    "text": "# Rotina 30 min\n\n1) Aquecimento (8 min)\n2) Técnica (10 min)\n3) Repertório (8 min)\n4) Desaquecimento (4 min)\n"
+  },
+  {
+    "id": "library_mod10_carreira_0101",
+    "type": "library",
+    "title": "Caminhos de carreira para cantores",
+    "category": "Carreira",
+    "level": "Avançado",
+    "text": "# Caminhos de carreira\n\n- palco\n- estúdio\n- coral\n- ensino\n"
+  },
+  {
+    "id": "library_mod10_mercado_0102",
+    "type": "library",
+    "title": "Mercado musical atual",
+    "category": "Mercado",
+    "level": "Avançado",
+    "text": "# Mercado musical\n\nO mercado valoriza consistência, não viral momentâneo.\n"
+  },
+  {
+    "id": "mission_mod10_planejamento_0201",
+    "type": "mission",
+    "title": "Planejamento semanal (10 min)",
+    "desc": "Planejar treinos e descanso da semana.",
+    "minutes": 10,
+    "xp": 26,
+    "tag": "planejamento",
+    "text": ""
+  },
+  {
+    "id": "mission_mod10_repertorio_0202",
+    "type": "mission",
+    "title": "Repertório estratégico (12 min)",
+    "desc": "Selecionar repertório alinhado ao seu momento vocal.",
+    "minutes": 12,
+    "xp": 30,
+    "tag": "repertório",
+    "text": ""
+  },
+  {
+    "id": "mission_mod10_carreira_0203",
+    "type": "mission",
+    "title": "Visão de carreira (8 min)",
+    "desc": "Refletir e anotar objetivos de médio prazo.",
+    "minutes": 8,
+    "xp": 22,
+    "tag": "carreira",
+    "text": ""
+  },
+  {
+    "id": "track_mod0_iniciante_0001",
+    "type": "track",
+    "title": "Módulo 0 — Iniciante Absoluto",
+    "subtitle": "Primeiro contato • Segurança • Confiança",
+    "cover": "🌱",
+    "level": "Iniciante",
+    "lessonIds": [
+      "les_mod0_boasvindas_0001",
+      "les_mod0_oqueecantar_0002",
+      "les_mod0_respirar_0003",
+      "les_mod0_postura_0004",
+      "les_mod0_primeiros_sons_0005",
+      "les_mod0_aquecimento_leve_0006",
+      "les_mod0_afinar_ouvir_0007",
+      "les_mod0_rotina_5min_0008",
+      "les_mod0_rotina_10min_0009"
+    ],
+    "text": ""
+  },
+  {
+    "id": "les_mod0_boasvindas_0001",
+    "type": "lesson",
+    "title": "Boas-vindas ao canto",
+    "level": "Iniciante",
+    "tags": [
+      "início",
+      "confiança"
+    ],
+    "text": "# Boas-vindas\n\nVocê não precisa saber cantar para começar.\n\nCantar é **coordenação**, não dom.\n\nAqui você aprende passo a passo, sem pressa e sem dor.\n"
+  },
+  {
+    "id": "les_mod0_oqueecantar_0002",
+    "type": "lesson",
+    "title": "O que é cantar?",
+    "level": "Iniciante",
+    "tags": [
+      "conceito",
+      "consciência"
+    ],
+    "text": "# O que é cantar?\n\nCantar é:\n- usar o ar\n- coordenar músculos\n- produzir som com conforto\n\nNão é gritar.\nNão é forçar.\n"
+  },
+  {
+    "id": "les_mod0_respirar_0003",
+    "type": "lesson",
+    "title": "Aprendendo a respirar",
+    "level": "Iniciante",
+    "tags": [
+      "respiração",
+      "base"
+    ],
+    "text": "# Respiração\n\nRespirar para cantar é diferente de respirar rápido.\n\n## Princípio\n- ar entra sem esforço\n- ar sai devagar\n\nSem levantar ombros.\n"
+  },
+  {
+    "id": "les_mod0_postura_0004",
+    "type": "lesson",
+    "title": "Postura básica para cantar",
+    "level": "Iniciante",
+    "tags": [
+      "postura",
+      "corpo"
+    ],
+    "text": "# Postura\n\nPostura boa não é rígida.\n\n## Ajustes simples\n- pés no chão\n- joelhos soltos\n- pescoço livre\n\nConforto vem antes da técnica.\n"
+  },
+  {
+    "id": "les_mod0_primeiros_sons_0005",
+    "type": "lesson",
+    "title": "Primeiros sons vocais",
+    "level": "Iniciante",
+    "tags": [
+      "início",
+      "sons"
+    ],
+    "text": "# Primeiros sons\n\nComeçamos com sons fáceis:\n- hummm\n- vibração de lábios\n\nSem abrir muito a boca.\nSem volume.\n"
+  },
+  {
+    "id": "les_mod0_aquecimento_leve_0006",
+    "type": "lesson",
+    "title": "Aquecimento vocal leve",
+    "level": "Iniciante",
+    "tags": [
+      "aquecimento",
+      "segurança"
+    ],
+    "text": "# Aquecimento leve\n\nAquecimento serve para:\n- acordar a voz\n- evitar esforço\n\nNunca pule essa etapa.\n"
+  },
+  {
+    "id": "les_mod0_afinar_ouvir_0007",
+    "type": "lesson",
+    "title": "Ouvir e afinar aos poucos",
+    "level": "Iniciante",
+    "tags": [
+      "afinação",
+      "percepção"
+    ],
+    "text": "# Afinação\n\nAfinar começa pelo ouvido.\n\nVocê não precisa acertar tudo.\nPrecisa **ouvir melhor a cada dia**.\n"
+  },
+  {
+    "id": "track_inf_juvenil_0001",
+    "type": "track",
+    "title": "Canto Infantil & Juvenil",
+    "subtitle": "Brincar • Ouvir • Cantar com alegria",
+    "cover": "🎈",
+    "level": "Infantil/Juvenil",
+    "lessonIds": [
+      "les_inf_oqueeavoz_0001",
+      "les_inf_resp_brincando_0002",
+      "les_inf_postura_brincar_0003",
+      "les_inf_sons_divertidos_0004",
+      "les_inf_aquecimento_ludico_0005",
+      "les_inf_afinar_brincando_0006",
+      "les_inf_cantar_musicas_0007",
+      "les_inf_rotina_curta_0008"
+    ],
+    "text": ""
+  },
+  {
+    "id": "les_inf_oqueeavoz_0001",
+    "type": "lesson",
+    "title": "O que é a voz?",
+    "level": "Infantil/Juvenil",
+    "tags": [
+      "voz",
+      "descoberta"
+    ],
+    "text": "# O que é a voz?\n\nA voz é como um instrumento mágico que mora dentro da gente.\n\nEla muda quando falamos baixo, alto, rápido ou devagar.\n\nCantar é brincar com a voz!\n"
+  },
+  {
+    "id": "les_inf_resp_brincando_0002",
+    "type": "lesson",
+    "title": "Respirar brincando",
+    "level": "Infantil/Juvenil",
+    "tags": [
+      "respiração",
+      "jogo"
+    ],
+    "text": "# Respirar brincando\n\nVamos imaginar:\n- encher um balão na barriga 🎈\n- soltar o ar bem devagar\n\nSem pressa, sem força.\n"
+  },
+  {
+    "id": "les_inf_postura_brincar_0003",
+    "type": "lesson",
+    "title": "Postura do cantor feliz",
+    "level": "Infantil/Juvenil",
+    "tags": [
+      "postura",
+      "corpo"
+    ],
+    "text": "# Postura do cantor feliz\n\nFique em pé como um super-herói descansando 😄\n\n- corpo solto\n- pescoço livre\n- sorriso leve\n\nNada de ficar duro como robô.\n"
+  },
+  {
+    "id": "les_inf_sons_divertidos_0004",
+    "type": "lesson",
+    "title": "Sons divertidos",
+    "level": "Infantil/Juvenil",
+    "tags": [
+      "sons",
+      "diversão"
+    ],
+    "text": "# Sons divertidos\n\nVamos brincar com sons:\n- hummm de abelhinha 🐝\n- brrrr de carrinho 🚗\n- uuuu de fantasma 👻\n\nSem gritar!\n"
+  },
+  {
+    "id": "les_inf_aquecimento_ludico_0005",
+    "type": "lesson",
+    "title": "Aquecimento divertido",
+    "level": "Infantil/Juvenil",
+    "tags": [
+      "aquecimento",
+      "lúdico"
+    ],
+    "text": "# Aquecimento divertido\n\nAntes de cantar:\n- acordamos a voz\n- mexemos o corpo\n\nTudo como uma brincadeira!\n"
+  },
+  {
+    "id": "les_inf_afinar_brincando_0006",
+    "type": "lesson",
+    "title": "Afinar brincando",
+    "level": "Infantil/Juvenil",
+    "tags": [
+      "afinação",
+      "ouvido"
+    ],
+    "text": "# Afinar brincando\n\nImite sons:\n- eco na montanha 🏔️\n- passarinho 🐦\n\nNão precisa acertar sempre.\n"
+  },
+  {
+    "id": "les_mod0_rotina_5min_0008",
+    "type": "lesson",
+    "title": "Rotina de 5 minutos (iniciante absoluto)",
+    "level": "Iniciante",
+    "tags": [
+      "rotina",
+      "hábito",
+      "5min"
+    ],
+    "text": "# Rotina de 5 minutos\n\nEsta rotina é para dias corridos.\n\n## 1) Acordar o corpo (1 min)\n- Solte ombros\n- Solte mandíbula\n- Respire calmo\n\n## 2) Som fácil (2 min)\n- \"hummm\" confortável\n- volume baixo\n\n## 3) Finalizar leve (2 min)\n- vibração de lábios (brrrr)\n- ou \"uuu\" suave\n\n✅ Se doer ou arranhar: pare.\n"
+  },
+  {
+    "id": "les_mod0_rotina_10min_0009",
+    "type": "lesson",
+    "title": "Rotina de 10 minutos (iniciante absoluto)",
+    "level": "Iniciante",
+    "tags": [
+      "rotina",
+      "hábito",
+      "10min"
+    ],
+    "text": "# Rotina de 10 minutos\n\n## 1) Corpo e respiração (2 min)\n- Respiração silenciosa\n- Sem levantar ombros\n\n## 2) Aquecimento leve (3 min)\n- \"hummm\"\n- vibração de lábios (brrrr)\n\n## 3) Afinação simples (3 min)\n- escolha 1 nota confortável\n- sustente leve\n- repita 3 vezes\n\n## 4) Encerrar (2 min)\n- \"uuu\" bem suave\n\n✅ Melhor pouco e frequente do que muito e raro.\n"
+  },
+  {
+    "id": "library_mod0_regras_0101",
+    "type": "library",
+    "title": "Regras de ouro do iniciante absoluto",
+    "category": "Iniciante",
+    "level": "Iniciante",
+    "text": "# Regras de ouro\n\n1) **Nunca cantar com dor**\n2) Volume baixo é melhor que volume alto\n3) Treino curto é treino válido\n4) Hidrate e descanse\n5) Consistência vence intensidade\n"
+  },
+  {
+    "id": "library_mod0_sinais_0102",
+    "type": "library",
+    "title": "Sinais de alerta (pare e ajuste)",
+    "category": "Saúde Vocal",
+    "level": "Iniciante",
+    "text": "# Sinais de alerta\n\nSe acontecer, pare e reduza:\n- dor\n- ardência\n- rouquidão depois do treino\n- sensação de garganta apertada\n\nA voz deve terminar **melhor** do que começou.\n"
+  },
+  {
+    "id": "library_mod0_mitos_0103",
+    "type": "library",
+    "title": "Mitos comuns de quem está começando",
+    "category": "Iniciante",
+    "level": "Iniciante",
+    "text": "# Mitos comuns\n\n## \"Eu não tenho dom\"\nDom ajuda, mas cantar é treino.\n\n## \"Preciso cantar forte\"\nNão. Comece leve.\n\n## \"Se eu errar, é porque sou ruim\"\nErrar é parte do processo.\n"
+  },
+  {
+    "id": "mission_mod0_3min_0201",
+    "type": "mission",
+    "title": "Primeiro hábito (3 min)",
+    "desc": "Respirar calmo e fazer \"hummm\" bem leve.",
+    "minutes": 3,
+    "xp": 10,
+    "tag": "iniciante",
+    "text": ""
+  },
+  {
+    "id": "mission_mod0_5min_0202",
+    "type": "mission",
+    "title": "Rotina curta (5 min)",
+    "desc": "Fazer a rotina de 5 minutos com conforto vocal.",
+    "minutes": 5,
+    "xp": 14,
+    "tag": "iniciante",
+    "text": ""
+  },
+  {
+    "id": "mission_mod0_10min_0203",
+    "type": "mission",
+    "title": "Rotina base (10 min)",
+    "desc": "Fazer a rotina de 10 minutos sem forçar.",
+    "minutes": 10,
+    "xp": 18,
+    "tag": "iniciante",
+    "text": ""
+  },
+  {
+    "id": "mission_mod0_escuta_0204",
+    "type": "mission",
+    "title": "Escuta (4 min)",
+    "desc": "Ouvir uma música e perceber 1 detalhe (ritmo ou melodia).",
+    "minutes": 4,
+    "xp": 12,
+    "tag": "percepção",
+    "text": ""
+  },
+  {
+    "id": "mission_mod0_checkin_0205",
+    "type": "mission",
+    "title": "Check-in vocal (2 min)",
+    "desc": "Responder: minha voz hoje está OK, cansada ou rouca?",
+    "minutes": 2,
+    "xp": 8,
+    "tag": "saúde",
+    "text": ""
+  }
+]
