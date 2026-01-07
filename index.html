@@ -7,147 +7,30 @@
   <title>IMVpedia Voice</title>
 
   <link rel="manifest" href="./manifest.webmanifest" />
-  <link rel="icon" href="./icons/icon-192.png" />
-  <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+  <link rel="icon" href="./assets/icon-192.png" />
+  <link rel="apple-touch-icon" href="./assets/icon-192.png" />
 
   <link rel="stylesheet" href="./styles.css" />
 </head>
 
 <body>
-  <header class="topbar">
-    <div class="topbar__left">
-      <div class="dot"></div>
-      <div>
-        <div class="brand">IMVpedia Voice</div>
-        <div style="font-size:12px;color:rgba(233,236,246,.52);margin-top:2px">Voz Perfeita</div>
-      </div>
-    </div>
-    <button class="btn" id="adminBtn" type="button">Admin</button>
-  </header>
+  <!-- O app premium monta tudo aqui -->
+  <main id="app" aria-live="polite"></main>
 
-  <div id="toastHost"></div>
+  <script src="./app.js"></script>
 
-  <main class="app" id="view" aria-live="polite"></main>
-
-  <nav class="tabbar" aria-label="Navegação">
-    <button class="tabbar__item" data-route="#/home" type="button">Início</button>
-    <button class="tabbar__item" data-route="#/path" type="button">Trilha</button>
-    <button class="tabbar__item" data-route="#/missions" type="button">Missões</button>
-    <button class="tabbar__item" data-route="#/library" type="button">Biblioteca</button>
-    <button class="tabbar__item" data-route="#/profile" type="button">Perfil</button>
-  </nav>
-
-  <!--
-    LOADER PREMIUM:
-    - Carrega todos os scripts de conteúdo (imports) primeiro
-    - Depois carrega o app.js
-    - Isso evita: "Conteúdo não detectado (217)"
-  -->
   <script>
-    (function () {
-      const LOADER = {
-        // Você pode manter só 1 desses caminhos. Eu deixei 3 tentativas para ser compatível com variações do seu projeto.
-        importIndexCandidates: [
-          "./packs/base/imports/index.json",
-          "./packs/imports/index.json",
-          "./packs/base/index.json"
-        ],
-
-        appEntry: "./app.js",
-        swEntry: "./sw.js",
-        swScope: "./",
-
-        async fetchJson(url) {
-          const r = await fetch(url, { cache: "no-store" });
-          if (!r.ok) throw new Error("HTTP " + r.status);
-          return await r.json();
-        },
-
-        injectScript(src) {
-          return new Promise((resolve, reject) => {
-            const s = document.createElement("script");
-            s.src = src;
-            s.defer = true;
-            s.onload = () => resolve();
-            s.onerror = () => reject(new Error("Falha ao carregar: " + src));
-            document.head.appendChild(s);
-          });
-        },
-
-        async loadImportsFromIndex() {
-          let imports = null;
-          let used = null;
-
-          for (const candidate of this.importIndexCandidates) {
-            try {
-              const data = await this.fetchJson(candidate);
-              if (Array.isArray(data) && data.length) {
-                imports = data;
-                used = candidate;
-                break;
-              }
-            } catch (e) { /* tenta o próximo */ }
-          }
-
-          if (!imports) {
-            console.warn("[IMV] Nenhum index.json de imports encontrado. O app vai iniciar sem conteúdo extra.");
-            return { imports: [], used: null };
-          }
-
-          // Normaliza: aceita lista de strings OU objetos {src:"..."}
-          const normalized = imports
-            .map(x => (typeof x === "string" ? x : (x && x.src ? x.src : null)))
-            .filter(Boolean);
-
-          console.log("[IMV] Imports detectados:", normalized.length, "via", used);
-          return { imports: normalized, used };
-        },
-
-        async boot() {
-          // 1) Carrega imports (se existirem)
-          const { imports } = await this.loadImportsFromIndex();
-
-          // 2) Injeta cada import em ordem
-          for (const src of imports) {
-            await this.injectScript(src);
-          }
-
-          // 3) Só depois carrega o app.js
-          await this.injectScript(this.appEntry);
-
-          // 4) SW (força atualização quando você subir mudanças)
-          if ("serviceWorker" in navigator) {
-            window.addEventListener("load", async () => {
-              try {
-                const reg = await navigator.serviceWorker.register(this.swEntry, { scope: this.swScope });
-                if (reg.waiting) reg.waiting.postMessage({ type: "SKIP_WAITING" });
-              } catch (e) {
-                console.warn("SW falhou:", e);
-              }
-            });
-          }
-        }
-      };
-
-      LOADER.boot().catch((err) => {
-        console.error("[IMV] Falha no boot:", err);
-        const host = document.getElementById("view");
-        if (host) {
-          host.innerHTML = `
-            <section class="card" style="max-width:980px;margin:24px auto">
-              <h2 style="margin:0 0 8px">Erro ao iniciar</h2>
-              <p style="opacity:.8;margin:0 0 12px">
-                O app não conseguiu carregar os imports de conteúdo ou o app.js.
-              </p>
-              <pre style="white-space:pre-wrap;opacity:.85">${String(err && err.message ? err.message : err)}</pre>
-              <p style="opacity:.75;margin-top:12px">
-                Dica: confirme se existe <b>packs/base/imports/index.json</b> e se os caminhos dentro dele apontam para arquivos reais.
-              </p>
-            </section>
-          `;
+    // Registro do SW (força atualização quando você subir mudanças)
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", async () => {
+        try {
+          const reg = await navigator.serviceWorker.register("./sw.js", { scope: "./" });
+          if (reg.waiting) reg.waiting.postMessage({ type: "SKIP_WAITING" });
+        } catch (e) {
+          console.warn("SW falhou:", e);
         }
       });
-    })();
+    }
   </script>
 </body>
 </html>
