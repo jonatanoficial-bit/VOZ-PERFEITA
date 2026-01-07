@@ -7,25 +7,54 @@
   <title>IMVpedia Voice</title>
 
   <link rel="manifest" href="./manifest.webmanifest" />
-  <link rel="icon" href="./assets/icon-192.png" />
-  <link rel="apple-touch-icon" href="./assets/icon-192.png" />
+  <!-- Se você NÃO tiver /icons ainda, isso só dá aviso no console (não quebra o app) -->
+  <link rel="icon" href="./icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="./icons/icon-192.png" />
 
   <link rel="stylesheet" href="./styles.css" />
 </head>
 
 <body>
-  <!-- O app premium monta tudo aqui -->
-  <main id="app" aria-live="polite"></main>
+  <header class="topbar">
+    <div class="topbar__left">
+      <div class="dot"></div>
+      <div>
+        <div class="brand">IMVpedia Voice</div>
+        <div style="font-size:12px;color:rgba(233,236,246,.52);margin-top:2px">Voz Perfeita</div>
+      </div>
+    </div>
+    <button class="btn" id="adminBtn" type="button">Admin</button>
+  </header>
+
+  <div id="toastHost"></div>
+
+  <main class="app" id="view" aria-live="polite"></main>
+
+  <nav class="tabbar" aria-label="Navegação">
+    <button class="tabbar__item" data-route="#/home" type="button">Início</button>
+    <button class="tabbar__item" data-route="#/path" type="button">Trilha</button>
+    <button class="tabbar__item" data-route="#/missions" type="button">Missões</button>
+    <button class="tabbar__item" data-route="#/library" type="button">Biblioteca</button>
+    <button class="tabbar__item" data-route="#/profile" type="button">Perfil</button>
+  </nav>
 
   <script src="./app.js"></script>
 
   <script>
-    // Registro do SW (força atualização quando você subir mudanças)
+    // Registro de SW (força atualização quando você subir mudanças)
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", async () => {
         try {
           const reg = await navigator.serviceWorker.register("./sw.js", { scope: "./" });
           if (reg.waiting) reg.waiting.postMessage({ type: "SKIP_WAITING" });
+
+          // quando o novo SW ativar, recarrega (evita pegar cache velho)
+          navigator.serviceWorker.addEventListener("controllerchange", () => {
+            // evita loop
+            if (window.__reloading) return;
+            window.__reloading = true;
+            location.reload();
+          });
         } catch (e) {
           console.warn("SW falhou:", e);
         }
