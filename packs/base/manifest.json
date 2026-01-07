@@ -1,154 +1,68 @@
 {
   "id": "base",
-  "name": "Base — Voz Perfeita",
-  "desc": "Fundamentos vocais (pack incluído no app).",
+  "title": "Base",
+  "desc": "Fundamentos vocais (pack incluído no app)",
+  "cover": "🎵",
+  "badge": "🎯",
   "version": 1,
-  "paths": [
+  "contentFile": "imports/content.json",
+  "modules": [
     {
       "id": "fundamentos",
       "title": "Fundamentos",
-      "subtitle": "Base • 2 lições",
-      "tag": "Base",
-      "icon": "🧭",
+      "level": "Básico",
+      "badge": "🧭",
       "lessons": [
         {
-          "id": "fund-01",
-          "title": "Aquecimento seguro (10 min)",
-          "tag": "Técnica",
-          "md": "# Aquecimento seguro (10 min)\n\n**Objetivo:** preparar a voz sem apertar.\n\n## Checklist rápido\n- Postura neutra e pescoço solto\n- Respiração silenciosa (sem elevar ombros)\n- Volume confortável\n\n## Sequência\n1. **SOVT leve (2 min)**: lip trill / humming / canudo em região confortável.\n2. **Sirene leve (3 min)**: do grave ao médio, sem forçar o topo.\n3. **Vogais fechadas (3 min)**: \"u\" e \"i\" bem leves (clareza sem empurrar).\n4. **Fraseado (2 min)**: fala-canto em uma frase curta.\n\n> Regra de ouro: se a voz ficar áspera, você passou do ponto. Volte 20% no esforço.\n"
+          "id": "resp_36",
+          "title": "Respiração 3/6",
+          "level": "Básico",
+          "tags": [
+            "respiração",
+            "apoio",
+            "técnica"
+          ],
+          "minutes": 6,
+          "xp": 10,
+          "md": "### Objetivo\nTreinar controle do fluxo de ar.\n\n### Como fazer\n- Inspire **3s**\n- Solte o ar em **sss** por **6s**\n- Repita por 5 minutos\n\n### Erros comuns\n- Elevar ombros\n- Prender a garganta"
         },
         {
-          "id": "fund-02",
-          "title": "Respiração funcional (sem exagero)",
-          "tag": "Técnica",
-          "md": "# Respiração funcional (sem exagero)\n\n**Meta:** estabilidade e conforto — não é “encher ao máximo”.\n\n## O que buscar\n- Entrada de ar **silenciosa**\n- Expansão **baixa/lateral** (costelas) sem tensionar ombros\n- Saída de ar **controlada** (como um “sussurro firme”)\n\n## Exercício (5 min)\n1. Inspire 3s (silencioso)\n2. Solte 6s em \"sss\" constante\n3. Repita 8x\n\n## Aplicação\n- Fale uma frase longa mantendo o mesmo volume até o fim.\n\n> Se você “trava” no final, provavelmente está gastando ar demais no começo.\n"
-        }
-      ]
-    },
-    {
-      "id": "popular",
-      "title": "Canto Popular (técnica + estilo)",
-      "subtitle": "Base — Voz Perfeita • 1 lição",
-      "tag": "Trilha",
-      "icon": "🎤",
-      "lessons": [
-        {
-          "id": "pop-01",
-          "title": "Timbre no popular (sem apertar)",
-          "tag": "Estilo",
-          "md": "# Timbre no popular (sem apertar)\n\nNo popular, o timbre costuma ser mais **direto** e com **articulação clara**.\n\n## Ajustes práticos\n- **Consoantes** definidas (sem “morder”)\n- Vogais levemente mais **fechadas** em notas altas\n- Volume confortável + microdinâmica\n\n## Exercício\n- Cante uma frase em 3 volumes: 30% → 50% → 70%, mantendo a mesma qualidade.\n"
-        }
-      ]
-    },
-    {
-      "id": "erudito",
-      "title": "Canto Erudito (base técnica)",
-      "subtitle": "Base — Voz Perfeita • 1 lição",
-      "tag": "Trilha",
-      "icon": "🎼",
-      "lessons": [
-        {
-          "id": "eru-01",
-          "title": "Vogal e espaço (clareza + projeção)",
-          "tag": "Técnica",
-          "md": "# Vogal e espaço (clareza + projeção)\n\nNo erudito, buscamos **continuidade** e **uniformidade**.\n\n## Ponto chave\n- Vogal estável\n- Língua solta\n- Sensação de espaço sem empurrar ar\n\n## Exercício\n- Sustente \"ah\" em 3 notas confortáveis por 6–8s cada.\n"
-        }
-      ]
-    },
-    {
-      "id": "coral",
-      "title": "Coral/Grupos Vocais (blend e precisão)",
-      "subtitle": "Base — Voz Perfeita • 1 lição",
-      "tag": "Trilha",
-      "icon": "👥",
-      "lessons": [
-        {
-          "id": "cor-01",
-          "title": "Blend: mesma vogal, mesmo ataque",
-          "tag": "Coral",
-          "md": "# Blend: mesma vogal, mesmo ataque\n\n**Blend** = parecer uma só voz.\n\n## Faça isso\n- Combine a **vogal** (abertura) do grupo\n- Ataque suave e coordenado\n- Vibrato controlado\n\n## Exercício\n- Cante \"mi\" em uníssono, começando **sem sopro** e sem \"golpe\".\n"
+          "id": "sovt_leve",
+          "title": "SOVT leve",
+          "level": "Básico",
+          "tags": [
+            "SOVT",
+            "saúde",
+            "aquecimento"
+          ],
+          "minutes": 6,
+          "xp": 10,
+          "md": "### Objetivo\nReduzir esforço e aquecer a voz.\n\n### Como fazer\n- Lip trill **ou** canudo (straw)\n- 2 min em confortável\n- 2 min glissando (subindo/descendo)\n\n### Regra\nSe doer ou cansar, você está forte demais."
         }
       ]
     }
   ],
   "library": [
     {
-      "id": "fisiologia",
+      "id": "fisio_vocal",
       "title": "Fisiologia vocal",
-      "tag": "Saúde",
-      "md": "# Fisiologia vocal\n\n## Visão geral\n- Pregas vocais vibram com o fluxo de ar\n- O trato vocal (boca/nariz/faringe) molda o som\n- Tensão excessiva altera a vibração e a estabilidade\n\n## Ideia prática\nSe a voz fica áspera após poucos minutos, reduza intensidade e priorize SOVT.\n"
-    },
-    {
-      "id": "historia",
-      "title": "História do canto (visão geral)",
-      "tag": "História",
-      "md": "# História do canto (visão geral)\n\n- Tradições eruditas, populares e corais evoluíram com estética e tecnologia\n- Microfone mudou o jeito de cantar (menos necessidade de projeção)\n- Estilos modernos valorizam timbre e identidade\n\n> Este artigo será expandido com exemplos e linhas do tempo.\n"
-    },
-    {
-      "id": "repertorio",
-      "title": "Como escolher repertório por nível",
-      "tag": "Repertório",
-      "md": "# Como escolher repertório por nível\n\n## Regra simples\nEscolha músicas onde você acerta **80% com conforto**.\n\n## Critérios\n- Tessitura confortável (evite extremos)\n- Frases longas: só se respiração já estiver estável\n- Melodias com poucos saltos antes de avançar\n\n## Progressão\n1) Fácil: região média + pouco salto\n2) Médio: mais dinâmica + articulação\n3) Avançado: agudos/graves sustentados + resistência\n"
-    },
-    {
-      "id": "higiene",
-      "title": "Higiene Vocal (o que realmente importa)",
-      "tag": "Saúde",
-      "md": "# Higiene Vocal (o que realmente importa)\n\n## Prioridades\n- Sono e hidratação\n- Aquecimento e desaquecimento\n- Evitar gritar/falar alto por longos períodos\n\n## Mitos\n- “Chá cura tudo” → ajuda conforto, mas não substitui técnica/repouso\n\n> Se dor aparece, pare e reavalie.\n"
-    },
-    {
-      "id": "refluxo",
-      "title": "Refluxo e voz (guia rápido)",
-      "tag": "Saúde",
-      "md": "# Refluxo e voz (guia rápido)\n\nSinais comuns:\n- Pigarro frequente\n- Rouquidão ao acordar\n- Sensação de bolo na garganta\n\n## Ajuda prática\n- Evite deitar logo após comer\n- Observe gatilhos (café, gordura, álcool)\n- Procure avaliação profissional se persistir\n"
-    },
-    {
-      "id": "ressonancia",
-      "title": "Ressonância (clareza sem pressão)",
-      "tag": "Técnica",
-      "md": "# Ressonância (clareza sem pressão)\n\nRessonância não é “empurrar”. É **organizar o trato vocal**.\n\n## Exercício simples\n- Humming (\"mmm\") em volume baixo\n- Depois abra para \"ma\" mantendo a mesma facilidade\n"
-    },
-    {
-      "id": "vibrato",
-      "title": "Vibrato (o que é e como não forçar)",
-      "tag": "Técnica",
-      "md": "# Vibrato (o que é e como não forçar)\n\nVibrato saudável é consequência de:\n- coordenação\n- suporte leve\n- ausência de rigidez\n\n## Evite\n- “chacoalhar” a mandíbula\n- empurrar ar\n\n## Exercício\nSustente uma nota confortável e mantenha relaxamento. Se vibrato aparecer, ótimo.\n"
+      "category": "Saúde",
+      "tags": [
+        "larynx",
+        "pregas vocais",
+        "anatomia"
+      ],
+      "md": "### Visão geral\nA produção vocal depende de **respiração + fonação + ressonância**.\n\n### Estruturas\n- Pregas vocais\n- Laringe\n- Trato vocal\n\n> Conteúdo inicial (você pode expandir depois)."
     }
   ],
-  "missions": {
-    "templates": [
-      {
-        "id": "sovt",
-        "title": "SOVT leve",
-        "tag": "Técnica",
-        "minutes": 10,
-        "xp": 12,
-        "desc": "Lip trill/humming/canudo na região confortável, sem apertar."
-      },
-      {
-        "id": "diccao",
-        "title": "Dicção + fraseado",
-        "tag": "Técnica",
-        "minutes": 8,
-        "xp": 10,
-        "desc": "Fala-canto em uma frase curta, mantendo clareza e leveza."
-      },
-      {
-        "id": "resp",
-        "title": "Respiração funcional",
-        "tag": "Técnica",
-        "minutes": 6,
-        "xp": 9,
-        "desc": "3s entra / 6s sai em \"sss\" constante. Sem elevar ombros."
-      },
-      {
-        "id": "aquec",
-        "title": "Aquecimento seguro",
-        "tag": "Técnica",
-        "minutes": 10,
-        "xp": 12,
-        "desc": "Sirene leve + vogais fechadas sem subir volume."
-      }
-    ]
-  }
+  "missions": [
+    {
+      "id": "mission_demo",
+      "title": "Missão de demonstração",
+      "category": "Técnica",
+      "desc": "Clique para ganhar XP e validar gamificação.",
+      "minutes": 5,
+      "xp": 10
+    }
+  ]
 }
