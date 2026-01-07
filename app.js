@@ -1510,5 +1510,3 @@ function boot() {
 }
 
 document.addEventListener("DOMContentLoaded", boot);
-
-// ===== FIM — BLOCO 6/6 =====
