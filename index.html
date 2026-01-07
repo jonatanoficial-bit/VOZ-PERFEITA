@@ -7,11 +7,63 @@
   <title>IMVpedia Voice</title>
 
   <link rel="manifest" href="./manifest.webmanifest" />
-  <!-- Se você NÃO tiver /icons ainda, isso só dá aviso no console (não quebra o app) -->
   <link rel="icon" href="./icons/icon-192.png" />
   <link rel="apple-touch-icon" href="./icons/icon-192.png" />
 
   <link rel="stylesheet" href="./styles.css" />
+
+  <!-- SAFE PATCH (não mexe no conteúdo nem no app.js) -->
+  <style>
+    /* Ícones na tabbar (não depende de assets, não quebra) */
+    .tabbar__item{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:10px;
+      letter-spacing:.2px;
+    }
+    .tabbar__item .tab-ico{
+      font-size:16px;
+      line-height:1;
+      opacity:.92;
+      transform: translateY(-1px);
+      filter: drop-shadow(0 6px 18px rgba(0,0,0,.35));
+    }
+
+    /* Fallback: garante barra de XP visível mesmo se o CSS atual tiver conflito */
+    .levelbar{ margin-top: 14px; }
+    .levelbar__label{
+      font-size: 13px;
+      opacity: .85;
+      margin-bottom: 8px;
+    }
+    .levelbar__track{
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.10);
+      overflow: hidden;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+    }
+    .levelbar__fill{
+      height: 100%;
+      width: 0%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(110,88,255,.95), rgba(65,201,255,.85));
+      box-shadow: 0 10px 30px rgba(110,88,255,.25);
+    }
+    .levelbar__text{
+      margin-top: 8px;
+      font-size: 12px;
+      opacity: .75;
+    }
+
+    /* Micro “AAA feel” sem mexer no layout: */
+    .card{
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+  </style>
 </head>
 
 <body>
@@ -31,15 +83,28 @@
   <main class="app" id="view" aria-live="polite"></main>
 
   <nav class="tabbar" aria-label="Navegação">
-    <button class="tabbar__item" data-route="#/home" type="button">Início</button>
-    <button class="tabbar__item" data-route="#/path" type="button">Trilha</button>
-    <button class="tabbar__item" data-route="#/missions" type="button">Missões</button>
-    <button class="tabbar__item" data-route="#/library" type="button">Biblioteca</button>
-    <button class="tabbar__item" data-route="#/profile" type="button">Perfil</button>
+    <button class="tabbar__item" data-route="#/home" type="button">
+      <span class="tab-ico" aria-hidden="true">🏠</span> Início
+    </button>
+
+    <button class="tabbar__item" data-route="#/path" type="button">
+      <span class="tab-ico" aria-hidden="true">🧭</span> Trilha
+    </button>
+
+    <button class="tabbar__item" data-route="#/missions" type="button">
+      <span class="tab-ico" aria-hidden="true">✅</span> Missões
+    </button>
+
+    <button class="tabbar__item" data-route="#/library" type="button">
+      <span class="tab-ico" aria-hidden="true">📚</span> Biblioteca
+    </button>
+
+    <button class="tabbar__item" data-route="#/profile" type="button">
+      <span class="tab-ico" aria-hidden="true">👤</span> Perfil
+    </button>
   </nav>
 
   <script src="./app.js"></script>
-
   <script>
     // Registro de SW (força atualização quando você subir mudanças)
     if ("serviceWorker" in navigator) {
@@ -48,9 +113,7 @@
           const reg = await navigator.serviceWorker.register("./sw.js", { scope: "./" });
           if (reg.waiting) reg.waiting.postMessage({ type: "SKIP_WAITING" });
 
-          // quando o novo SW ativar, recarrega (evita pegar cache velho)
           navigator.serviceWorker.addEventListener("controllerchange", () => {
-            // evita loop
             if (window.__reloading) return;
             window.__reloading = true;
             location.reload();
