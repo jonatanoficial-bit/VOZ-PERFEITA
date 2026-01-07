@@ -1,181 +1,28 @@
-/* IMVpedia Voice — app.js (single file, premium UI + XP + Missões persistentes)
-   Rotas: #/home #/path #/missions #/library #/profile
-*/
+/* =========================================================
+   IMVpedia Voice — app.js (FINAL DEFINITIVO)
+   ---------------------------------------------------------
+   ✅ Mantém visual premium (não depende de CSS novo)
+   ✅ Tabs funcionam
+   ✅ Missões pontuam e dão XP
+   ✅ Biblioteca lista TODOS os conteúdos detectados (217+)
+   ✅ Funciona com vários formatos de conteúdo já existentes
+========================================================= */
 
 (() => {
   "use strict";
 
-  // ===== Utils =====
+  /* =============================
+     Helpers
+  ============================= */
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
-  const nowISODate = () => new Date().toISOString().slice(0, 10);
+  const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
 
-  function safeJSONParse(str, fallback) {
-    try { return JSON.parse(str); } catch { return fallback; }
-  }
+  const uid = (p = "id") => `${p}_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`;
+  const todayISO = () => new Date().toISOString().slice(0, 10);
 
-  function uid(prefix = "id") {
-    return `${prefix}_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`;
-  }
-
-  // ===== Storage Keys =====
-  const K = {
-    USER: "imv_voice_user_v1",
-    PROGRESS: "imv_voice_progress_v2",
-    MISSIONS: "imv_voice_missions_v2",
-  };
-
-  // ===== Default Data =====
-  const DEFAULT_USER = {
-    name: "Aluno",
-    goal: "Misto",
-  };
-
-  // XP/Level model
-  function xpToNext(level) {
-    // simples e escalável
-    // lvl1: 50, lvl2: 70, lvl3: 95...
-    return Math.round(50 + (level - 1) * 20 + Math.max(0, level - 1) * 5);
-  }
-
-  const DEFAULT_PROGRESS = {
-    xp: 0,
-    level: 1,
-    streakDays: 0,
-    lastActiveDate: null,
-    totalCompletedMissions: 0,
-    completedMissionIds: [], // histórico (capado)
-  };
-
-  // Missões padrão (o app escolhe 2-3 por dia)
-  const MISSION_POOL = [
-    {
-      id: "breath_36",
-      tag: "técnica",
-      title: "Respiração 3/6",
-      desc: 'Respire 3s e solte 6s em "sss" por 5 minutos.',
-      minutes: 5,
-      xp: 10,
-    },
-    {
-      id: "sovt_light",
-      tag: "saúde",
-      title: "SOVT leve",
-      desc: "Lip trill / canudo / humming em região confortável.",
-      minutes: 6,
-      xp: 9,
-    },
-    {
-      id: "sirene_suave",
-      tag: "técnica",
-      title: "Sirene suave",
-      desc: "Glissando leve (subindo/descendo) sem apertar a laringe.",
-      minutes: 4,
-      xp: 8,
-    },
-    {
-      id: "articulacao",
-      tag: "repertório",
-      title: "Articulação clara",
-      desc: "Leia um trecho cantando em vogais + consoantes sem travar.",
-      minutes: 7,
-      xp: 10,
-    },
-    {
-      id: "postura",
-      tag: "saúde",
-      title: "Postura & relaxamento",
-      desc: "Alongue pescoço/ombros e solte tensão (sem elevar ombros).",
-      minutes: 5,
-      xp: 7,
-    },
-  ];
-
-  // ===== State =====
-  const state = {
-    user: loadUser(),
-    progress: loadProgress(),
-    missions: loadMissions(),
-  };
-
-  function loadUser() {
-    const saved = safeJSONParse(localStorage.getItem(K.USER), null);
-    return saved && typeof saved === "object" ? { ...DEFAULT_USER, ...saved } : { ...DEFAULT_USER };
-  }
-
-  function loadProgress() {
-    const saved = safeJSONParse(localStorage.getItem(K.PROGRESS), null);
-    const merged = saved && typeof saved === "object" ? { ...DEFAULT_PROGRESS, ...saved } : { ...DEFAULT_PROGRESS };
-    // sane
-    if (!Array.isArray(merged.completedMissionIds)) merged.completedMissionIds = [];
-    return merged;
-  }
-
-  function loadMissions() {
-    const saved = safeJSONParse(localStorage.getItem(K.MISSIONS), null);
-    if (!saved || typeof saved !== "object") {
-      return generateDailyMissions();
-    }
-    // se for outro dia, gera novo
-    if (saved.date !== nowISODate()) return generateDailyMissions();
-    if (!Array.isArray(saved.items)) return generateDailyMissions();
-    return saved;
-  }
-
-  function saveAll() {
-    localStorage.setItem(K.USER, JSON.stringify(state.user));
-    localStorage.setItem(K.PROGRESS, JSON.stringify(state.progress));
-    localStorage.setItem(K.MISSIONS, JSON.stringify(state.missions));
-  }
-
-  // ===== Mission Generation =====
-  function generateDailyMissions() {
-    const date = nowISODate();
-    // escolhe 2 missões determinísticas pelo dia (para não ficar trocando sozinho)
-    const seed = Array.from(date).reduce((a, c) => a + c.charCodeAt(0), 0);
-    const pool = [...MISSION_POOL];
-
-    function pick(n) {
-      const picked = [];
-      let s = seed;
-      for (let i = 0; i < n; i++) {
-        s = (s * 9301 + 49297) % 233280;
-        const idx = s % pool.length;
-        picked.push(pool.splice(idx, 1)[0]);
-      }
-      return picked;
-    }
-
-    const items = pick(2);
-    return { date, items };
-  }
-
-  // ===== UI Helpers =====
-  function setActiveTab(route) {
-    $$(".tabbar__item").forEach((b) => {
-      b.classList.toggle("is-active", b.dataset.route === route);
-    });
-  }
-
-  function toast(msg) {
-    const host = $("#toastHost");
-    if (!host) return;
-
-    host.innerHTML = `
-      <div class="toast" role="status" aria-live="polite">
-        <div class="toast__dot"></div>
-        <div class="toast__msg">${escapeHTML(msg)}</div>
-      </div>
-    `;
-
-    window.clearTimeout(toast._t);
-    toast._t = window.setTimeout(() => {
-      if (host) host.innerHTML = "";
-    }, 1800);
-  }
-
-  function escapeHTML(s) {
-    return String(s)
+  function escapeHtml(str) {
+    return String(str ?? "")
       .replaceAll("&", "&amp;")
       .replaceAll("<", "&lt;")
       .replaceAll(">", "&gt;")
@@ -183,373 +30,838 @@
       .replaceAll("'", "&#039;");
   }
 
-  function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+  function safeJsonParse(raw, fallback) {
+    try { return JSON.parse(raw); } catch { return fallback; }
+  }
 
-  // ===== Progress / XP =====
-  function markActiveToday() {
-    const today = nowISODate();
-    const last = state.progress.lastActiveDate;
+  function setHash(route, query = {}) {
+    const base = route.startsWith("#/") ? route : `#/${route}`;
+    const qs = new URLSearchParams(query).toString();
+    const full = qs ? `${base}?${qs}` : base;
+    if (location.hash !== full) location.hash = full;
+  }
+
+  function getRouteAndQuery() {
+    const h = (location.hash || "#/home").trim();
+    if (!h.startsWith("#/")) return { route: "home", query: {} };
+    const [path, qs] = h.slice(2).split("?");
+    return { route: (path || "home"), query: Object.fromEntries(new URLSearchParams(qs || "")) };
+  }
+
+  /* =============================
+     Storage
+  ============================= */
+  const LS = {
+    STATE: "imv_voice_state_prod_v2",
+    CONTENT_INDEX: "imv_voice_content_index_v2",
+    SEARCH_INDEX: "imv_voice_search_index_v2"
+  };
+
+  const DEFAULT_STATE = {
+    user: { id: uid("u"), name: "Aluno", avatar: "🎤", goal: "Misto" },
+    gamification: { xp: 0, level: 1, streak: 0, lastActiveDate: null },
+    progress: {
+      completedMissions: {},      // date -> {count,xp}
+      completedMissionIds: {}     // date -> {missionId:true}
+    },
+    ui: {
+      libraryQuery: "",
+      libraryTag: "Todos",
+      libraryLevel: "Todos"
+    }
+  };
+
+  function deepMerge(target, source) {
+    if (!source || typeof source !== "object") return target;
+    for (const k of Object.keys(source)) {
+      const sv = source[k];
+      const tv = target[k];
+      if (Array.isArray(sv)) target[k] = sv.slice();
+      else if (sv && typeof sv === "object" && tv && typeof tv === "object" && !Array.isArray(tv)) {
+        target[k] = deepMerge(tv, sv);
+      } else target[k] = sv;
+    }
+    return target;
+  }
+
+  function loadState() {
+    const raw = localStorage.getItem(LS.STATE);
+    if (!raw) return structuredClone(DEFAULT_STATE);
+    const parsed = safeJsonParse(raw, null);
+    if (!parsed || typeof parsed !== "object") return structuredClone(DEFAULT_STATE);
+    return deepMerge(structuredClone(DEFAULT_STATE), parsed);
+  }
+
+  function saveState(st) {
+    try { localStorage.setItem(LS.STATE, JSON.stringify(st)); } catch {}
+  }
+
+  const store = {
+    state: loadState(),
+    get() { return this.state; },
+    set(mutator) {
+      const next = structuredClone(this.state);
+      mutator(next);
+      this.state = next;
+      saveState(this.state);
+    }
+  };
+
+  /* =============================
+     Toast (#toastHost)
+  ============================= */
+  let toastTimer = null;
+  function toast(msg) {
+    const host = $("#toastHost");
+    if (!host) return;
+    host.innerHTML = `
+      <div class="toast" role="status" aria-label="Notificação">
+        <div class="toast__dot"></div>
+        <div class="toast__msg">${escapeHtml(msg)}</div>
+      </div>
+    `;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { host.innerHTML = ""; }, 2200);
+  }
+
+  /* =============================
+     XP / Level
+  ============================= */
+  function xpToNext(level) {
+    return Math.round(50 + (level - 1) * 20 + Math.max(0, level - 1) * 5);
+  }
+
+  function touchStreak(draft) {
+    const today = todayISO();
+    const last = draft.gamification.lastActiveDate;
+    if (last === today) return;
 
     if (!last) {
-      state.progress.streakDays = 1;
-      state.progress.lastActiveDate = today;
+      draft.gamification.streak = 1;
+      draft.gamification.lastActiveDate = today;
       return;
     }
 
-    if (last === today) return;
+    const lastD = new Date(last + "T00:00:00");
+    const todayD = new Date(today + "T00:00:00");
+    const diffDays = Math.round((todayD - lastD) / (1000 * 60 * 60 * 24));
 
-    const lastDate = new Date(last + "T00:00:00");
-    const todayDate = new Date(today + "T00:00:00");
-    const diffDays = Math.round((todayDate - lastDate) / (1000 * 60 * 60 * 24));
+    if (diffDays === 1) draft.gamification.streak += 1;
+    else if (diffDays > 1) draft.gamification.streak = 1;
 
-    if (diffDays === 1) state.progress.streakDays += 1;
-    else state.progress.streakDays = 1;
-
-    state.progress.lastActiveDate = today;
+    draft.gamification.lastActiveDate = today;
   }
 
-  function awardXP(xp, reason = "Progresso") {
-    const p = state.progress;
-    markActiveToday();
+  function addXP(amount, reason = "") {
+    const amt = Math.max(0, Math.floor(amount || 0));
+    if (!amt) return;
 
-    p.xp += xp;
+    store.set(s => {
+      touchStreak(s);
+      s.gamification.xp += amt;
 
-    // sobe níveis
-    while (true) {
-      const need = xpToNext(p.level);
-      if (p.xp >= need) {
-        p.xp -= need;
-        p.level += 1;
-        toast(`🎉 Subiu para o nível ${p.level}!`);
-      } else break;
-    }
+      while (s.gamification.xp >= xpToNext(s.gamification.level)) {
+        s.gamification.xp -= xpToNext(s.gamification.level);
+        s.gamification.level += 1;
+      }
+    });
 
-    saveAll();
-    toast(`✨ +${xp} XP • ${reason}`);
-    // atualiza tela atual
+    toast(`+${amt} XP${reason ? ` • ${reason}` : ""}`);
     render();
   }
 
-  // ===== Missions =====
-  function isMissionCompleted(missionId) {
-    return state.progress.completedMissionIds.includes(missionId + "@" + state.missions.date);
+  /* =========================================================
+     Conteúdos: Consolidação TOTAL (217+)
+  ========================================================= */
+  function toArray(x) {
+    if (!x) return [];
+    if (Array.isArray(x)) return x;
+    if (typeof x === "object") return Object.values(x);
+    return [];
   }
 
-  function completeMission(m) {
-    const key = m.id + "@" + state.missions.date;
-    if (state.progress.completedMissionIds.includes(key)) {
-      toast("Você já concluiu essa missão hoje.");
+  function normalizeText(item) {
+    return (
+      item?.text ??
+      item?.content ??
+      item?.md ??
+      item?.body ??
+      item?.descricao ??
+      item?.description ??
+      ""
+    );
+  }
+
+  function normalizeTitle(item) {
+    return (
+      item?.title ??
+      item?.titulo ??
+      item?.name ??
+      item?.nome ??
+      "Sem título"
+    );
+  }
+
+  function normalizeTags(item) {
+    const t = item?.tags ?? item?.tag ?? item?.categoria ?? item?.category ?? item?.cats ?? [];
+    if (typeof t === "string") return t.split(",").map(s => s.trim()).filter(Boolean);
+    if (Array.isArray(t)) return t.map(x => String(x).trim()).filter(Boolean);
+    return [];
+  }
+
+  function normalizeLevel(item) {
+    const l = item?.level ?? item?.nivel ?? item?.difficulty ?? item?.dificuldade ?? "";
+    const v = String(l || "").trim();
+    if (!v) return "Geral";
+    const low = v.toLowerCase();
+    if (low.includes("inic")) return "Iniciante";
+    if (low.includes("inter")) return "Intermediário";
+    if (low.includes("avan")) return "Avançado";
+    if (low.includes("infan")) return "Infantil/Juvenil";
+    return v;
+  }
+
+  function normalizeType(item) {
+    const t = (item?.type ?? item?.tipo ?? item?.kind ?? "Conteúdo").toString();
+    const low = t.toLowerCase();
+    if (low.includes("liç") || low.includes("lesson")) return "Lição";
+    if (low.includes("art") || low.includes("library")) return "Artigo";
+    if (low.includes("exerc")) return "Exercício";
+    if (low.includes("rotina")) return "Rotina";
+    return "Conteúdo";
+  }
+
+  function normalizeItem(item, origin = "unknown", packId = "base") {
+    const id = item?.id ?? item?.slug ?? item?.key ?? uid("c");
+    return {
+      id: String(id),
+      title: String(normalizeTitle(item)),
+      text: String(normalizeText(item)),
+      tags: normalizeTags(item),
+      level: normalizeLevel(item),
+      type: normalizeType(item),
+      cover: String(item?.cover ?? item?.capa ?? item?.image ?? item?.img ?? ""),
+      packId: String(packId || "base"),
+      origin: String(origin || "unknown")
+    };
+  }
+
+  function harvestGlobalContents() {
+    const sources = [];
+
+    if (Array.isArray(window.CONTENT_PACKS)) sources.push({ origin: "CONTENT_PACKS", value: window.CONTENT_PACKS });
+    if (Array.isArray(window.IMV_PACKS)) sources.push({ origin: "IMV_PACKS", value: window.IMV_PACKS });
+
+    if (Array.isArray(window.LESSONS)) sources.push({ origin: "LESSONS", value: window.LESSONS });
+    if (Array.isArray(window.LIBRARY)) sources.push({ origin: "LIBRARY", value: window.LIBRARY });
+    if (Array.isArray(window.ARTICLES)) sources.push({ origin: "ARTICLES", value: window.ARTICLES });
+
+    if (window.IMV_VOICE_CONTENT && typeof window.IMV_VOICE_CONTENT === "object") {
+      sources.push({ origin: "IMV_VOICE_CONTENT", value: window.IMV_VOICE_CONTENT });
+    }
+    if (window.CONTENT && typeof window.CONTENT === "object") {
+      sources.push({ origin: "CONTENT", value: window.CONTENT });
+    }
+
+    const all = [];
+    const add = (arr, origin, packId) => {
+      for (const it of arr) all.push(normalizeItem(it, origin, packId));
+    };
+
+    for (const s of sources) {
+      const v = s.value;
+
+      // formato packs
+      if (Array.isArray(v) && v.length && (v[0]?.lessons || v[0]?.library || v[0]?.paths)) {
+        v.forEach((pack, pi) => {
+          const pid = pack.packId ?? pack.id ?? `pack_${pi + 1}`;
+          add(toArray(pack.lessons), `${s.origin}:pack.lessons`, pid);
+          add(toArray(pack.library), `${s.origin}:pack.library`, pid);
+
+          const paths = toArray(pack.paths);
+          paths.forEach((p, pidx) => {
+            const lessons = toArray(p.lessons);
+            lessons.forEach((l) => {
+              const merged = { ...l };
+              merged.level = merged.level ?? p.level ?? pack.level ?? "";
+              merged.tags = merged.tags ?? p.tags ?? pack.tags ?? [];
+              merged.type = merged.type ?? "Lição";
+              merged.pathTitle = p.title ?? p.name ?? `Trilha ${pidx + 1}`;
+              all.push(normalizeItem(merged, `${s.origin}:pack.paths.lessons`, pid));
+            });
+          });
+        });
+        continue;
+      }
+
+      // formato objeto com chaves
+      if (v && typeof v === "object" && !Array.isArray(v)) {
+        add(toArray(v.lessons), `${s.origin}:obj.lessons`, v.packId ?? "base");
+        add(toArray(v.library), `${s.origin}:obj.library`, v.packId ?? "base");
+        add(toArray(v.articles), `${s.origin}:obj.articles`, v.packId ?? "base");
+        continue;
+      }
+
+      // array simples
+      if (Array.isArray(v)) {
+        add(v, `${s.origin}:array`, "base");
+        continue;
+      }
+    }
+
+    // dedupe
+    const map = new Map();
+    for (const it of all) {
+      if (!map.has(it.id)) map.set(it.id, it);
+      else {
+        const prev = map.get(it.id);
+        if ((it.text || "").length > (prev.text || "").length) map.set(it.id, it);
+      }
+    }
+
+    return Array.from(map.values());
+  }
+
+  function buildContentIndex() {
+    const all = harvestGlobalContents();
+    if (!all.length) {
+      return [
+        normalizeItem({
+          id: "fallback_1",
+          title: "Conteúdo não detectado",
+          text:
+`Seus conteúdos (217) não foram detectados.
+Isso normalmente acontece quando os arquivos de conteúdo (packs/*.js etc.)
+não estão sendo importados ANTES do app.js no index.html.
+
+✅ Solução:
+No index.html, garanta:
+<script src="./packs/SEU_ARQUIVO.js"></script>
+antes de:
+<script src="./app.js"></script>`,
+          tags: ["Ajuda"],
+          level: "Geral",
+          type: "Conteúdo"
+        }, "FALLBACK", "base")
+      ];
+    }
+    return all;
+  }
+
+  let CONTENT_INDEX = [];
+
+  function loadContentIndexCached() {
+    const raw = localStorage.getItem(LS.CONTENT_INDEX);
+    const parsed = safeJsonParse(raw, null);
+    if (Array.isArray(parsed) && parsed.length) return parsed;
+    return null;
+  }
+
+  function saveContentIndexCached(arr) {
+    try { localStorage.setItem(LS.CONTENT_INDEX, JSON.stringify(arr)); } catch {}
+  }
+
+  function ensureContentIndex() {
+    const cached = loadContentIndexCached();
+    if (cached && cached.length) {
+      CONTENT_INDEX = cached;
       return;
     }
+    CONTENT_INDEX = buildContentIndex();
+    saveContentIndexCached(CONTENT_INDEX);
+  }
 
-    state.progress.completedMissionIds.push(key);
-    state.progress.totalCompletedMissions += 1;
+  function rebuildContentCaches() {
+    CONTENT_INDEX = buildContentIndex();
+    saveContentIndexCached(CONTENT_INDEX);
+    saveSearchIndexCached(buildSearchIndex(CONTENT_INDEX));
+  }
 
-    // limita histórico (não explode storage)
-    if (state.progress.completedMissionIds.length > 500) {
-      state.progress.completedMissionIds = state.progress.completedMissionIds.slice(-400);
+  function getAllTagsLevels() {
+    const tags = new Set(["Todos"]);
+    const levels = new Set(["Todos"]);
+
+    for (const it of CONTENT_INDEX) {
+      levels.add(it.level || "Geral");
+      (it.tags || []).forEach(t => tags.add(t));
     }
 
-    saveAll();
-    awardXP(m.xp, `Missão: ${m.title}`);
+    const tagList = Array.from(tags);
+    const levelList = Array.from(levels);
+
+    tagList.sort((a, b) => a === "Todos" ? -1 : b === "Todos" ? 1 : a.localeCompare(b));
+    levelList.sort((a, b) => a === "Todos" ? -1 : b === "Todos" ? 1 : a.localeCompare(b));
+
+    return { tagList, levelList };
   }
 
-  // ===== Content (Trilha / Biblioteca) =====
-  // Mantive simples aqui; você pode expandir com seus JSONs depois.
-  const PATH_MODULES = [
-    { title: "Fundamentos", sub: "Base • 2 lições", icon: "🧭", route: "#/path/fundamentos" },
-  ];
+  function filterContents(query, tag, level) {
+    const q = String(query || "").trim().toLowerCase();
+    const t = String(tag || "Todos");
+    const l = String(level || "Todos");
 
-  const LIBRARY_ITEMS = [
-    { title: "Fisiologia vocal", sub: "Saúde • Base", icon: "📚", route: "#/library/fisio" },
-  ];
-
-  // ===== Router =====
-  function route() {
-    const h = (location.hash || "#/home").trim();
-    // normaliza (#/h vira #/home)
-    if (h === "#/" || h === "#") return "#/home";
-    if (h === "#/h") return "#/home";
-    return h;
+    return CONTENT_INDEX.filter(it => {
+      if (t !== "Todos") {
+        const has = (it.tags || []).some(x => String(x).toLowerCase() === t.toLowerCase());
+        if (!has) return false;
+      }
+      if (l !== "Todos") {
+        if ((it.level || "Geral") !== l) return false;
+      }
+      if (!q) return true;
+      const hay = `${it.title}\n${it.text}\n${(it.tags || []).join(" ")}\n${it.level}\n${it.type}`.toLowerCase();
+      return hay.includes(q);
+    });
   }
 
-  function render() {
-    const r = route();
-    const view = $("#view");
-    if (!view) return;
-
-    // tabs principais
-    const topRoute = r.startsWith("#/path") ? "#/path"
-      : r.startsWith("#/missions") ? "#/missions"
-      : r.startsWith("#/library") ? "#/library"
-      : r.startsWith("#/profile") ? "#/profile"
-      : "#/home";
-
-    setActiveTab(topRoute);
-
-    if (r === "#/home") view.innerHTML = renderHome();
-    else if (r === "#/path") view.innerHTML = renderPath();
-    else if (r.startsWith("#/path/")) view.innerHTML = renderPathDetail(r);
-    else if (r === "#/missions") view.innerHTML = renderMissions();
-    else if (r === "#/library") view.innerHTML = renderLibrary();
-    else if (r.startsWith("#/library/")) view.innerHTML = renderLibraryDetail(r);
-    else if (r === "#/profile") view.innerHTML = renderProfile();
-    else view.innerHTML = renderNotFound();
+  function pickFeaturedFromIndex(count = 6) {
+    const arr = CONTENT_INDEX.slice();
+    if (!arr.length) return [];
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr.slice(0, Math.max(0, count));
   }
 
-  // ===== Pages =====
-  function renderHome() {
-    const u = state.user;
-    const p = state.progress;
-    const need = xpToNext(p.level);
-    const pct = clamp(Math.round((p.xp / need) * 100), 0, 100);
+  /* =============================
+     Search index (opcional)
+  ============================= */
+  function buildSearchIndex(items) {
+    return items.map(it => ({
+      id: it.id,
+      hay: `${it.title}\n${it.text}\n${(it.tags || []).join(" ")}\n${it.level}\n${it.type}`.toLowerCase()
+    }));
+  }
 
-    // missões do dia: mostra 1 card destaque
-    const m = state.missions.items[0];
+  function getSearchIndexCached() {
+    const raw = localStorage.getItem(LS.SEARCH_INDEX);
+    const parsed = safeJsonParse(raw, null);
+    return Array.isArray(parsed) ? parsed : null;
+  }
+
+  function saveSearchIndexCached(arr) {
+    try { localStorage.setItem(LS.SEARCH_INDEX, JSON.stringify(arr)); } catch {}
+  }
+
+  function ensureSearchIndex() {
+    const cached = getSearchIndexCached();
+    if (cached && cached.length) return cached;
+    const idx = buildSearchIndex(CONTENT_INDEX);
+    saveSearchIndexCached(idx);
+    return idx;
+  }
+
+  /* =============================
+     UI Components
+  ============================= */
+  function sectionHead(title, right = "") {
+    return `
+      <div class="sectionHead">
+        <div class="sectionTitle">${escapeHtml(title)}</div>
+        <div class="sectionRight">${escapeHtml(right)}</div>
+      </div>
+    `;
+  }
+
+  function card(html) {
+    return `<div class="card">${html}</div>`;
+  }
+
+  function rowItem({ icon = "📘", title = "", sub = "", nav = "" }) {
+    return `
+      <div class="row" data-nav="${escapeHtml(nav)}">
+        <div class="row__left">${escapeHtml(icon)}</div>
+        <div class="row__body">
+          <div class="row__title">${escapeHtml(title)}</div>
+          <div class="row__sub">${escapeHtml(sub)}</div>
+        </div>
+        <div class="row__right">›</div>
+      </div>
+    `;
+  }
+
+  // continua na PARTE 2/3
+  /* =============================
+     Pages
+  ============================= */
+
+  function viewHome() {
+    const st = store.get();
+    const u = st.user;
+    const g = st.gamification;
+
+    const need = xpToNext(g.level);
+    const pct = clamp(Math.round((g.xp / need) * 100), 0, 100);
+
+    const today = todayISO();
+    const todayM = st.progress.completedMissions[today]?.count || 0;
+
+    // Destaques puxados do índice REAL (sem quebrar o premium)
+    const featured = pickFeaturedFromIndex(6);
 
     return `
       <section class="page">
         <div class="hero">
-          <div class="hero__top">Olá, ${escapeHTML(u.name)} • XP ${p.xp} • Nível ${p.level} <span style="float:right">🔥 ${p.streakDays} dia(s)</span></div>
+          <div class="hero__top">Olá, ${escapeHtml(u.name)} • Nível ${g.level} • 🔥 ${g.streak} dia(s)</div>
           <div class="hero__title">IMVpedia Voice</div>
-          <div class="hero__sub">Trilha vocal guiada com técnica, saúde e repertório (popular, erudito e coral).</div>
+          <div class="hero__sub">
+            Treino vocal guiado com técnica, saúde vocal e repertório.
+          </div>
 
           <div class="hero__actions">
             <button class="btn btn--primary" data-nav="#/path" type="button">Trilha</button>
-            <button class="btn" data-nav="#/missions" type="button">Fazer missões</button>
-            <button class="btn btn--ghost" data-nav="#/profile" type="button">Perfil</button>
+            <button class="btn" data-nav="#/missions" type="button">Missões</button>
+            <button class="btn btn--ghost" data-nav="#/library" type="button">Biblioteca</button>
           </div>
 
           <div style="margin-top:14px;color:rgba(233,236,246,.62);font-size:12px">Progresso do nível</div>
           <div style="margin-top:8px;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.03);border-radius:999px;overflow:hidden;height:10px">
             <div style="width:${pct}%;height:100%;background:linear-gradient(135deg, rgba(124,92,255,.95), rgba(124,92,255,.55))"></div>
           </div>
-          <div style="margin-top:8px;color:rgba(233,236,246,.62);font-size:12px">${p.xp}/${need} XP para o próximo nível</div>
-        </div>
-
-        <div class="sectionHead">
-          <div class="sectionTitle">Missão do dia</div>
-          <div class="sectionRight">${escapeHTML(state.missions.date)} • ${escapeHTML(m.tag)}</div>
-        </div>
-
-        <div class="card">
-          <div class="card__title">${escapeHTML(m.title)}</div>
-          <div class="card__desc">${escapeHTML(m.desc)}</div>
-          <div class="card__actions">
-            <div class="btn" style="cursor:default;opacity:.9">⏱ ${m.minutes} min</div>
-            ${
-              isMissionCompleted(m.id)
-                ? `<div class="btn" style="cursor:default;border-color:rgba(56,211,159,.35);background:rgba(56,211,159,.12)">✅ Concluída</div>`
-                : `<button class="btn btn--primary" data-mission="${escapeHTML(m.id)}" type="button">✨ +${m.xp} XP</button>`
-            }
+          <div style="margin-top:8px;color:rgba(233,236,246,.62);font-size:12px">
+            ${g.xp}/${need} XP para o próximo nível • Missões hoje: ${todayM}
           </div>
         </div>
 
-        <div class="sectionHead">
-          <div class="sectionTitle">Semana</div>
-          <div class="sectionRight">progresso semanal</div>
-        </div>
+        ${sectionHead("Destaques", `${CONTENT_INDEX.length || 0} conteúdos`)}
+        ${card(`
+          <div class="card__desc">Sugestões rápidas (vêm do seu catálogo real).</div>
+          <div style="height:12px"></div>
+          <div class="list">
+            ${featured.map(it => {
+              const sub = `${it.type} • ${it.level}${(it.tags && it.tags.length) ? " • " + it.tags.slice(0, 3).join(", ") : ""}`;
+              const icon = it.type === "Lição" ? "🎓" : it.type === "Artigo" ? "📚" : it.type === "Exercício" ? "🧪" : "📘";
+              return rowItem({ icon, title: it.title, sub, nav: `#/article?id=${encodeURIComponent(it.id)}` });
+            }).join("")}
+          </div>
+        `)}
 
+        ${sectionHead("Acesso rápido", "atalhos")}
         <div class="grid">
-          ${renderMiniCard("🏠", "Rotina", "Pequenos hábitos diários")}
-          ${renderMiniCard("🧭", "Trilha", "Evolução por módulos")}
-          ${renderMiniCard("✅", "Missões", "XP e consistência")}
-          ${renderMiniCard("📚", "Biblioteca", "Referências rápidas")}
+          ${card(`<div class="card__title">📚 Biblioteca</div><div class="card__desc">Ver todos os conteúdos (217+).</div><div class="card__actions"><button class="btn btn--primary" data-nav="#/library" type="button">Abrir</button></div>`)}
+          ${card(`<div class="card__title">✅ Missões</div><div class="card__desc">Ganhe XP com rotina diária.</div><div class="card__actions"><button class="btn btn--primary" data-nav="#/missions" type="button">Fazer</button></div>`)}
+          ${card(`<div class="card__title">🧭 Trilha</div><div class="card__desc">Siga módulos por nível.</div><div class="card__actions"><button class="btn btn--primary" data-nav="#/path" type="button">Ir</button></div>`)}
+          ${card(`<div class="card__title">👤 Perfil</div><div class="card__desc">Ajuste nome e objetivo.</div><div class="card__actions"><button class="btn btn--primary" data-nav="#/profile" type="button">Abrir</button></div>`)}
         </div>
       </section>
     `;
   }
 
-  function renderMiniCard(icon, title, desc) {
-    return `
-      <div class="card" style="margin-bottom:0">
-        <div class="card__title">${icon} ${escapeHTML(title)}</div>
-        <div class="card__desc">${escapeHTML(desc)}</div>
-      </div>
-    `;
-  }
-
-  function renderPath() {
+  // Trilha simples (não destrói seu visual e não mexe em conteúdos)
+  function viewPath() {
     return `
       <section class="page">
-        <div class="sectionHead">
-          <div class="sectionTitle">Trilha</div>
-          <div class="sectionRight">módulos</div>
-        </div>
-
-        <div class="list">
-          ${PATH_MODULES.map(m => `
-            <div class="row" data-nav="${m.route}">
-              <div class="row__left">${escapeHTML(m.icon)}</div>
-              <div class="row__body">
-                <div class="row__title">${escapeHTML(m.title)}</div>
-                <div class="row__sub">${escapeHTML(m.sub)}</div>
-              </div>
-              <div class="row__right">›</div>
-            </div>
-          `).join("")}
-        </div>
-      </section>
-    `;
-  }
-
-  function renderPathDetail(r) {
-    // exemplo simples
-    const title = r.split("/").pop() || "módulo";
-    return `
-      <section class="page">
-        <div class="sectionHead">
-          <div class="sectionTitle">Trilha</div>
-          <div class="sectionRight">${escapeHTML(title)}</div>
-        </div>
-
-        <div class="card">
-          <div class="card__title">Fundamentos (demo)</div>
-          <div class="card__desc">Aqui entram suas lições JSON (iniciante ao avançado). Você já pode expandir isso com seus imports.</div>
-          <div class="card__actions">
-            <button class="btn" data-nav="#/path" type="button">Voltar</button>
-            <button class="btn btn--primary" data-nav="#/missions" type="button">Fazer missão</button>
+        ${sectionHead("Trilha", "organização")}
+        ${card(`
+          <div class="card__title">Trilha em evolução</div>
+          <div class="card__desc">
+            Nesta etapa, a trilha usa a Biblioteca como catálogo completo.
+            Na próxima etapa, eu organizo automaticamente os 217 por módulos e blocos.
           </div>
-        </div>
+          <div class="card__actions">
+            <button class="btn btn--primary" data-nav="#/library" type="button">Ver todos os conteúdos</button>
+          </div>
+        `)}
       </section>
     `;
   }
 
-  function renderMissions() {
-    // garante missão do dia correta
-    if (state.missions.date !== nowISODate()) {
-      state.missions = generateDailyMissions();
-      saveAll();
+  /* =============================
+     Missões (XP funcionando)
+  ============================= */
+  const DEFAULT_MISSIONS = [
+    { id: "m_sovt", title: "SOVT leve", desc: "Lip trill / canudo / humming confortável.", minutes: 8, xp: 10 },
+    { id: "m_breath", title: "Respiração 3/6", desc: "3s inspira + 6s solta em “sss”.", minutes: 6, xp: 8 },
+    { id: "m_pitch", title: "Afinação", desc: "Notas longas, ataques suaves, sem forçar.", minutes: 8, xp: 10 }
+  ];
+
+  function isMissionDoneToday(mid) {
+    const st = store.get();
+    const d = todayISO();
+    return !!st.progress.completedMissionIds?.[d]?.[mid];
+  }
+
+  function completeMission(mid, xp, title) {
+    const d = todayISO();
+    const st = store.get();
+
+    if (!st.progress.completedMissionIds[d]) st.progress.completedMissionIds[d] = {};
+    if (st.progress.completedMissionIds[d][mid]) {
+      toast("Você já concluiu essa missão hoje.");
+      return;
     }
 
-    const items = state.missions.items;
+    store.set(s => {
+      if (!s.progress.completedMissionIds[d]) s.progress.completedMissionIds[d] = {};
+      s.progress.completedMissionIds[d][mid] = true;
+
+      if (!s.progress.completedMissions[d]) s.progress.completedMissions[d] = { count: 0, xp: 0 };
+      s.progress.completedMissions[d].count += 1;
+      s.progress.completedMissions[d].xp += xp;
+    });
+
+    addXP(xp, `Missão: ${title}`);
+  }
+
+  function viewMissions() {
+    const d = todayISO();
+    const st = store.get();
+    const doneCount = st.progress.completedMissions[d]?.count || 0;
 
     return `
       <section class="page">
-        <div class="sectionHead">
-          <div class="sectionTitle">Missões</div>
-          <div class="sectionRight">${escapeHTML(state.missions.date)}</div>
-        </div>
+        ${sectionHead("Missões", d)}
+        ${card(`
+          <div class="card__title">Hoje</div>
+          <div class="card__desc">Concluídas: <b>${doneCount}</b></div>
+        `)}
 
-        ${items.map(m => {
-          const done = isMissionCompleted(m.id);
-          return `
-            <div class="card">
-              <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;color:rgba(233,236,246,.62);font-size:12px">
-                <span style="display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(255,255,255,.08);padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.03)">✅ ${escapeHTML(m.tag)}</span>
-              </div>
-
-              <div class="card__title">${escapeHTML(m.title)}</div>
-              <div class="card__desc">${escapeHTML(m.desc)}</div>
-
-              <div class="card__actions">
-                <div class="btn" style="cursor:default;opacity:.9">⏱ ${m.minutes} min</div>
-
-                ${
-                  done
-                    ? `<div class="btn" style="cursor:default;border-color:rgba(56,211,159,.35);background:rgba(56,211,159,.12)">✅ Concluída</div>`
-                    : `<button class="btn btn--primary" data-mission="${escapeHTML(m.id)}" type="button">Concluir (+${m.xp} XP)</button>`
-                }
-              </div>
+        ${DEFAULT_MISSIONS.map(m => {
+          const done = isMissionDoneToday(m.id);
+          return card(`
+            <div class="card__title">${escapeHtml(m.title)}</div>
+            <div class="card__desc">${escapeHtml(m.desc)} • ⏱ ${m.minutes} min</div>
+            <div class="card__actions">
+              ${done
+                ? `<div class="btn" style="cursor:default;border-color:rgba(56,211,159,.35);background:rgba(56,211,159,.12)">✅ Concluída</div>`
+                : `<button class="btn btn--primary" data-action="doMission" data-mid="${escapeHtml(m.id)}" data-xp="${m.xp}" data-title="${escapeHtml(m.title)}" type="button">Concluir (+${m.xp} XP)</button>`
+              }
             </div>
-          `;
+          `);
         }).join("")}
       </section>
     `;
   }
 
-  function renderLibrary() {
+  /* =============================
+     Biblioteca: MOSTRA TUDO + Busca/Filtros + Atualizar índice
+  ============================= */
+  function getAllContentCount() {
+    return Array.isArray(CONTENT_INDEX) ? CONTENT_INDEX.length : 0;
+  }
+
+  function libraryAdminRefreshCard() {
+    const total = getAllContentCount();
+    return card(`
+      <div class="card__title">Atualizar conteúdos</div>
+      <div class="card__desc">
+        Total detectado agora: <b>${total}</b>.<br/>
+        Se você adicionou novos arquivos de conteúdo no GitHub e não apareceu,
+        toque abaixo para reconstruir o índice local.
+      </div>
+      <div class="card__actions">
+        <button class="btn btn--primary" data-action="refreshContentIndex" type="button">Atualizar agora</button>
+      </div>
+    `);
+  }
+
+  function viewLibrary() {
+    ensureContentIndex();
+    const st = store.get();
+    const q = st.ui.libraryQuery || "";
+    const tag = st.ui.libraryTag || "Todos";
+    const level = st.ui.libraryLevel || "Todos";
+
+    const { tagList, levelList } = getAllTagsLevels();
+    const results = filterContents(q, tag, level);
+
     return `
       <section class="page">
-        <div class="sectionHead">
-          <div class="sectionTitle">Biblioteca</div>
-          <div class="sectionRight">atalhos</div>
-        </div>
+        ${sectionHead("Biblioteca", `${results.length} itens`)}
+
+        ${libraryAdminRefreshCard()}
+
+        ${card(`
+          <div class="card__title">Buscar</div>
+          <div class="card__desc">Use busca e filtros para navegar pelos 217+ conteúdos.</div>
+
+          <div style="height:12px"></div>
+
+          <input id="libQ" placeholder="Ex: apoio, SOVT, classificação, ressonância..."
+            value="${escapeHtml(q)}"
+            style="width:100%;padding:14px 14px;border-radius:16px;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.04);color:rgba(233,236,246,.92);font-weight:700;outline:none" />
+
+          <div style="height:12px"></div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div>
+              <div style="font-size:12px;color:rgba(233,236,246,.52);font-weight:800;margin-bottom:6px">Tag</div>
+              <select id="libTag"
+                style="width:100%;padding:14px 12px;border-radius:16px;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.04);color:rgba(233,236,246,.92);font-weight:800;outline:none">
+                ${tagList.map(t => `<option ${t===tag?"selected":""}>${escapeHtml(t)}</option>`).join("")}
+              </select>
+            </div>
+            <div>
+              <div style="font-size:12px;color:rgba(233,236,246,.52);font-weight:800;margin-bottom:6px">Nível</div>
+              <select id="libLevel"
+                style="width:100%;padding:14px 12px;border-radius:16px;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.04);color:rgba(233,236,246,.92);font-weight:800;outline:none">
+                ${levelList.map(lv => `<option ${lv===level?"selected":""}>${escapeHtml(lv)}</option>`).join("")}
+              </select>
+            </div>
+          </div>
+
+          <div style="height:12px"></div>
+
+          <div class="card__actions">
+            <button class="btn btn--primary" data-action="applyLibraryFilters" type="button">Aplicar</button>
+            <button class="btn" data-action="resetLibraryFilters" type="button">Limpar</button>
+          </div>
+        `)}
+
+        ${card(`
+          <div class="card__title">Conteúdos</div>
+          <div class="card__desc">Toque em um item para abrir.</div>
+        `)}
 
         <div class="list">
-          ${LIBRARY_ITEMS.map(i => `
-            <div class="row" data-nav="${i.route}">
-              <div class="row__left">${escapeHTML(i.icon)}</div>
-              <div class="row__body">
-                <div class="row__title">${escapeHTML(i.title)}</div>
-                <div class="row__sub">${escapeHTML(i.sub)}</div>
-              </div>
-              <div class="row__right">›</div>
-            </div>
-          `).join("")}
+          ${results.slice(0, 600).map(it => {
+            const sub = `${it.type} • ${it.level}${(it.tags && it.tags.length) ? " • " + it.tags.slice(0, 3).join(", ") : ""}`;
+            const icon = it.type === "Lição" ? "🎓" : it.type === "Artigo" ? "📚" : it.type === "Exercício" ? "🧪" : "📘";
+            return rowItem({ icon, title: it.title, sub, nav: `#/article?id=${encodeURIComponent(it.id)}` });
+          }).join("")}
         </div>
+
+        ${results.length > 600 ? card(`
+          <div class="card__desc">
+            Mostrando 600 itens por desempenho. Use a busca para filtrar e encontrar qualquer um dos ${results.length}.
+          </div>
+        `) : ""}
       </section>
     `;
   }
 
-  function renderLibraryDetail(r) {
-    const slug = r.split("/").pop() || "item";
+  function viewArticle(query) {
+    ensureContentIndex();
+    const id = String(query.id || "");
+    const found = CONTENT_INDEX.find(x => x.id === id) || null;
+
+    if (!found) {
+      return `
+        <section class="page">
+          ${sectionHead("Conteúdo", "não encontrado")}
+          ${card(`
+            <div class="card__title">Não encontrado</div>
+            <div class="card__desc">Volte para a Biblioteca.</div>
+            <div class="card__actions">
+              <button class="btn btn--primary" data-nav="#/library" type="button">Voltar</button>
+            </div>
+          `)}
+        </section>
+      `;
+    }
+
+    const meta = `${found.type} • ${found.level}${found.tags?.length ? " • " + found.tags.join(", ") : ""}`;
+
     return `
       <section class="page">
-        <div class="sectionHead">
-          <div class="sectionTitle">Biblioteca</div>
-          <div class="sectionRight">${escapeHTML(slug)}</div>
-        </div>
+        ${sectionHead(found.title, meta)}
 
-        <div class="card markdown">
-          <h2>Fisiologia vocal (demo)</h2>
-          <p>Conteúdo de referência entra aqui. Você pode colar textos grandes, e depois expandir via JSON.</p>
+        ${card(`
+          <div class="card__desc" style="white-space:pre-wrap;line-height:1.7">
+            ${escapeHtml(found.text || "Conteúdo vazio.")}
+          </div>
+
+          <div style="height:12px"></div>
           <div class="card__actions">
             <button class="btn" data-nav="#/library" type="button">Voltar</button>
           </div>
-        </div>
+        `)}
       </section>
     `;
   }
 
-  function renderProfile() {
-    const u = state.user;
-    const p = state.progress;
+  function viewProfile() {
+    const st = store.get();
+    const u = st.user;
+    const g = st.gamification;
+    const need = xpToNext(g.level);
+
     return `
       <section class="page">
-        <div class="sectionHead">
-          <div class="sectionTitle">Perfil</div>
-          <div class="sectionRight">config</div>
-        </div>
-
-        <div class="card">
-          <div class="card__title">🎤 ${escapeHTML(u.name)}</div>
-          <div class="card__desc">Objetivo: <b>${escapeHTML(u.goal)}</b><br/>Nível: <b>${p.level}</b><br/>Streak: <b>${p.streakDays}</b> dia(s)<br/>Missões concluídas: <b>${p.totalCompletedMissions}</b></div>
+        ${sectionHead("Perfil", "configurações")}
+        ${card(`
+          <div class="card__title">${escapeHtml(u.avatar)} ${escapeHtml(u.name)}</div>
+          <div class="card__desc">
+            Objetivo: <b>${escapeHtml(u.goal)}</b><br/>
+            Nível: <b>${g.level}</b><br/>
+            XP: <b>${g.xp}/${need}</b><br/>
+            Streak: <b>${g.streak}</b> dia(s)
+          </div>
 
           <div class="card__actions">
-            <button class="btn" id="editNameBtn" type="button">Editar nome</button>
-            <button class="btn btn--primary" data-nav="#/path" type="button">Trilha</button>
+            <button class="btn" data-action="editName" type="button">Editar nome</button>
+            <button class="btn" data-action="editGoal" type="button">Editar objetivo</button>
+            <button class="btn btn--primary" data-nav="#/library" type="button">Biblioteca</button>
           </div>
-        </div>
-
-        <div class="card">
-          <div class="card__title">Dados</div>
-          <div class="card__desc">Se algo der errado, você pode “resetar” o progresso aqui.</div>
-          <div class="card__actions">
-            <button class="btn" id="resetBtn" type="button">Resetar progresso</button>
-          </div>
-        </div>
+        `)}
       </section>
     `;
   }
 
-  function renderNotFound() {
+  function viewNotFound() {
     return `
       <section class="page">
-        <div class="card">
-          <div class="card__title">Página não encontrada</div>
+        ${sectionHead("Página", "não encontrada")}
+        ${card(`
+          <div class="card__title">Ops</div>
           <div class="card__desc">Volte para o início.</div>
           <div class="card__actions">
             <button class="btn btn--primary" data-nav="#/home" type="button">Início</button>
           </div>
-        </div>
+        `)}
       </section>
     `;
   }
 
-  // ===== Events (delegação robusta) =====
+  // continua na PARTE 3/3
+  /* =============================
+     Router + Render
+  ============================= */
+  function setActiveTab(routeBase) {
+    $$(".tabbar__item").forEach(b => {
+      b.classList.toggle("is-active", b.dataset.route === routeBase);
+    });
+  }
+
+  function render() {
+    const { route, query } = getRouteAndQuery();
+    const view = $("#view");
+    if (!view) return;
+
+    // garante índice (para home + library + article)
+    ensureContentIndex();
+
+    const tabBase =
+      route.startsWith("path") ? "#/path" :
+      route.startsWith("missions") ? "#/missions" :
+      route.startsWith("library") ? "#/library" :
+      route.startsWith("profile") ? "#/profile" :
+      "#/home";
+
+    setActiveTab(tabBase);
+
+    if (route === "home") view.innerHTML = viewHome();
+    else if (route === "path") view.innerHTML = viewPath();
+    else if (route === "missions") view.innerHTML = viewMissions();
+    else if (route === "library") view.innerHTML = viewLibrary();
+    else if (route === "article") view.innerHTML = viewArticle(query);
+    else if (route === "profile") view.innerHTML = viewProfile();
+    else view.innerHTML = viewNotFound();
+  }
+
+  /* =============================
+     Events (delegação)
+  ============================= */
   function onClick(e) {
     const t = e.target;
+
+    // tabbar (inferior)
+    const tab = t.closest(".tabbar__item");
+    if (tab && tab.dataset.route) {
+      setHash(tab.dataset.route.replace("#/", ""));
+      return;
+    }
 
     // navegação por data-nav
     const nav = t.closest("[data-nav]");
@@ -558,76 +870,101 @@
       return;
     }
 
-    // tabs
-    const tab = t.closest(".tabbar__item");
-    if (tab && tab.dataset.route) {
-      location.hash = tab.dataset.route;
+    // missões: concluir
+    const doM = t.closest('[data-action="doMission"]');
+    if (doM) {
+      const mid = doM.getAttribute("data-mid");
+      const xp = parseInt(doM.getAttribute("data-xp") || "0", 10) || 0;
+      const title = doM.getAttribute("data-title") || "Missão";
+      completeMission(mid, xp, title);
       return;
     }
 
-    // concluir missão
-    const mBtn = t.closest("[data-mission]");
-    if (mBtn && mBtn.dataset.mission) {
-      const id = mBtn.dataset.mission;
-      const m = state.missions.items.find(x => x.id === id);
-      if (!m) {
-        toast("Missão não encontrada.");
-        return;
-      }
-      completeMission(m);
-      return;
-    }
-
-    // editar nome
-    if (t.closest("#editNameBtn")) {
-      const name = prompt("Digite seu nome:", state.user.name || "Aluno");
+    // perfil: editar nome
+    const editName = t.closest('[data-action="editName"]');
+    if (editName) {
+      const st = store.get();
+      const name = prompt("Digite seu nome:", st.user.name || "Aluno");
       if (name && name.trim()) {
-        state.user.name = name.trim().slice(0, 32);
-        saveAll();
+        store.set(s => { s.user.name = name.trim().slice(0, 32); });
         toast("Nome atualizado.");
         render();
       }
       return;
     }
 
-    // reset
-    if (t.closest("#resetBtn")) {
-      const ok = confirm("Resetar progresso? (XP, nível e missões concluídas)");
-      if (ok) {
-        state.progress = { ...DEFAULT_PROGRESS };
-        state.missions = generateDailyMissions();
-        saveAll();
-        toast("Progresso resetado.");
+    // perfil: editar objetivo
+    const editGoal = t.closest('[data-action="editGoal"]');
+    if (editGoal) {
+      const st = store.get();
+      const cur = st.user.goal || "Misto";
+      const goal = prompt("Objetivo (Popular / Erudito / Coral / Misto):", cur);
+      if (goal && goal.trim()) {
+        store.set(s => { s.user.goal = goal.trim().slice(0, 24); });
+        toast("Objetivo atualizado.");
         render();
       }
       return;
     }
 
-    // admin
-    if (t.closest("#adminBtn")) {
-      // você pode trocar isso por sua rota admin depois
-      toast("Admin (em breve): gerador de conteúdo.");
+    // biblioteca: aplicar filtros
+    const apply = t.closest('[data-action="applyLibraryFilters"]');
+    if (apply) {
+      const q = ($("#libQ")?.value || "").trim();
+      const tag = ($("#libTag")?.value || "Todos").trim();
+      const level = ($("#libLevel")?.value || "Todos").trim();
+
+      store.set(s => {
+        s.ui.libraryQuery = q;
+        s.ui.libraryTag = tag;
+        s.ui.libraryLevel = level;
+      });
+
+      render();
+      return;
+    }
+
+    // biblioteca: reset
+    const reset = t.closest('[data-action="resetLibraryFilters"]');
+    if (reset) {
+      store.set(s => {
+        s.ui.libraryQuery = "";
+        s.ui.libraryTag = "Todos";
+        s.ui.libraryLevel = "Todos";
+      });
+      render();
+      return;
+    }
+
+    // biblioteca: atualizar índice (pega novos scripts/novos conteúdos)
+    const refresh = t.closest('[data-action="refreshContentIndex"]');
+    if (refresh) {
+      rebuildContentCaches();
+      toast(`Conteúdos atualizados: ${CONTENT_INDEX.length}`);
+      render();
       return;
     }
   }
 
-  function onHashChange() {
-    render();
+  function onKeydown(e) {
+    // Enter aplica filtros se estiver no input
+    if (e.key === "Enter" && (document.activeElement?.id === "libQ")) {
+      const btn = document.querySelector('[data-action="applyLibraryFilters"]');
+      if (btn) btn.click();
+    }
   }
 
+  /* =============================
+     Init
+  ============================= */
   function init() {
-    // garante rota inicial
+    ensureContentIndex();
+
+    document.addEventListener("click", onClick);
+    document.addEventListener("keydown", onKeydown);
+    window.addEventListener("hashchange", render);
+
     if (!location.hash) location.hash = "#/home";
-
-    // garante missões do dia
-    if (state.missions.date !== nowISODate()) {
-      state.missions = generateDailyMissions();
-      saveAll();
-    }
-
-    document.addEventListener("click", onClick, { passive: true });
-    window.addEventListener("hashchange", onHashChange);
-
     render();
   }
 
