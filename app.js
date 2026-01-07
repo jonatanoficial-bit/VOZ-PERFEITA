@@ -1,972 +1,1141 @@
-/* =========================================================
-   IMVpedia Voice — app.js (FINAL DEFINITIVO)
-   ---------------------------------------------------------
-   ✅ Mantém visual premium (não depende de CSS novo)
-   ✅ Tabs funcionam
-   ✅ Missões pontuam e dão XP
-   ✅ Biblioteca lista TODOS os conteúdos detectados (217+)
-   ✅ Funciona com vários formatos de conteúdo já existentes
-========================================================= */
+/* ============================================================
+   IMVpedia Voice — app.js (PARTE 1/3)
+   Cole as 3 partes (1/3, 2/3, 3/3) EM SEQUÊNCIA no mesmo app.js
+   ============================================================ */
 
 (() => {
   "use strict";
 
-  /* =============================
-     Helpers
-  ============================= */
+  /* ----------------------------- Config ----------------------------- */
+  const APP = {
+    name: "IMVpedia Voice",
+    version: "2026.01.07-a",
+    // fontes de conteúdo (opção A: 1 arquivo JSON com tudo)
+    contentSources: [
+      "./packs/base/imports.json", // <-- aqui vai o seu JSON com 217 itens
+      "./packs/index.json"         // opcional (se existir)
+    ],
+    storageKey: "imvpedia_voice_state_v3",
+    storageCustomKey: "imvpedia_voice_custom_items_v1",
+    dailyKey: "imvpedia_voice_daily_v2",
+  };
+
+  /* ----------------------------- DOM Utils ----------------------------- */
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
-  const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
 
-  const uid = (p = "id") => `${p}_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`;
-  const todayISO = () => new Date().toISOString().slice(0, 10);
-
-  function escapeHtml(str) {
-    return String(str ?? "")
+  const esc = (s) =>
+    String(s ?? "")
       .replaceAll("&", "&amp;")
       .replaceAll("<", "&lt;")
       .replaceAll(">", "&gt;")
       .replaceAll('"', "&quot;")
       .replaceAll("'", "&#039;");
-  }
 
-  function safeJsonParse(raw, fallback) {
-    try { return JSON.parse(raw); } catch { return fallback; }
-  }
+  const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+  const nowISODate = () => new Date().toISOString().slice(0, 10);
 
-  function setHash(route, query = {}) {
-    const base = route.startsWith("#/") ? route : `#/${route}`;
-    const qs = new URLSearchParams(query).toString();
-    const full = qs ? `${base}?${qs}` : base;
-    if (location.hash !== full) location.hash = full;
-  }
-
-  function getRouteAndQuery() {
-    const h = (location.hash || "#/home").trim();
-    if (!h.startsWith("#/")) return { route: "home", query: {} };
-    const [path, qs] = h.slice(2).split("?");
-    return { route: (path || "home"), query: Object.fromEntries(new URLSearchParams(qs || "")) };
-  }
-
-  /* =============================
-     Storage
-  ============================= */
-  const LS = {
-    STATE: "imv_voice_state_prod_v2",
-    CONTENT_INDEX: "imv_voice_content_index_v2",
-    SEARCH_INDEX: "imv_voice_search_index_v2"
-  };
-
-  const DEFAULT_STATE = {
-    user: { id: uid("u"), name: "Aluno", avatar: "🎤", goal: "Misto" },
-    gamification: { xp: 0, level: 1, streak: 0, lastActiveDate: null },
-    progress: {
-      completedMissions: {},      // date -> {count,xp}
-      completedMissionIds: {}     // date -> {missionId:true}
-    },
-    ui: {
-      libraryQuery: "",
-      libraryTag: "Todos",
-      libraryLevel: "Todos"
-    }
-  };
-
-  function deepMerge(target, source) {
-    if (!source || typeof source !== "object") return target;
-    for (const k of Object.keys(source)) {
-      const sv = source[k];
-      const tv = target[k];
-      if (Array.isArray(sv)) target[k] = sv.slice();
-      else if (sv && typeof sv === "object" && tv && typeof tv === "object" && !Array.isArray(tv)) {
-        target[k] = deepMerge(tv, sv);
-      } else target[k] = sv;
-    }
-    return target;
-  }
-
-  function loadState() {
-    const raw = localStorage.getItem(LS.STATE);
-    if (!raw) return structuredClone(DEFAULT_STATE);
-    const parsed = safeJsonParse(raw, null);
-    if (!parsed || typeof parsed !== "object") return structuredClone(DEFAULT_STATE);
-    return deepMerge(structuredClone(DEFAULT_STATE), parsed);
-  }
-
-  function saveState(st) {
-    try { localStorage.setItem(LS.STATE, JSON.stringify(st)); } catch {}
-  }
-
-  const store = {
-    state: loadState(),
-    get() { return this.state; },
-    set(mutator) {
-      const next = structuredClone(this.state);
-      mutator(next);
-      this.state = next;
-      saveState(this.state);
-    }
-  };
-
-  /* =============================
-     Toast (#toastHost)
-  ============================= */
-  let toastTimer = null;
-  function toast(msg) {
+  /* ----------------------------- Toast ----------------------------- */
+  function toast(message, opts = {}) {
     const host = $("#toastHost");
     if (!host) return;
-    host.innerHTML = `
-      <div class="toast" role="status" aria-label="Notificação">
-        <div class="toast__dot"></div>
-        <div class="toast__msg">${escapeHtml(msg)}</div>
+
+    const el = document.createElement("div");
+    el.className = "toast";
+    el.setAttribute("role", "status");
+    el.setAttribute("aria-live", "polite");
+
+    const kind = opts.kind || "info"; // info | success | warn | error
+    el.dataset.kind = kind;
+
+    el.innerHTML = `
+      <div class="toast__inner">
+        <div class="toast__title">${esc(opts.title || "")}</div>
+        <div class="toast__msg">${esc(message)}</div>
       </div>
     `;
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { host.innerHTML = ""; }, 2200);
+
+    host.appendChild(el);
+
+    // animação simples
+    requestAnimationFrame(() => el.classList.add("is-on"));
+
+    const ms = clamp(Number(opts.ms ?? 2600), 1200, 6000);
+    setTimeout(() => {
+      el.classList.remove("is-on");
+      setTimeout(() => el.remove(), 260);
+    }, ms);
   }
 
-  /* =============================
-     XP / Level
-  ============================= */
-  function xpToNext(level) {
-    return Math.round(50 + (level - 1) * 20 + Math.max(0, level - 1) * 5);
-  }
-
-  function touchStreak(draft) {
-    const today = todayISO();
-    const last = draft.gamification.lastActiveDate;
-    if (last === today) return;
-
-    if (!last) {
-      draft.gamification.streak = 1;
-      draft.gamification.lastActiveDate = today;
-      return;
+  /* ----------------------------- Storage ----------------------------- */
+  function loadLS(key, fallback) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return fallback;
+      return JSON.parse(raw);
+    } catch {
+      return fallback;
     }
+  }
+  function saveLS(key, value) {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch {}
+  }
 
-    const lastD = new Date(last + "T00:00:00");
-    const todayD = new Date(today + "T00:00:00");
-    const diffDays = Math.round((todayD - lastD) / (1000 * 60 * 60 * 24));
+  /* ----------------------------- State (XP / Level / Missions) ----------------------------- */
+  const DEFAULT_STATE = {
+    user: {
+      name: "Aluno",
+      goal: "Misto",
+      xp: 0,
+      level: 1,
+      streak: 0,
+      lastActiveDay: null,
+    },
+    progress: {
+      completedMissionIds: [], // ids de missões concluídas (histórico)
+      completedByDay: {},      // { "YYYY-MM-DD": ["missionId1", ...] }
+      completedLessons: {},    // { lessonId: true }
+    },
+    settings: {
+      haptics: true,
+    },
+  };
 
-    if (diffDays === 1) draft.gamification.streak += 1;
-    else if (diffDays > 1) draft.gamification.streak = 1;
+  const state = loadLS(APP.storageKey, DEFAULT_STATE);
 
-    draft.gamification.lastActiveDate = today;
+  function persistState() {
+    saveLS(APP.storageKey, state);
+  }
+
+  // nível simples: 50 xp por nível (cresce levemente)
+  function xpForNextLevel(level) {
+    const base = 50;
+    const extra = Math.floor((level - 1) * 12);
+    return base + extra;
+  }
+
+  function recomputeLevelFromXP() {
+    let lvl = 1;
+    let remaining = state.user.xp;
+    while (remaining >= xpForNextLevel(lvl)) {
+      remaining -= xpForNextLevel(lvl);
+      lvl++;
+      if (lvl > 999) break;
+    }
+    state.user.level = lvl;
+    persistState();
   }
 
   function addXP(amount, reason = "") {
-    const amt = Math.max(0, Math.floor(amount || 0));
-    if (!amt) return;
+    const a = Math.max(0, Math.floor(Number(amount) || 0));
+    if (!a) return;
 
-    store.set(s => {
-      touchStreak(s);
-      s.gamification.xp += amt;
+    state.user.xp += a;
 
-      while (s.gamification.xp >= xpToNext(s.gamification.level)) {
-        s.gamification.xp -= xpToNext(s.gamification.level);
-        s.gamification.level += 1;
-      }
+    // streak (consistência diária)
+    const today = nowISODate();
+    const last = state.user.lastActiveDay;
+    if (!last) {
+      state.user.streak = 1;
+    } else if (last === today) {
+      // mantém
+    } else {
+      // diferença de dias
+      const d1 = new Date(last);
+      const d2 = new Date(today);
+      const diffDays = Math.round((d2 - d1) / (1000 * 60 * 60 * 24));
+      if (diffDays === 1) state.user.streak = (state.user.streak || 0) + 1;
+      else state.user.streak = 1;
+    }
+    state.user.lastActiveDay = today;
+
+    // recalc level
+    const prevLevel = state.user.level;
+    recomputeLevelFromXP();
+    persistState();
+
+    // feedback
+    toast(`+${a} XP${reason ? " • " + reason : ""}`, {
+      kind: "success",
+      title: state.user.level > prevLevel ? `Subiu para o nível ${state.user.level}!` : "Progresso",
+      ms: 2400,
     });
 
-    toast(`+${amt} XP${reason ? ` • ${reason}` : ""}`);
-    render();
+    // re-render se estiver no home/profile
+    softRefresh();
   }
 
-  /* =========================================================
-     Conteúdos: Consolidação TOTAL (217+)
-  ========================================================= */
-  function toArray(x) {
-    if (!x) return [];
-    if (Array.isArray(x)) return x;
-    if (typeof x === "object") return Object.values(x);
-    return [];
+  function markMissionCompleted(missionId) {
+    const id = String(missionId || "").trim();
+    if (!id) return false;
+
+    const day = nowISODate();
+    const listDay = state.progress.completedByDay[day] || [];
+    const alreadyToday = listDay.includes(id);
+
+    // se já concluiu hoje, não repete XP (pra evitar farm)
+    if (alreadyToday) return false;
+
+    listDay.push(id);
+    state.progress.completedByDay[day] = listDay;
+
+    if (!state.progress.completedMissionIds.includes(id)) {
+      state.progress.completedMissionIds.push(id);
+    }
+
+    persistState();
+    return true;
   }
 
-  function normalizeText(item) {
-    return (
-      item?.text ??
-      item?.content ??
-      item?.md ??
-      item?.body ??
-      item?.descricao ??
-      item?.description ??
-      ""
+  /* ----------------------------- Content Model ----------------------------- */
+  // Itens esperados (flexível):
+  // { id, type: "lesson"|"article"|"mission"|"track"|"library", title, text, tags, level, cover, pack, ... }
+  // Você pode ter "items" dentro do JSON: { items: [...] } ou diretamente um array.
+  const content = {
+    items: [],
+    byId: new Map(),
+  };
+
+  function normalizeItem(raw) {
+    const it = { ...(raw || {}) };
+    it.id = String(it.id || it._id || "").trim();
+    if (!it.id) return null;
+
+    it.type = String(it.type || it.kind || "article").trim().toLowerCase();
+    it.title = String(it.title || it.name || "Sem título");
+    it.text = String(it.text || it.body || it.content || "");
+    it.level = String(it.level || it.difficulty || "");
+    it.tags = Array.isArray(it.tags) ? it.tags.map(String) : [];
+    it.cover = String(it.cover || it.image || it.banner || "");
+    it.pack = String(it.pack || it.course || it.module || "base");
+
+    // missões
+    if (it.type === "mission") {
+      it.xp = Math.max(1, Math.floor(Number(it.xp || 10)));
+      it.minutes = Math.max(1, Math.floor(Number(it.minutes || it.min || 5)));
+      it.category = String(it.category || (it.tags?.[0] || "técnica"));
+    }
+
+    // trilhas/track (cards de trilha)
+    if (it.type === "track") {
+      it.lessons = Array.isArray(it.lessons) ? it.lessons.map(String) : [];
+      it.subtitle = String(it.subtitle || it.desc || "");
+    }
+
+    // biblioteca
+    if (it.type === "library") {
+      it.topic = String(it.topic || it.category || "");
+      it.subtitle = String(it.subtitle || it.desc || "");
+    }
+
+    return it;
+  }
+
+  function upsertItems(arr) {
+    for (const raw of arr || []) {
+      const it = normalizeItem(raw);
+      if (!it) continue;
+
+      if (!content.byId.has(it.id)) {
+        content.items.push(it);
+        content.byId.set(it.id, it);
+      } else {
+        // merge: não apagar o que já tem (mantém dados anteriores se o novo vier vazio)
+        const prev = content.byId.get(it.id);
+        const merged = { ...prev, ...it };
+        // campos que não podem virar vazio
+        if (!it.title && prev.title) merged.title = prev.title;
+        if (!it.text && prev.text) merged.text = prev.text;
+        if (!it.cover && prev.cover) merged.cover = prev.cover;
+
+        content.byId.set(it.id, merged);
+        const idx = content.items.findIndex((x) => x.id === it.id);
+        if (idx >= 0) content.items[idx] = merged;
+      }
+    }
+  }
+
+  async function fetchJSON(url) {
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) throw new Error(`Falha ao carregar ${url}: ${res.status}`);
+    return res.json();
+  }
+
+  async function loadAllContent() {
+    // 1) fontes remotas (packs/base/imports.json etc)
+    const sources = APP.contentSources.slice();
+    const results = await Promise.allSettled(
+      sources.map(async (u) => {
+        const data = await fetchJSON(u);
+        if (Array.isArray(data)) return data;
+        if (Array.isArray(data.items)) return data.items;
+        if (Array.isArray(data.content)) return data.content;
+        return [];
+      })
     );
-  }
 
-  function normalizeTitle(item) {
-    return (
-      item?.title ??
-      item?.titulo ??
-      item?.name ??
-      item?.nome ??
-      "Sem título"
-    );
-  }
-
-  function normalizeTags(item) {
-    const t = item?.tags ?? item?.tag ?? item?.categoria ?? item?.category ?? item?.cats ?? [];
-    if (typeof t === "string") return t.split(",").map(s => s.trim()).filter(Boolean);
-    if (Array.isArray(t)) return t.map(x => String(x).trim()).filter(Boolean);
-    return [];
-  }
-
-  function normalizeLevel(item) {
-    const l = item?.level ?? item?.nivel ?? item?.difficulty ?? item?.dificuldade ?? "";
-    const v = String(l || "").trim();
-    if (!v) return "Geral";
-    const low = v.toLowerCase();
-    if (low.includes("inic")) return "Iniciante";
-    if (low.includes("inter")) return "Intermediário";
-    if (low.includes("avan")) return "Avançado";
-    if (low.includes("infan")) return "Infantil/Juvenil";
-    return v;
-  }
-
-  function normalizeType(item) {
-    const t = (item?.type ?? item?.tipo ?? item?.kind ?? "Conteúdo").toString();
-    const low = t.toLowerCase();
-    if (low.includes("liç") || low.includes("lesson")) return "Lição";
-    if (low.includes("art") || low.includes("library")) return "Artigo";
-    if (low.includes("exerc")) return "Exercício";
-    if (low.includes("rotina")) return "Rotina";
-    return "Conteúdo";
-  }
-
-  function normalizeItem(item, origin = "unknown", packId = "base") {
-    const id = item?.id ?? item?.slug ?? item?.key ?? uid("c");
-    return {
-      id: String(id),
-      title: String(normalizeTitle(item)),
-      text: String(normalizeText(item)),
-      tags: normalizeTags(item),
-      level: normalizeLevel(item),
-      type: normalizeType(item),
-      cover: String(item?.cover ?? item?.capa ?? item?.image ?? item?.img ?? ""),
-      packId: String(packId || "base"),
-      origin: String(origin || "unknown")
-    };
-  }
-
-  function harvestGlobalContents() {
-    const sources = [];
-
-    if (Array.isArray(window.CONTENT_PACKS)) sources.push({ origin: "CONTENT_PACKS", value: window.CONTENT_PACKS });
-    if (Array.isArray(window.IMV_PACKS)) sources.push({ origin: "IMV_PACKS", value: window.IMV_PACKS });
-
-    if (Array.isArray(window.LESSONS)) sources.push({ origin: "LESSONS", value: window.LESSONS });
-    if (Array.isArray(window.LIBRARY)) sources.push({ origin: "LIBRARY", value: window.LIBRARY });
-    if (Array.isArray(window.ARTICLES)) sources.push({ origin: "ARTICLES", value: window.ARTICLES });
-
-    if (window.IMV_VOICE_CONTENT && typeof window.IMV_VOICE_CONTENT === "object") {
-      sources.push({ origin: "IMV_VOICE_CONTENT", value: window.IMV_VOICE_CONTENT });
-    }
-    if (window.CONTENT && typeof window.CONTENT === "object") {
-      sources.push({ origin: "CONTENT", value: window.CONTENT });
+    const loaded = [];
+    for (const r of results) {
+      if (r.status === "fulfilled") loaded.push(...r.value);
     }
 
-    const all = [];
-    const add = (arr, origin, packId) => {
-      for (const it of arr) all.push(normalizeItem(it, origin, packId));
-    };
+    // 2) conteúdo custom local (admin import sem mexer no github)
+    const custom = loadLS(APP.storageCustomKey, []);
+    const customArr = Array.isArray(custom) ? custom : (custom?.items || []);
+    loaded.push(...customArr);
 
-    for (const s of sources) {
-      const v = s.value;
+    upsertItems(loaded);
 
-      // formato packs
-      if (Array.isArray(v) && v.length && (v[0]?.lessons || v[0]?.library || v[0]?.paths)) {
-        v.forEach((pack, pi) => {
-          const pid = pack.packId ?? pack.id ?? `pack_${pi + 1}`;
-          add(toArray(pack.lessons), `${s.origin}:pack.lessons`, pid);
-          add(toArray(pack.library), `${s.origin}:pack.library`, pid);
-
-          const paths = toArray(pack.paths);
-          paths.forEach((p, pidx) => {
-            const lessons = toArray(p.lessons);
-            lessons.forEach((l) => {
-              const merged = { ...l };
-              merged.level = merged.level ?? p.level ?? pack.level ?? "";
-              merged.tags = merged.tags ?? p.tags ?? pack.tags ?? [];
-              merged.type = merged.type ?? "Lição";
-              merged.pathTitle = p.title ?? p.name ?? `Trilha ${pidx + 1}`;
-              all.push(normalizeItem(merged, `${s.origin}:pack.paths.lessons`, pid));
-            });
-          });
-        });
-        continue;
-      }
-
-      // formato objeto com chaves
-      if (v && typeof v === "object" && !Array.isArray(v)) {
-        add(toArray(v.lessons), `${s.origin}:obj.lessons`, v.packId ?? "base");
-        add(toArray(v.library), `${s.origin}:obj.library`, v.packId ?? "base");
-        add(toArray(v.articles), `${s.origin}:obj.articles`, v.packId ?? "base");
-        continue;
-      }
-
-      // array simples
-      if (Array.isArray(v)) {
-        add(v, `${s.origin}:array`, "base");
-        continue;
-      }
-    }
-
-    // dedupe
-    const map = new Map();
-    for (const it of all) {
-      if (!map.has(it.id)) map.set(it.id, it);
-      else {
-        const prev = map.get(it.id);
-        if ((it.text || "").length > (prev.text || "").length) map.set(it.id, it);
-      }
-    }
-
-    return Array.from(map.values());
-  }
-
-  function buildContentIndex() {
-    const all = harvestGlobalContents();
-    if (!all.length) {
-      return [
-        normalizeItem({
-          id: "fallback_1",
-          title: "Conteúdo não detectado",
-          text:
-`Seus conteúdos (217) não foram detectados.
-Isso normalmente acontece quando os arquivos de conteúdo (packs/*.js etc.)
-não estão sendo importados ANTES do app.js no index.html.
-
-✅ Solução:
-No index.html, garanta:
-<script src="./packs/SEU_ARQUIVO.js"></script>
-antes de:
-<script src="./app.js"></script>`,
-          tags: ["Ajuda"],
-          level: "Geral",
-          type: "Conteúdo"
-        }, "FALLBACK", "base")
-      ];
-    }
-    return all;
-  }
-
-  let CONTENT_INDEX = [];
-
-  function loadContentIndexCached() {
-    const raw = localStorage.getItem(LS.CONTENT_INDEX);
-    const parsed = safeJsonParse(raw, null);
-    if (Array.isArray(parsed) && parsed.length) return parsed;
-    return null;
-  }
-
-  function saveContentIndexCached(arr) {
-    try { localStorage.setItem(LS.CONTENT_INDEX, JSON.stringify(arr)); } catch {}
-  }
-
-  function ensureContentIndex() {
-    const cached = loadContentIndexCached();
-    if (cached && cached.length) {
-      CONTENT_INDEX = cached;
-      return;
-    }
-    CONTENT_INDEX = buildContentIndex();
-    saveContentIndexCached(CONTENT_INDEX);
-  }
-
-  function rebuildContentCaches() {
-    CONTENT_INDEX = buildContentIndex();
-    saveContentIndexCached(CONTENT_INDEX);
-    saveSearchIndexCached(buildSearchIndex(CONTENT_INDEX));
-  }
-
-  function getAllTagsLevels() {
-    const tags = new Set(["Todos"]);
-    const levels = new Set(["Todos"]);
-
-    for (const it of CONTENT_INDEX) {
-      levels.add(it.level || "Geral");
-      (it.tags || []).forEach(t => tags.add(t));
-    }
-
-    const tagList = Array.from(tags);
-    const levelList = Array.from(levels);
-
-    tagList.sort((a, b) => a === "Todos" ? -1 : b === "Todos" ? 1 : a.localeCompare(b));
-    levelList.sort((a, b) => a === "Todos" ? -1 : b === "Todos" ? 1 : a.localeCompare(b));
-
-    return { tagList, levelList };
-  }
-
-  function filterContents(query, tag, level) {
-    const q = String(query || "").trim().toLowerCase();
-    const t = String(tag || "Todos");
-    const l = String(level || "Todos");
-
-    return CONTENT_INDEX.filter(it => {
-      if (t !== "Todos") {
-        const has = (it.tags || []).some(x => String(x).toLowerCase() === t.toLowerCase());
-        if (!has) return false;
-      }
-      if (l !== "Todos") {
-        if ((it.level || "Geral") !== l) return false;
-      }
-      if (!q) return true;
-      const hay = `${it.title}\n${it.text}\n${(it.tags || []).join(" ")}\n${it.level}\n${it.type}`.toLowerCase();
-      return hay.includes(q);
+    // ordenação estável: por tipo + título
+    const typeOrder = { track: 1, lesson: 2, mission: 3, library: 4, article: 5 };
+    content.items.sort((a, b) => {
+      const ta = typeOrder[a.type] ?? 99;
+      const tb = typeOrder[b.type] ?? 99;
+      if (ta !== tb) return ta - tb;
+      return a.title.localeCompare(b.title, "pt-BR");
     });
   }
 
-  function pickFeaturedFromIndex(count = 6) {
-    const arr = CONTENT_INDEX.slice();
-    if (!arr.length) return [];
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr.slice(0, Math.max(0, count));
+  /* ----------------------------- Routing / Rendering ----------------------------- */
+  const view = () => $("#view");
+
+  function setActiveTab(hash) {
+    const btns = $$(".tabbar__item");
+    btns.forEach((b) => {
+      const r = b.getAttribute("data-route");
+      b.classList.toggle("is-active", r === hash);
+    });
   }
 
-  /* =============================
-     Search index (opcional)
-  ============================= */
-  function buildSearchIndex(items) {
-    return items.map(it => ({
-      id: it.id,
-      hay: `${it.title}\n${it.text}\n${(it.tags || []).join(" ")}\n${it.level}\n${it.type}`.toLowerCase()
-    }));
+  function go(hash) {
+    if (!hash.startsWith("#/")) hash = "#/home";
+    location.hash = hash;
   }
 
-  function getSearchIndexCached() {
-    const raw = localStorage.getItem(LS.SEARCH_INDEX);
-    const parsed = safeJsonParse(raw, null);
-    return Array.isArray(parsed) ? parsed : null;
+  function parseRoute() {
+    const hash = location.hash || "#/home";
+    const [path, q] = hash.split("?");
+    const params = new URLSearchParams(q || "");
+    return { hash, path, params };
   }
 
-  function saveSearchIndexCached(arr) {
-    try { localStorage.setItem(LS.SEARCH_INDEX, JSON.stringify(arr)); } catch {}
+  let _refreshTimer = null;
+  function softRefresh() {
+    clearTimeout(_refreshTimer);
+    _refreshTimer = setTimeout(() => {
+      render();
+    }, 40);
   }
 
-  function ensureSearchIndex() {
-    const cached = getSearchIndexCached();
-    if (cached && cached.length) return cached;
-    const idx = buildSearchIndex(CONTENT_INDEX);
-    saveSearchIndexCached(idx);
-    return idx;
+  /* ----------------------------- UI Helpers (Cards) ----------------------------- */
+  function card(html, extraClass = "") {
+    return `<section class="card ${extraClass}">${html}</section>`;
   }
 
-  /* =============================
-     UI Components
-  ============================= */
-  function sectionHead(title, right = "") {
+  function pill(text, icon = "") {
+    return `<span class="pill">${icon ? `<span class="pill__ic">${esc(icon)}</span>` : ""}${esc(text)}</span>`;
+  }
+
+  function btn(label, attrs = "", variant = "") {
+    const cls = ["btn", variant].filter(Boolean).join(" ");
+    return `<button class="${cls}" ${attrs} type="button">${esc(label)}</button>`;
+  }
+
+  function progressBar(current, total) {
+    const pct = total > 0 ? clamp((current / total) * 100, 0, 100) : 0;
     return `
-      <div class="sectionHead">
-        <div class="sectionTitle">${escapeHtml(title)}</div>
-        <div class="sectionRight">${escapeHtml(right)}</div>
+      <div class="progress">
+        <div class="progress__bar" style="width:${pct}%"></div>
+      </div>
+      <div class="muted">${esc(current)}/${esc(total)} XP para o próximo nível</div>
+    `;
+  }
+
+  /* ----------------------------- Page: Loading / Empty ----------------------------- */
+  function renderLoading() {
+    view().innerHTML = `
+      <div class="container">
+        ${card(`
+          <div class="hero">
+            <div class="hero__kicker">Carregando…</div>
+            <div class="hero__title">${esc(APP.name)}</div>
+            <div class="hero__subtitle">Preparando trilhas, missões e biblioteca.</div>
+          </div>
+        `)}
       </div>
     `;
   }
 
-  function card(html) {
-    return `<div class="card">${html}</div>`;
-  }
-
-  function rowItem({ icon = "📘", title = "", sub = "", nav = "" }) {
-    return `
-      <div class="row" data-nav="${escapeHtml(nav)}">
-        <div class="row__left">${escapeHtml(icon)}</div>
-        <div class="row__body">
-          <div class="row__title">${escapeHtml(title)}</div>
-          <div class="row__sub">${escapeHtml(sub)}</div>
-        </div>
-        <div class="row__right">›</div>
+  function renderNoContent() {
+    view().innerHTML = `
+      <div class="container">
+        ${card(`
+          <div class="hero">
+            <div class="hero__title">Conteúdo não detectado</div>
+            <div class="hero__subtitle">
+              Seus conteúdos (<b>${content.items.length}</b>) não foram detectados ou não carregaram.
+              <br><br>
+              ✅ Solução (opção A):
+              <br>
+              Crie/atualize o arquivo:
+              <br><code>packs/base/imports.json</code>
+              <br>
+              e cole nele o JSON exportado.
+            </div>
+            <div class="row">
+              ${btn("Voltar", `onclick="location.hash='#/home'"`)}
+              ${btn("Admin", `onclick="location.hash='#/admin'"`, "btn--primary")}
+            </div>
+          </div>
+        `)}
       </div>
     `;
   }
 
-  // continua na PARTE 2/3
-  /* =============================
-     Pages
-  ============================= */
+  /* ----------------------------- (continua na PARTE 2/3) ----------------------------- */
 
-  function viewHome() {
-    const st = store.get();
-    const u = st.user;
-    const g = st.gamification;
+  // Exporta funções mínimas para o HTML (sem frameworks)
+  window.__IMV = {
+    toast,
+    go,
+  };
 
-    const need = xpToNext(g.level);
-    const pct = clamp(Math.round((g.xp / need) * 100), 0, 100);
+  // Boot
+  let booted = false;
+  async function boot() {
+    if (booted) return;
+    booted = true;
 
-    const today = todayISO();
-    const todayM = st.progress.completedMissions[today]?.count || 0;
-
-    // Destaques puxados do índice REAL (sem quebrar o premium)
-    const featured = pickFeaturedFromIndex(6);
-
-    return `
-      <section class="page">
-        <div class="hero">
-          <div class="hero__top">Olá, ${escapeHtml(u.name)} • Nível ${g.level} • 🔥 ${g.streak} dia(s)</div>
-          <div class="hero__title">IMVpedia Voice</div>
-          <div class="hero__sub">
-            Treino vocal guiado com técnica, saúde vocal e repertório.
-          </div>
-
-          <div class="hero__actions">
-            <button class="btn btn--primary" data-nav="#/path" type="button">Trilha</button>
-            <button class="btn" data-nav="#/missions" type="button">Missões</button>
-            <button class="btn btn--ghost" data-nav="#/library" type="button">Biblioteca</button>
-          </div>
-
-          <div style="margin-top:14px;color:rgba(233,236,246,.62);font-size:12px">Progresso do nível</div>
-          <div style="margin-top:8px;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.03);border-radius:999px;overflow:hidden;height:10px">
-            <div style="width:${pct}%;height:100%;background:linear-gradient(135deg, rgba(124,92,255,.95), rgba(124,92,255,.55))"></div>
-          </div>
-          <div style="margin-top:8px;color:rgba(233,236,246,.62);font-size:12px">
-            ${g.xp}/${need} XP para o próximo nível • Missões hoje: ${todayM}
-          </div>
-        </div>
-
-        ${sectionHead("Destaques", `${CONTENT_INDEX.length || 0} conteúdos`)}
-        ${card(`
-          <div class="card__desc">Sugestões rápidas (vêm do seu catálogo real).</div>
-          <div style="height:12px"></div>
-          <div class="list">
-            ${featured.map(it => {
-              const sub = `${it.type} • ${it.level}${(it.tags && it.tags.length) ? " • " + it.tags.slice(0, 3).join(", ") : ""}`;
-              const icon = it.type === "Lição" ? "🎓" : it.type === "Artigo" ? "📚" : it.type === "Exercício" ? "🧪" : "📘";
-              return rowItem({ icon, title: it.title, sub, nav: `#/article?id=${encodeURIComponent(it.id)}` });
-            }).join("")}
-          </div>
-        `)}
-
-        ${sectionHead("Acesso rápido", "atalhos")}
-        <div class="grid">
-          ${card(`<div class="card__title">📚 Biblioteca</div><div class="card__desc">Ver todos os conteúdos (217+).</div><div class="card__actions"><button class="btn btn--primary" data-nav="#/library" type="button">Abrir</button></div>`)}
-          ${card(`<div class="card__title">✅ Missões</div><div class="card__desc">Ganhe XP com rotina diária.</div><div class="card__actions"><button class="btn btn--primary" data-nav="#/missions" type="button">Fazer</button></div>`)}
-          ${card(`<div class="card__title">🧭 Trilha</div><div class="card__desc">Siga módulos por nível.</div><div class="card__actions"><button class="btn btn--primary" data-nav="#/path" type="button">Ir</button></div>`)}
-          ${card(`<div class="card__title">👤 Perfil</div><div class="card__desc">Ajuste nome e objetivo.</div><div class="card__actions"><button class="btn btn--primary" data-nav="#/profile" type="button">Abrir</button></div>`)}
-        </div>
-      </section>
-    `;
-  }
-
-  // Trilha simples (não destrói seu visual e não mexe em conteúdos)
-  function viewPath() {
-    return `
-      <section class="page">
-        ${sectionHead("Trilha", "organização")}
-        ${card(`
-          <div class="card__title">Trilha em evolução</div>
-          <div class="card__desc">
-            Nesta etapa, a trilha usa a Biblioteca como catálogo completo.
-            Na próxima etapa, eu organizo automaticamente os 217 por módulos e blocos.
-          </div>
-          <div class="card__actions">
-            <button class="btn btn--primary" data-nav="#/library" type="button">Ver todos os conteúdos</button>
-          </div>
-        `)}
-      </section>
-    `;
-  }
-
-  /* =============================
-     Missões (XP funcionando)
-  ============================= */
-  const DEFAULT_MISSIONS = [
-    { id: "m_sovt", title: "SOVT leve", desc: "Lip trill / canudo / humming confortável.", minutes: 8, xp: 10 },
-    { id: "m_breath", title: "Respiração 3/6", desc: "3s inspira + 6s solta em “sss”.", minutes: 6, xp: 8 },
-    { id: "m_pitch", title: "Afinação", desc: "Notas longas, ataques suaves, sem forçar.", minutes: 8, xp: 10 }
-  ];
-
-  function isMissionDoneToday(mid) {
-    const st = store.get();
-    const d = todayISO();
-    return !!st.progress.completedMissionIds?.[d]?.[mid];
-  }
-
-  function completeMission(mid, xp, title) {
-    const d = todayISO();
-    const st = store.get();
-
-    if (!st.progress.completedMissionIds[d]) st.progress.completedMissionIds[d] = {};
-    if (st.progress.completedMissionIds[d][mid]) {
-      toast("Você já concluiu essa missão hoje.");
-      return;
-    }
-
-    store.set(s => {
-      if (!s.progress.completedMissionIds[d]) s.progress.completedMissionIds[d] = {};
-      s.progress.completedMissionIds[d][mid] = true;
-
-      if (!s.progress.completedMissions[d]) s.progress.completedMissions[d] = { count: 0, xp: 0 };
-      s.progress.completedMissions[d].count += 1;
-      s.progress.completedMissions[d].xp += xp;
+    // eventos da tabbar
+    $$(".tabbar__item").forEach((b) => {
+      b.addEventListener("click", () => {
+        const r = b.getAttribute("data-route");
+        if (r) go(r);
+      });
     });
 
-    addXP(xp, `Missão: ${title}`);
+    // botão admin
+    const adminBtn = $("#adminBtn");
+    if (adminBtn) adminBtn.addEventListener("click", () => go("#/admin"));
+
+    renderLoading();
+
+    try {
+      await loadAllContent();
+    } catch (e) {
+      console.warn(e);
+    }
+
+    // se não carregou nada, mostra tela de ajuda
+    if (!content.items.length) {
+      renderNoContent();
+    } else {
+      render();
+    }
   }
 
-  function viewMissions() {
-    const d = todayISO();
-    const st = store.get();
-    const doneCount = st.progress.completedMissions[d]?.count || 0;
+  window.addEventListener("hashchange", () => render());
+  window.addEventListener("load", () => boot());
 
-    return `
-      <section class="page">
-        ${sectionHead("Missões", d)}
+  // ===== Render (router) — implementação completa na PARTE 2/3 =====
+  function render() {
+    // placeholder (será substituído pela versão completa na parte 2)
+    const { path } = parseRoute();
+    setActiveTab(path);
+    if (!content.items.length) return renderNoContent();
+    view().innerHTML = `
+      <div class="container">
         ${card(`
-          <div class="card__title">Hoje</div>
-          <div class="card__desc">Concluídas: <b>${doneCount}</b></div>
+          <div class="hero">
+            <div class="hero__kicker">Rota atual</div>
+            <div class="hero__title">${esc(path)}</div>
+            <div class="hero__subtitle">A renderização completa entra na PARTE 2/3 do app.js.</div>
+          </div>
+        `)}
+      </div>
+    `;
+  }
+
+})();
+/* ============================================================
+   IMVpedia Voice — app.js (PARTE 2/3)
+   Cole logo ABAIXO da PARTE 1/3, sem apagar nada
+   ============================================================ */
+
+  /* ----------------------------- Pages ----------------------------- */
+
+  function renderHome() {
+    const xpNeed = xpForNextLevel(state.user.level);
+    const xpIntoLevel = state.user.xp - (() => {
+      let rem = state.user.xp;
+      let lvl = 1;
+      while (lvl < state.user.level) {
+        rem -= xpForNextLevel(lvl);
+        lvl++;
+      }
+      return rem;
+    })();
+
+    view().innerHTML = `
+      <div class="container">
+        ${card(`
+          <div class="hero">
+            <div class="hero__kicker">
+              Olá, ${esc(state.user.name)} • XP ${state.user.xp} • Nível ${state.user.level}
+            </div>
+            <div class="hero__title">${esc(APP.name)}</div>
+            <div class="hero__subtitle">
+              Trilha vocal completa com técnica, saúde vocal e performance.
+            </div>
+
+            <div class="row">
+              ${btn("Trilha", `onclick="__IMV.go('#/path')"`, "btn--primary")}
+              ${btn("Missões", `onclick="__IMV.go('#/missions')"`, "")}
+              ${btn("Biblioteca", `onclick="__IMV.go('#/library')"`, "")}
+            </div>
+
+            <div style="margin-top:14px">
+              ${progressBar(xpIntoLevel, xpNeed)}
+            </div>
+          </div>
         `)}
 
-        ${DEFAULT_MISSIONS.map(m => {
-          const done = isMissionDoneToday(m.id);
+        <h2>Começar agora</h2>
+
+        ${renderQuickStart()}
+      </div>
+    `;
+  }
+
+  function renderQuickStart() {
+    const missions = content.items.filter(i => i.type === "mission").slice(0, 3);
+
+    if (!missions.length) {
+      return card(`<div class="muted">Nenhuma missão disponível.</div>`);
+    }
+
+    return missions.map(m => card(`
+      <div class="row space">
+        <div>
+          <div class="badge">${esc(m.category || "missão")}</div>
+          <h3>${esc(m.title)}</h3>
+          <div class="muted">${esc(m.text.slice(0, 120))}</div>
+          <div class="row">
+            ${pill(`${m.minutes} min`, "⏱")}
+            ${pill(`+${m.xp} XP`, "✨")}
+          </div>
+        </div>
+        <div>
+          ${btn(
+            "Concluir",
+            `data-mission="${esc(m.id)}"`,
+            "btn--primary js-complete-mission"
+          )}
+        </div>
+      </div>
+    `)).join("");
+  }
+
+  function renderMissions() {
+    const today = nowISODate();
+    const doneToday = state.progress.completedByDay[today] || [];
+
+    const missions = content.items.filter(i => i.type === "mission");
+
+    view().innerHTML = `
+      <div class="container">
+        <h1>Missões</h1>
+
+        ${missions.map(m => {
+          const completed = doneToday.includes(m.id);
           return card(`
-            <div class="card__title">${escapeHtml(m.title)}</div>
-            <div class="card__desc">${escapeHtml(m.desc)} • ⏱ ${m.minutes} min</div>
-            <div class="card__actions">
-              ${done
-                ? `<div class="btn" style="cursor:default;border-color:rgba(56,211,159,.35);background:rgba(56,211,159,.12)">✅ Concluída</div>`
-                : `<button class="btn btn--primary" data-action="doMission" data-mid="${escapeHtml(m.id)}" data-xp="${m.xp}" data-title="${escapeHtml(m.title)}" type="button">Concluir (+${m.xp} XP)</button>`
-              }
+            <div class="row space">
+              <div>
+                <div class="badge">${esc(m.category)}</div>
+                <h3>${esc(m.title)}</h3>
+                <div class="muted">${esc(m.text)}</div>
+                <div class="row">
+                  ${pill(`${m.minutes} min`, "⏱")}
+                  ${pill(`+${m.xp} XP`, "✨")}
+                </div>
+              </div>
+              <div>
+                ${
+                  completed
+                    ? `<span class="pill">✔ concluída</span>`
+                    : btn(
+                        "Concluir",
+                        `data-mission="${esc(m.id)}"`,
+                        "btn--primary js-complete-mission"
+                      )
+                }
+              </div>
             </div>
           `);
         }).join("")}
-      </section>
+      </div>
     `;
+
+    bindMissionButtons();
   }
 
-  /* =============================
-     Biblioteca: MOSTRA TUDO + Busca/Filtros + Atualizar índice
-  ============================= */
-  function getAllContentCount() {
-    return Array.isArray(CONTENT_INDEX) ? CONTENT_INDEX.length : 0;
-  }
+  function renderPath() {
+    const tracks = content.items.filter(i => i.type === "track");
 
-  function libraryAdminRefreshCard() {
-    const total = getAllContentCount();
-    return card(`
-      <div class="card__title">Atualizar conteúdos</div>
-      <div class="card__desc">
-        Total detectado agora: <b>${total}</b>.<br/>
-        Se você adicionou novos arquivos de conteúdo no GitHub e não apareceu,
-        toque abaixo para reconstruir o índice local.
-      </div>
-      <div class="card__actions">
-        <button class="btn btn--primary" data-action="refreshContentIndex" type="button">Atualizar agora</button>
-      </div>
-    `);
-  }
+    view().innerHTML = `
+      <div class="container">
+        <h1>Trilha</h1>
 
-  function viewLibrary() {
-    ensureContentIndex();
-    const st = store.get();
-    const q = st.ui.libraryQuery || "";
-    const tag = st.ui.libraryTag || "Todos";
-    const level = st.ui.libraryLevel || "Todos";
-
-    const { tagList, levelList } = getAllTagsLevels();
-    const results = filterContents(q, tag, level);
-
-    return `
-      <section class="page">
-        ${sectionHead("Biblioteca", `${results.length} itens`)}
-
-        ${libraryAdminRefreshCard()}
-
-        ${card(`
-          <div class="card__title">Buscar</div>
-          <div class="card__desc">Use busca e filtros para navegar pelos 217+ conteúdos.</div>
-
-          <div style="height:12px"></div>
-
-          <input id="libQ" placeholder="Ex: apoio, SOVT, classificação, ressonância..."
-            value="${escapeHtml(q)}"
-            style="width:100%;padding:14px 14px;border-radius:16px;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.04);color:rgba(233,236,246,.92);font-weight:700;outline:none" />
-
-          <div style="height:12px"></div>
-
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        ${tracks.map(t => card(`
+          <div class="row space">
             <div>
-              <div style="font-size:12px;color:rgba(233,236,246,.52);font-weight:800;margin-bottom:6px">Tag</div>
-              <select id="libTag"
-                style="width:100%;padding:14px 12px;border-radius:16px;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.04);color:rgba(233,236,246,.92);font-weight:800;outline:none">
-                ${tagList.map(t => `<option ${t===tag?"selected":""}>${escapeHtml(t)}</option>`).join("")}
-              </select>
+              <h3>${esc(t.title)}</h3>
+              <div class="muted">${esc(t.subtitle)}</div>
+              <div class="row">
+                ${pill(`${t.lessons.length} lições`, "📘")}
+              </div>
             </div>
             <div>
-              <div style="font-size:12px;color:rgba(233,236,246,.52);font-weight:800;margin-bottom:6px">Nível</div>
-              <select id="libLevel"
-                style="width:100%;padding:14px 12px;border-radius:16px;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.04);color:rgba(233,236,246,.92);font-weight:800;outline:none">
-                ${levelList.map(lv => `<option ${lv===level?"selected":""}>${escapeHtml(lv)}</option>`).join("")}
-              </select>
+              ${btn("Abrir", `onclick="__IMV.go('#/track?id=${esc(t.id)}')"`, "btn--primary")}
             </div>
           </div>
-
-          <div style="height:12px"></div>
-
-          <div class="card__actions">
-            <button class="btn btn--primary" data-action="applyLibraryFilters" type="button">Aplicar</button>
-            <button class="btn" data-action="resetLibraryFilters" type="button">Limpar</button>
-          </div>
-        `)}
-
-        ${card(`
-          <div class="card__title">Conteúdos</div>
-          <div class="card__desc">Toque em um item para abrir.</div>
-        `)}
-
-        <div class="list">
-          ${results.slice(0, 600).map(it => {
-            const sub = `${it.type} • ${it.level}${(it.tags && it.tags.length) ? " • " + it.tags.slice(0, 3).join(", ") : ""}`;
-            const icon = it.type === "Lição" ? "🎓" : it.type === "Artigo" ? "📚" : it.type === "Exercício" ? "🧪" : "📘";
-            return rowItem({ icon, title: it.title, sub, nav: `#/article?id=${encodeURIComponent(it.id)}` });
-          }).join("")}
-        </div>
-
-        ${results.length > 600 ? card(`
-          <div class="card__desc">
-            Mostrando 600 itens por desempenho. Use a busca para filtrar e encontrar qualquer um dos ${results.length}.
-          </div>
-        `) : ""}
-      </section>
+        `)).join("")}
+      </div>
     `;
   }
 
-  function viewArticle(query) {
-    ensureContentIndex();
-    const id = String(query.id || "");
-    const found = CONTENT_INDEX.find(x => x.id === id) || null;
+  function renderLibrary() {
+    const libs = content.items.filter(i => i.type === "library");
 
-    if (!found) {
-      return `
-        <section class="page">
-          ${sectionHead("Conteúdo", "não encontrado")}
-          ${card(`
-            <div class="card__title">Não encontrado</div>
-            <div class="card__desc">Volte para a Biblioteca.</div>
-            <div class="card__actions">
-              <button class="btn btn--primary" data-nav="#/library" type="button">Voltar</button>
-            </div>
-          `)}
-        </section>
-      `;
-    }
+    view().innerHTML = `
+      <div class="container">
+        <h1>Biblioteca</h1>
 
-    const meta = `${found.type} • ${found.level}${found.tags?.length ? " • " + found.tags.join(", ") : ""}`;
-
-    return `
-      <section class="page">
-        ${sectionHead(found.title, meta)}
-
-        ${card(`
-          <div class="card__desc" style="white-space:pre-wrap;line-height:1.7">
-            ${escapeHtml(found.text || "Conteúdo vazio.")}
+        ${libs.map(l => card(`
+          <div>
+            <h3>${esc(l.title)}</h3>
+            <div class="muted">${esc(l.subtitle)}</div>
           </div>
-
-          <div style="height:12px"></div>
-          <div class="card__actions">
-            <button class="btn" data-nav="#/library" type="button">Voltar</button>
-          </div>
-        `)}
-      </section>
+        `)).join("")}
+      </div>
     `;
   }
 
-  function viewProfile() {
-    const st = store.get();
-    const u = st.user;
-    const g = st.gamification;
-    const need = xpToNext(g.level);
+  function renderProfile() {
+    view().innerHTML = `
+      <div class="container">
+        <h1>Perfil</h1>
 
-    return `
-      <section class="page">
-        ${sectionHead("Perfil", "configurações")}
         ${card(`
-          <div class="card__title">${escapeHtml(u.avatar)} ${escapeHtml(u.name)}</div>
-          <div class="card__desc">
-            Objetivo: <b>${escapeHtml(u.goal)}</b><br/>
-            Nível: <b>${g.level}</b><br/>
-            XP: <b>${g.xp}/${need}</b><br/>
-            Streak: <b>${g.streak}</b> dia(s)
-          </div>
-
-          <div class="card__actions">
-            <button class="btn" data-action="editName" type="button">Editar nome</button>
-            <button class="btn" data-action="editGoal" type="button">Editar objetivo</button>
-            <button class="btn btn--primary" data-nav="#/library" type="button">Biblioteca</button>
-          </div>
+          <div><b>Aluno:</b> ${esc(state.user.name)}</div>
+          <div><b>Objetivo:</b> ${esc(state.user.goal)}</div>
+          <div><b>Nível:</b> ${state.user.level}</div>
+          <div><b>XP total:</b> ${state.user.xp}</div>
+          <div><b>Sequência:</b> ${state.user.streak} dia(s)</div>
         `)}
-      </section>
+      </div>
     `;
   }
 
-  function viewNotFound() {
-    return `
-      <section class="page">
-        ${sectionHead("Página", "não encontrada")}
-        ${card(`
-          <div class="card__title">Ops</div>
-          <div class="card__desc">Volte para o início.</div>
-          <div class="card__actions">
-            <button class="btn btn--primary" data-nav="#/home" type="button">Início</button>
-          </div>
-        `)}
-      </section>
-    `;
-  }
+  /* ----------------------------- Actions ----------------------------- */
 
-  // continua na PARTE 3/3
-  /* =============================
-     Router + Render
-  ============================= */
-  function setActiveTab(routeBase) {
-    $$(".tabbar__item").forEach(b => {
-      b.classList.toggle("is-active", b.dataset.route === routeBase);
+  function bindMissionButtons() {
+    $$(".js-complete-mission").forEach(btnEl => {
+      btnEl.addEventListener("click", () => {
+        const id = btnEl.getAttribute("data-mission");
+        const mission = content.byId.get(id);
+        if (!mission) return;
+
+        const ok = markMissionCompleted(id);
+        if (!ok) {
+          toast("Missão já concluída hoje.", { kind: "warn" });
+          return;
+        }
+
+        addXP(mission.xp, mission.title);
+        renderMissions();
+      });
     });
   }
 
+  /* ----------------------------- Router ----------------------------- */
+
   function render() {
-    const { route, query } = getRouteAndQuery();
-    const view = $("#view");
-    if (!view) return;
+    const { path } = parseRoute();
+    setActiveTab(path);
 
-    // garante índice (para home + library + article)
-    ensureContentIndex();
+    if (!content.items.length) {
+      renderNoContent();
+      return;
+    }
 
-    const tabBase =
-      route.startsWith("path") ? "#/path" :
-      route.startsWith("missions") ? "#/missions" :
-      route.startsWith("library") ? "#/library" :
-      route.startsWith("profile") ? "#/profile" :
-      "#/home";
-
-    setActiveTab(tabBase);
-
-    if (route === "home") view.innerHTML = viewHome();
-    else if (route === "path") view.innerHTML = viewPath();
-    else if (route === "missions") view.innerHTML = viewMissions();
-    else if (route === "library") view.innerHTML = viewLibrary();
-    else if (route === "article") view.innerHTML = viewArticle(query);
-    else if (route === "profile") view.innerHTML = viewProfile();
-    else view.innerHTML = viewNotFound();
+    switch (path) {
+      case "#/home":
+      case "#/":
+        renderHome();
+        break;
+      case "#/missions":
+        renderMissions();
+        break;
+      case "#/path":
+        renderPath();
+        break;
+      case "#/library":
+        renderLibrary();
+        break;
+      case "#/profile":
+        renderProfile();
+        break;
+      default:
+        renderHome();
+    }
   }
 
-  /* =============================
-     Events (delegação)
-  ============================= */
-  function onClick(e) {
-    const t = e.target;
+  // substitui o placeholder da parte 1
+  window.render = render;
 
-    // tabbar (inferior)
-    const tab = t.closest(".tabbar__item");
-    if (tab && tab.dataset.route) {
-      setHash(tab.dataset.route.replace("#/", ""));
-      return;
-    }
+/* ========================== continua na PARTE 3/3 ========================== */
+/* ============================================================
+   IMVpedia Voice — app.js (PARTE 2/3)
+   Cole logo ABAIXO da PARTE 1/3, sem apagar nada
+   ============================================================ */
 
-    // navegação por data-nav
-    const nav = t.closest("[data-nav]");
-    if (nav && nav.dataset.nav) {
-      location.hash = nav.dataset.nav;
-      return;
-    }
+  /* ----------------------------- Pages ----------------------------- */
 
-    // missões: concluir
-    const doM = t.closest('[data-action="doMission"]');
-    if (doM) {
-      const mid = doM.getAttribute("data-mid");
-      const xp = parseInt(doM.getAttribute("data-xp") || "0", 10) || 0;
-      const title = doM.getAttribute("data-title") || "Missão";
-      completeMission(mid, xp, title);
-      return;
-    }
-
-    // perfil: editar nome
-    const editName = t.closest('[data-action="editName"]');
-    if (editName) {
-      const st = store.get();
-      const name = prompt("Digite seu nome:", st.user.name || "Aluno");
-      if (name && name.trim()) {
-        store.set(s => { s.user.name = name.trim().slice(0, 32); });
-        toast("Nome atualizado.");
-        render();
+  function renderHome() {
+    const xpNeed = xpForNextLevel(state.user.level);
+    const xpIntoLevel = state.user.xp - (() => {
+      let rem = state.user.xp;
+      let lvl = 1;
+      while (lvl < state.user.level) {
+        rem -= xpForNextLevel(lvl);
+        lvl++;
       }
+      return rem;
+    })();
+
+    view().innerHTML = `
+      <div class="container">
+        ${card(`
+          <div class="hero">
+            <div class="hero__kicker">
+              Olá, ${esc(state.user.name)} • XP ${state.user.xp} • Nível ${state.user.level}
+            </div>
+            <div class="hero__title">${esc(APP.name)}</div>
+            <div class="hero__subtitle">
+              Trilha vocal completa com técnica, saúde vocal e performance.
+            </div>
+
+            <div class="row">
+              ${btn("Trilha", `onclick="__IMV.go('#/path')"`, "btn--primary")}
+              ${btn("Missões", `onclick="__IMV.go('#/missions')"`, "")}
+              ${btn("Biblioteca", `onclick="__IMV.go('#/library')"`, "")}
+            </div>
+
+            <div style="margin-top:14px">
+              ${progressBar(xpIntoLevel, xpNeed)}
+            </div>
+          </div>
+        `)}
+
+        <h2>Começar agora</h2>
+
+        ${renderQuickStart()}
+      </div>
+    `;
+  }
+
+  function renderQuickStart() {
+    const missions = content.items.filter(i => i.type === "mission").slice(0, 3);
+
+    if (!missions.length) {
+      return card(`<div class="muted">Nenhuma missão disponível.</div>`);
+    }
+
+    return missions.map(m => card(`
+      <div class="row space">
+        <div>
+          <div class="badge">${esc(m.category || "missão")}</div>
+          <h3>${esc(m.title)}</h3>
+          <div class="muted">${esc(m.text.slice(0, 120))}</div>
+          <div class="row">
+            ${pill(`${m.minutes} min`, "⏱")}
+            ${pill(`+${m.xp} XP`, "✨")}
+          </div>
+        </div>
+        <div>
+          ${btn(
+            "Concluir",
+            `data-mission="${esc(m.id)}"`,
+            "btn--primary js-complete-mission"
+          )}
+        </div>
+      </div>
+    `)).join("");
+  }
+
+  function renderMissions() {
+    const today = nowISODate();
+    const doneToday = state.progress.completedByDay[today] || [];
+
+    const missions = content.items.filter(i => i.type === "mission");
+
+    view().innerHTML = `
+      <div class="container">
+        <h1>Missões</h1>
+
+        ${missions.map(m => {
+          const completed = doneToday.includes(m.id);
+          return card(`
+            <div class="row space">
+              <div>
+                <div class="badge">${esc(m.category)}</div>
+                <h3>${esc(m.title)}</h3>
+                <div class="muted">${esc(m.text)}</div>
+                <div class="row">
+                  ${pill(`${m.minutes} min`, "⏱")}
+                  ${pill(`+${m.xp} XP`, "✨")}
+                </div>
+              </div>
+              <div>
+                ${
+                  completed
+                    ? `<span class="pill">✔ concluída</span>`
+                    : btn(
+                        "Concluir",
+                        `data-mission="${esc(m.id)}"`,
+                        "btn--primary js-complete-mission"
+                      )
+                }
+              </div>
+            </div>
+          `);
+        }).join("")}
+      </div>
+    `;
+
+    bindMissionButtons();
+  }
+
+  function renderPath() {
+    const tracks = content.items.filter(i => i.type === "track");
+
+    view().innerHTML = `
+      <div class="container">
+        <h1>Trilha</h1>
+
+        ${tracks.map(t => card(`
+          <div class="row space">
+            <div>
+              <h3>${esc(t.title)}</h3>
+              <div class="muted">${esc(t.subtitle)}</div>
+              <div class="row">
+                ${pill(`${t.lessons.length} lições`, "📘")}
+              </div>
+            </div>
+            <div>
+              ${btn("Abrir", `onclick="__IMV.go('#/track?id=${esc(t.id)}')"`, "btn--primary")}
+            </div>
+          </div>
+        `)).join("")}
+      </div>
+    `;
+  }
+
+  function renderLibrary() {
+    const libs = content.items.filter(i => i.type === "library");
+
+    view().innerHTML = `
+      <div class="container">
+        <h1>Biblioteca</h1>
+
+        ${libs.map(l => card(`
+          <div>
+            <h3>${esc(l.title)}</h3>
+            <div class="muted">${esc(l.subtitle)}</div>
+          </div>
+        `)).join("")}
+      </div>
+    `;
+  }
+
+  function renderProfile() {
+    view().innerHTML = `
+      <div class="container">
+        <h1>Perfil</h1>
+
+        ${card(`
+          <div><b>Aluno:</b> ${esc(state.user.name)}</div>
+          <div><b>Objetivo:</b> ${esc(state.user.goal)}</div>
+          <div><b>Nível:</b> ${state.user.level}</div>
+          <div><b>XP total:</b> ${state.user.xp}</div>
+          <div><b>Sequência:</b> ${state.user.streak} dia(s)</div>
+        `)}
+      </div>
+    `;
+  }
+
+  /* ----------------------------- Actions ----------------------------- */
+
+  function bindMissionButtons() {
+    $$(".js-complete-mission").forEach(btnEl => {
+      btnEl.addEventListener("click", () => {
+        const id = btnEl.getAttribute("data-mission");
+        const mission = content.byId.get(id);
+        if (!mission) return;
+
+        const ok = markMissionCompleted(id);
+        if (!ok) {
+          toast("Missão já concluída hoje.", { kind: "warn" });
+          return;
+        }
+
+        addXP(mission.xp, mission.title);
+        renderMissions();
+      });
+    });
+  }
+
+  /* ----------------------------- Router ----------------------------- */
+
+  function render() {
+    const { path } = parseRoute();
+    setActiveTab(path);
+
+    if (!content.items.length) {
+      renderNoContent();
       return;
     }
 
-    // perfil: editar objetivo
-    const editGoal = t.closest('[data-action="editGoal"]');
-    if (editGoal) {
-      const st = store.get();
-      const cur = st.user.goal || "Misto";
-      const goal = prompt("Objetivo (Popular / Erudito / Coral / Misto):", cur);
-      if (goal && goal.trim()) {
-        store.set(s => { s.user.goal = goal.trim().slice(0, 24); });
-        toast("Objetivo atualizado.");
-        render();
+    switch (path) {
+      case "#/home":
+      case "#/":
+        renderHome();
+        break;
+      case "#/missions":
+        renderMissions();
+        break;
+      case "#/path":
+        renderPath();
+        break;
+      case "#/library":
+        renderLibrary();
+        break;
+      case "#/profile":
+        renderProfile();
+        break;
+      default:
+        renderHome();
+    }
+  }
+
+  // substitui o placeholder da parte 1
+  window.render = render;
+
+/* ========================== continua na PARTE 3/3 ========================== */
+/* ============================================================
+   IMVpedia Voice — app.js (PARTE 3/3)
+   Cole logo ABAIXO da PARTE 2/3, sem apagar nada
+   ============================================================ */
+
+  /* ----------------------------- Admin (Import/Export simples) ----------------------------- */
+  function renderAdmin() {
+    const total = content.items.length;
+    const custom = loadLS(APP.storageCustomKey, []);
+    const customCount = Array.isArray(custom) ? custom.length : (custom?.items?.length || 0);
+
+    view().innerHTML = `
+      <div class="container">
+        <h1>Admin</h1>
+
+        ${card(`
+          <h3>Status</h3>
+          <div class="muted">Conteúdos carregados: <b>${total}</b></div>
+          <div class="muted">Conteúdos custom (LocalStorage): <b>${customCount}</b></div>
+          <div class="muted" style="margin-top:10px">
+            Dica: o catálogo principal vem de <code>packs/base/imports.json</code>.
+          </div>
+        `)}
+
+        ${card(`
+          <h3>Importar JSON (sem apagar o que já existe)</h3>
+          <div class="muted">Cole aqui um JSON exportado. Ele será salvo no seu navegador (LocalStorage).</div>
+          <textarea id="admImport" style="width:100%;min-height:160px;margin-top:10px;border-radius:16px;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.04);color:rgba(233,236,246,.92);padding:12px;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace"></textarea>
+          <div class="row" style="margin-top:10px">
+            ${btn("Importar", `id="btnDoImport"`, "btn--primary")}
+            ${btn("Limpar custom", `id="btnClearCustom"`, "")}
+          </div>
+        `)}
+
+        ${card(`
+          <h3>Exportar custom (LocalStorage)</h3>
+          <div class="muted">Baixe o JSON dos conteúdos que você importou no Admin.</div>
+          <div class="row" style="margin-top:10px">
+            ${btn("Exportar", `id="btnExport"`, "btn--primary")}
+          </div>
+        `)}
+      </div>
+    `;
+
+    $("#btnDoImport")?.addEventListener("click", () => {
+      const raw = $("#admImport")?.value || "";
+      try {
+        const parsed = JSON.parse(raw);
+        const arr = Array.isArray(parsed) ? parsed : (parsed.items || parsed.content || []);
+        if (!Array.isArray(arr) || !arr.length) {
+          toast("JSON inválido ou vazio.", { kind: "error" });
+          return;
+        }
+
+        // salva no custom sem apagar o existente
+        const existing = loadLS(APP.storageCustomKey, []);
+        const baseArr = Array.isArray(existing) ? existing : (existing.items || []);
+        const merged = baseArr.concat(arr);
+        saveLS(APP.storageCustomKey, merged);
+
+        toast(`Importado: ${arr.length} itens (custom).`, { kind: "success" });
+        location.reload();
+      } catch (e) {
+        toast("Falha ao importar JSON.", { kind: "error" });
       }
+    });
+
+    $("#btnClearCustom")?.addEventListener("click", () => {
+      if (!confirm("Apagar conteúdos custom do navegador? (não mexe no GitHub)")) return;
+      saveLS(APP.storageCustomKey, []);
+      toast("Custom limpo.", { kind: "success" });
+      location.reload();
+    });
+
+    $("#btnExport")?.addEventListener("click", () => {
+      const existing = loadLS(APP.storageCustomKey, []);
+      const arr = Array.isArray(existing) ? existing : (existing.items || []);
+      const blob = new Blob([JSON.stringify(arr, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "imvpedia_custom_export.json";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast("Exportado.", { kind: "success" });
+    });
+  }
+
+  /* ----------------------------- Extra Routes (track details / lessons) ----------------------------- */
+  function renderTrack(params) {
+    const id = params.get("id");
+    const track = content.byId.get(id);
+    if (!track) return renderHome();
+
+    const lessonItems = (track.lessons || [])
+      .map((lid) => content.byId.get(lid))
+      .filter(Boolean);
+
+    view().innerHTML = `
+      <div class="container">
+        <h1>${esc(track.title)}</h1>
+        ${card(`<div class="muted">${esc(track.subtitle)}</div>`)}
+        ${lessonItems.map(ls => card(`
+          <h3>${esc(ls.title)}</h3>
+          <div class="muted">${esc((ls.text || "").slice(0, 200))}${(ls.text || "").length > 200 ? "…" : ""}</div>
+          <div class="row" style="margin-top:10px">
+            ${btn("Abrir", `onclick="__IMV.go('#/item?id=${esc(ls.id)}')"` , "btn--primary")}
+          </div>
+        `)).join("")}
+      </div>
+    `;
+  }
+
+  function renderItem(params) {
+    const id = params.get("id");
+    const it = content.byId.get(id);
+    if (!it) return renderHome();
+
+    view().innerHTML = `
+      <div class="container">
+        <h1>${esc(it.title)}</h1>
+        ${card(`
+          <div class="row">
+            ${pill(it.type, "🏷")}
+            ${it.level ? pill(it.level, "🎚") : ""}
+            ${(it.tags || []).slice(0, 4).map(t => pill(t, "•")).join("")}
+          </div>
+          <div style="margin-top:14px;white-space:pre-wrap;line-height:1.7;color:rgba(233,236,246,.88)">
+            ${esc(it.text || "")}
+          </div>
+        `)}
+        <div class="row">
+          ${btn("Voltar", `onclick="history.back()"`, "")}
+          ${btn("Biblioteca", `onclick="__IMV.go('#/library')"`, "btn--primary")}
+        </div>
+      </div>
+    `;
+  }
+
+  /* ----------------------------- Router upgrade ----------------------------- */
+  function render() {
+    const { path, params } = parseRoute();
+    setActiveTab(path);
+
+    if (!content.items.length) {
+      renderNoContent();
       return;
     }
 
-    // biblioteca: aplicar filtros
-    const apply = t.closest('[data-action="applyLibraryFilters"]');
-    if (apply) {
-      const q = ($("#libQ")?.value || "").trim();
-      const tag = ($("#libTag")?.value || "Todos").trim();
-      const level = ($("#libLevel")?.value || "Todos").trim();
-
-      store.set(s => {
-        s.ui.libraryQuery = q;
-        s.ui.libraryTag = tag;
-        s.ui.libraryLevel = level;
-      });
-
-      render();
-      return;
-    }
-
-    // biblioteca: reset
-    const reset = t.closest('[data-action="resetLibraryFilters"]');
-    if (reset) {
-      store.set(s => {
-        s.ui.libraryQuery = "";
-        s.ui.libraryTag = "Todos";
-        s.ui.libraryLevel = "Todos";
-      });
-      render();
-      return;
-    }
-
-    // biblioteca: atualizar índice (pega novos scripts/novos conteúdos)
-    const refresh = t.closest('[data-action="refreshContentIndex"]');
-    if (refresh) {
-      rebuildContentCaches();
-      toast(`Conteúdos atualizados: ${CONTENT_INDEX.length}`);
-      render();
-      return;
+    switch (path) {
+      case "#/home":
+      case "#/":
+        renderHome(); break;
+      case "#/missions":
+        renderMissions(); break;
+      case "#/path":
+        renderPath(); break;
+      case "#/library":
+        renderLibrary(); break;
+      case "#/profile":
+        renderProfile(); break;
+      case "#/admin":
+        renderAdmin(); break;
+      case "#/track":
+        renderTrack(params); break;
+      case "#/item":
+        renderItem(params); break;
+      default:
+        renderHome();
     }
   }
 
-  function onKeydown(e) {
-    // Enter aplica filtros se estiver no input
-    if (e.key === "Enter" && (document.activeElement?.id === "libQ")) {
-      const btn = document.querySelector('[data-action="applyLibraryFilters"]');
-      if (btn) btn.click();
+  // substitui novamente
+  window.render = render;
+
+  // bind global (missões na home)
+  document.addEventListener("click", (e) => {
+    const el = e.target.closest(".js-complete-mission");
+    if (!el) return;
+
+    const id = el.getAttribute("data-mission");
+    const mission = content.byId.get(id);
+    if (!mission) return;
+
+    const ok = markMissionCompleted(id);
+    if (!ok) {
+      toast("Missão já concluída hoje.", { kind: "warn" });
+      return;
     }
-  }
 
-  /* =============================
-     Init
-  ============================= */
-  function init() {
-    ensureContentIndex();
-
-    document.addEventListener("click", onClick);
-    document.addEventListener("keydown", onKeydown);
-    window.addEventListener("hashchange", render);
-
-    if (!location.hash) location.hash = "#/home";
+    addXP(mission.xp, mission.title);
+    // atualiza para refletir no home também
     render();
-  }
+  });
 
-  document.addEventListener("DOMContentLoaded", init);
-})();
+  // finalize boot: re-render correto
+  // (boot() já existe na parte 1, aqui só garantimos que a rota admin funcione)
+  window.addEventListener("hashchange", () => render());
+
+/* ============================================================
+   FIM app.js — PARTE 3/3
+   ============================================================ */
