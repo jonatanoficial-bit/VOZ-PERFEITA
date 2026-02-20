@@ -10,9 +10,16 @@ self.addEventListener("install", (event) => {
         "./index.html",
         "./styles.css",
         "./app.js",
+        "./library.js",
+        "./lessons.js",
+        "./missions.js",
+        "./tracks.js",
         "./manifest.webmanifest",
         "./packs/index.json",
-        "./packs/base/imports/content.json"
+        "./packs/base/manifest.json",
+        "./packs/base/imports/content.json",
+        "./icons/icon-192.png",
+        "./icons/icon-512.png"
       ]).catch(() => {});
     })
   );
